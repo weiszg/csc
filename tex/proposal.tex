@@ -1,6 +1,7 @@
 \documentclass[12pt]{article}
 \usepackage{a4wide}
 \usepackage{glossaries}
+\usepackage{hyperref}
 
 \makeglossaries
  
@@ -152,13 +153,17 @@ Initial research has been conducted about peer-to-peer protocols as part of writ
 
 The contents of this section are a result of preliminary planning and is subject to refinement during the initial planning and research phase of the project.
 
-The front-end of the project will be a simple Graphical User Interface supporting the following operations:
+The front-end of the project will be a simple terminal application supporting the following:
 
 \begin{itemize}
-\item{retrieve of list of files stored for a user}
-\item{download of a file from the list}
-\item{input a file name and upload the file}
-\item{display any messages to the user}
+\item{Various information about the system state will be written to the terminal.}
+\item{The user can enter commands to:}
+\begin{itemize}
+	\item{Retrieve of list of files stored for a user.}
+	\item{Download of a file from the list.}
+	\item{Input a file name and upload the file.}
+
+\end{itemize}
 \end{itemize}
 
 The back-end will be split into the following two layers:
@@ -192,7 +197,7 @@ Desired characteristics are that with high probability:
 
 Chord's \gls{dht} protocol satisfies all of the above. \cite{chord} An important property of the protocol is that it uses a consistent hashing function f. Each node is labelled $f(ip_{node})$ and stores all keys between its label and the next biggest label in the system. This guarantees that failures, even if they are related to each other (eg. power outage affecting all machines in Cambridge) will result in a random distribution of labels failing.
 
-My plan is to implement Chord's protocol. However, there is some risk associated with me not being familiar with the scope of a practical implementation of the protocol. I will return to this during the research and planning phase of the project as a result of which slight changes to the protocol may be made.
+My plan is to implement Chord's protocol. There is some risk associated with me not being familiar with the scope of a practical implementation of the protocol. I will return to this during the research and planning phase of the project as a result of which slight changes to the protocol may be made. My emergency plan for the situation that even a basic implementation of Chord's protocol turns out to be infeasible, I will fall back to using an existing open-source implementation.\footnote{\url{https://github.com/netharis/Chord-Implementation}}\footnote{\url{http://sourceforge.net/projects/open-chord/}} None of these implementations are used widely, nor have I tested them since it is extremely unlikely that I will have to rely on them in this project.
 
 \subsection{Cooperative Storage Cloud}
 
@@ -258,7 +263,7 @@ Milestones:
 \subsection{Block 2: Additional research}
 \emph{7 Nov - 20 Nov}  % 2
 
-I will do more research into the elaborate aspects of Chord, eg. handling concurrent peer joins. Having gained more insight into Chord's protocol by this time, I will define the requirements and testing methods for the Chord module. 
+I will do more research into the elaborate aspects of Chord, eg. handling concurrent peer leaving or joining. Having gained more insight into Chord's protocol by this time, I will define the requirements and testing methods for the Chord module. The requirements will be split into necessary and desired properties.
 
 Additional research will be conducted about how similar systems designed the file storage layer. I will focus in particular on Frank Davek's work on A Cooperative File System \cite{dabekcfs}. By the end of this block I will have designed the \gls{csc} layer.
 
@@ -273,29 +278,66 @@ Milestones:
 \subsection{Block 3: Implementation}
 \emph{21 Nov - 4 Dec}  % 3  | 4 Dec - Michaelmas ends
 
-I will continue the implementation of Chord's protocol by extending the set of algorithms used with Chord's protocol to deliver the different performance/availability promises iteratively.
+I will continue the implementation of Chord's protocol by iteratively extending the set of algorithms used with Chord's protocol to deliver the different performance/availability promises. By the end of this block, the implemented \gls{dht} layer will have all necessary properties defined in the previous block.
 
-\subsection{Block 4: Implementation - \gls{dht}}
-\emph{5 Dec - 18 Dec}  % 4
-\subsection{Block 5: Implementation - CSC}
+
+\subsection{Block 4: Implementation}
+\emph{5 Dec - 18 Dec}  % 4 | vacation
+
+This block will be during the Christmas vacation. This means that I will have uninterrupted time to work on the project with two limitations: I will devote some time to spent with friends and family and I will have limited communication with my supervisor during this block. It makes sense to focus on parts that I can do with the least supervison. Therefore I will focus on implementing pre-defined components. I will prioritise on delivering a basic implementation of the \gls{csc} layer, having a decently working \gls{dht} layer in place. It will also address including the desired properties of Chord's protocol (defined in phase 2) to my implementation, to improve and finish the \gls{dht} layer.
+
+
+\subsection{Block 5: Implementation}
 \emph{19 Dec - 1 Jan}  % 5  | vacation
-\subsection{Block 6: Implementation chapter and testing}
-\emph{2 Jan - 15 Jan}  % 6  | vacation
+
+Since both Christmas and New Years' Eve fall under this period of time, I will only plan one weeks' of work for this block. The main objective is to finish the \gls{csc} layer.
+
+
+\subsection{Block 6: Implementation chapter}
+\emph{2 Jan - 15 Jan}  % 6  | 12 Jan - Lent starts
+
+I will write the implementation chapter of the dissertation during this block. This block also serves as a slack for the implementation phase. If that turns out not to be necessary, I will implement some of the many possible extensions during this time.
+
+Lent term starts on the $12^{th}$ of Jan - I will reach out to the CL asking for permission to use the MCS machines for testing and evaluation in block 8.
+
+
 \subsection{Block 7: Testing and progress presentation}
-\emph{16 Jan - 29 Jan} % 7  | 12 Jan - Lent starts
+\emph{16 Jan - 29 Jan} % 7  | 29 Jan - progress report deadline
+
+Final integration tests will be run during this block and any problems will be solved that come up. Having tested each module extensively before it is expected that not many problems come up at a stage as late as this. I will also write the progress report during this block. Remaining time will be devoted to implementing extensions.
+
+Milestones:
+---got permission to use MCS machines
+
 \subsection{Block 8: Evaluation}
-\emph{30 Jan - 12 Feb} % 8  | 29 Jan - progress report deadline
+\emph{30 Jan - 12 Feb} % 8  
+
+I will collect the required evaluation data during this block. The testing method for the \gls{dht} layer defined in block 2 will serve as the basis of what characteristics to test about the system. MCS machines will likely be used for testing at scale, for which I will have acquired permission.
+
+Todo: specifics about what to compare to
+
 \subsection{Block 9: Dissertation}
 \emph{13 Feb - 26 Feb} % 9
+
+I will write the evaluation chapter during this block.
+
 \subsection{Block 10: Dissertation}
 \emph{27 Feb - 11 Mar} % 10
+
+The conclusion chapter and any supplementary material will be written during this block.
+
 \subsection{Block 11: Editing}
 \emph{12 Mar - 25 Mar} % 11
-\subsection{Block 12 and onwards: Emergency slack}
-\emph{26 Mar - 8 Apr}  % 12 | emergency
-\emph{9 Apr - 22 Apr}  % 13 | 19 Apr - Easter starts
-\emph{23 Apr - 6 May}  % 14
-\emph{7 May - 15 May}  % 15 | May - deadline
+
+This block will be used as a slack time to finish writing the dissertation. Also, the coversheet, proforma and declaration of originality will be written during this block. Any spare time will be used for revision.
+
+\subsection{Remaining blocks: Revision}
+\emph{26 Mar - 15 May}  % 12 | emergency
+%\emph{9 Apr - 22 Apr}  % 13 | 19 Apr - Easter starts
+%\emph{23 Apr - 6 May}  % 14
+%\emph{7 May - 15 May}  % 15 | May - deadline
+
+These blocks will be used for revising for the written papers. My plan reflects that I prefer distributing the time to spend on revision so that it is one bigger block close towards the exams. However, these blocks could also be used as emergency slack if necessary.
 
 \clearpage
 \begin{thebibliography}{9}
