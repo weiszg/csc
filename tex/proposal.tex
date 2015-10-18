@@ -1,5 +1,32 @@
 \documentclass[12pt]{article}
 \usepackage{a4wide}
+\usepackage{glossaries}
+
+\makeglossaries
+ 
+\newglossaryentry{csc}
+{
+    name=CSC,
+    description={Cooperative Storage Cloud}
+}
+ 
+\newglossaryentry{dht}
+{
+    name=DHT,
+    description={Distributed Hash Table}
+}
+
+\newglossaryentry{p2p}
+{
+    name=P2P,
+    description={Peer to Peer}
+}
+
+\newglossaryentry{uid}
+{
+    name=UID,
+    description={User Identifier}
+}
 
 \newcommand{\al}{}
 \newcommand{\ar}{}
@@ -60,13 +87,11 @@
 \vfil
 \eject
 
-%Special Resources:&     Possible requirement for a Poly/ML compiler or
-%                        some other non-standard language.  A Project
-%                        Supervisor who understands the relevant numerical
-%                        analysis background.\cr
-%\noalign{\vskip 12pt}
-
-
+\clearpage
+\tableofcontents
+\clearpage
+\printglossaries
+\clearpage
 
 \section{Introduction and Description of the Work}
 
@@ -80,32 +105,25 @@ Making files available on the Internet is an important practical problem. It has
 
 Peer-to-peer (P2P) file transfer protocols attempt to solve the performance problems by making use of the upload resources of each client. This allows in theory to distribute a file to N people in $O(\log N)$ time instead of $O(N)$.\footnote{Assuming a simplistic model of uniform link speeds, where in every timestep every peer in possession of the information duplicates it to another peer, thus doubling the number of peers that have the data.} Due to redundancy, these systems could also be more resilient to failure. In particular, if the system is completely decentralised there is no single point of failure.
 
-However, they are often not completely decentralised. For example, it is common to use trackers for transfers using the Bittorrent protocol. These trackers are trusted parties responsible for tracking online users and information about the content they share. Since they are only communicating metadata, the scaling and resource requirement problems are not reached but the single point of failure remains. Distributed Hash Table (DHT) is a way to overcome the need for centralised peer discovery and bookkeeping. It is essentially a regular hash table maintained by a collection of peers, each having responsibility for storing and maintaining a part of the table.
+However, they are often not completely decentralised. For example, it is common to use trackers for transfers using the Bittorrent protocol. These trackers are trusted parties responsible for tracking online users and information about the content they share. Since they are only communicating metadata, the scaling and resource requirement problems are not reached but the single point of failure remains. Distributed Hash Table (\gls{dht}) is a way to overcome the need for centralised peer discovery and bookkeeping. It is essentially a regular hash table maintained by a collection of peers, each having responsibility for storing and maintaining a part of the table.
 
 There is a distinction between P2P file transfer protocols and storage clouds. The former is a way to send files on the Internet which requires at least one available peer in possession of the data. The latter creates an abstraction and provides a storage medium to the client. That it, users can perform upload and download operations on it. The way the content is structured and stored is abstracted away. For example, it may very well be the case that the content is dispersed over the underlying peers, each storing a portion of the data but none of them storing all of it. It turns out that such a scattered layout is actually beneficial both for the performance and availability of the system.
 
 An important problem is caused by the transient nature of peers. They can connect and disconnect fairly rapidly without providing any guarantees. It is not only the bandwidth resources that disappear but also their local storage media with valuable information on them. P2P systems can use redundancy to attempt to provide a reliable and available storage platform on top of many unreliable peers.
 
 \subsection{The project}
-The aim of the project is to design and implement a cooperative storage cloud. This completely decentralised\footnote{Provided at least one available participating peer's IP address is known.} system would allow exchanging files between peers. Any peer would be able to publish its files which could be downloaded by other peers. The owner of a file encrypts and signs the data. This guarantees that
-
-\begin{itemize}
-\item{Only the owner of a file can change its contents.}
-\item{The owner can decide with whom it shares the decryption keys.}
-\item{Malicious peers can only attempt to disrupt the system, they cannot mislead others by sending forged data.}
-\item{Conveniently, having a single writer means that there is no need for a distributed protocol to maintain consistency in the event of concurrent writes. This will result in great performance benefits.}
-\end{itemize}
+The aim of the project is to design and implement a cooperative storage cloud. This completely decentralised\footnote{Provided at least one available participating peer's IP address is known.} system would allow exchanging files between peers. Any peer would be able to publish its files which could be downloaded by other peers.
 
 
-When sharing a file, after the initial upload phase the file will remain in the cloud. It will then be the cloud's responsibility to make the contents available to anyone. This means the owner of the file can log off, and so can any other peer: it is expected that half the sessions will last for under an hour. The required amount of replication has to be implemented to provide availability without much transfer overhead.
+When sharing a file, after the initial upload phase the file will remain in the cloud. It will then be the cloud's responsibility to make the contents available to anyone. This means the owner of the file can log off, and so can any other peer. The system has to be stable even in the face of countinuous change of its peers. The required amount of replication has to be implemented to provide availability without much transfer overhead.
 
-The underlying method of communication will be a Distributed Hash Table. Based on preliminary research, Chord's protocol seems appropriate for our use case, providing fast lookup speeds and fault tolerance even when every machine fails with probability $\frac{1}{2}$.
+The underlying method of communication will be a Distributed Hash Table. Based on preliminary research, Chord's protocol seems appropriate for this use case. At the expense of the communication volume and the storage requirements scaling logarithmically with the number of peers, Chord offers invaluable promises relating to availability (discussed in 4.1).
 
 \section{Resources Required}
 
 I will use my own computer (Macbook Pro mid 2015) for this project. Both the source code and the dissertation will be tracked using git, which will be pushed to a repository in my Github account. In addition to this I will take daily backups of my work folder by syncing it to Dropbox, where I have over a terabyte of free space. My contingency plan for equipment failure is to use one of the MCS machines. To write my dissertation I will not use any packages not supported by \TeX live, which is installed on the MCS machines. Java development is also supported by the Eclipse IDE that I am familiar with. Any external libraries my project uses will be synced to dropbox. Other than these, my project requires no special hardware or software and it would be relatively straight forward to continue with the work on an MCS machine.
 
-The evaluation phase will require performance testing. I plan to use x MCS machines simultaneously with y amount of local storage space on each. My plan to get acces to them is todo. 
+The evaluation phase will require performance testing. I plan to use x MCS machines simultaneously with y amount of local storage space on each. My plan to get access to them is todo. 
 
 \section{Starting Point}
 
@@ -124,7 +142,7 @@ The relevant Tripos courses I have taken:
 \item{Operating Systems}
 \end{itemize}
 
-I have given a talk about Bitcoin as part of the Churchill Talk Series. The principles behind engineering this distributed currency will be relevant to designing my project.
+I have given a 20-minute talk about Bitcoin. The principles behind engineering this distributed currency will be relevant to designing my project.
 
 I have completed an internship at Dropbox last summer. Dropbox is a company offering cloud storage. However, my work there was not relevant to this project.
 
@@ -132,7 +150,7 @@ Initial research has been conducted about peer-to-peer protocols as part of writ
 
 \section{Substance and Structure of the Project}
 
-The contents of this section are a result of preliminary planning and this is subject to change during the initial planning and research phase of the project.
+The contents of this section are a result of preliminary planning and is subject to refinement during the initial planning and research phase of the project.
 
 The front-end of the project will be a simple Graphical User Interface supporting the following operations:
 
@@ -143,54 +161,69 @@ The front-end of the project will be a simple Graphical User Interface supportin
 \item{display any messages to the user}
 \end{itemize}
 
-The back-end will be split into the following layers:
+The back-end will be split into the following two layers:
 
 \begin{enumerate}
 \item{Distributed Hash Table}
 \item{Cooperative Storage Cloud}
-\item{Cryptography}
 \end{enumerate}
 
-Additional layers such as compression, diff analysis and file sync could be implemented on top of these as extensions.
+Additional layers such as cryptography, compression, diff analysis and file sync could be implemented on top of these as extensions. However to maximize utility, my focus will be skewed towards making the core layers more robust.
+
+The core of the project will be designed relying on the following underlying assumptions:
+\begin{enumerate}
+\item{Connected peers do not have malicious intentions.}
+\item{Peers are altruistic.}
+\item{Hardware capabilities of connected peers are homogenous.}
+\end{enumerate}
+
+Dropping assumption 1 or 2 would make the protocol extremely hard to design. Dropping assumption 3 would lead to the introduction of virtual peers.\cite{dabekcfs}\cite{chord} It is a fairly straight forward but long implementation task to support them.
 
 \subsection{Distributed Hash Table}
-Implementing this layer as well as possible is high priority as it provides the core for the entire project. The layers above will not be able to provide performance and availability characteristics other than what this layer provides to them.
+Implementing this layer as well as possible is high priority as it provides the core for the entire project. The layers above will not be able to provide better performance or availability characteristics than what this layer provides.
 
 Desired characteristics are that with high probability:
 \begin{itemize}
-\item{Load balancing: for N nodes and K keys each node should be responsible for at most $\frac{(1+\epsilon)K}{N}$ keys}
-\item{The time to look up a value should be $O(\log N)$}
+\item{Load balancing: for N nodes and K keys each node should be responsible for at most $\frac{(1+\epsilon)K}{N}$ keys, for $\epsilon=O(\log N)$.}
+\item{The time to look up a value is $O(\log N)$.\footnote{even if the recent worload is systematic (eg. sequential) or random}}
 \item{Any node joining or leaving an N-node network will use $O(\log^2 N)$ messages to re-establish the routing invariants}
-\item{If every node fails with probability $\frac{1}{2}$, the system should still remain stable}
+\item{If every node fails with probability $\frac{1}{2}$, the system should still be able to serve lookups correnctly in O(log N) time.}
 \end{itemize}
 
-Chord's DHT protocol satisfies all of the above$^{todo: put link to article here}$.
+Chord's \gls{dht} protocol satisfies all of the above. \cite{chord} An important property of the protocol is that it uses a consistent hashing function f. Each node is labelled $f(ip_{node})$ and stores all keys between its label and the next biggest label in the system. This guarantees that failures, even if they are related to each other (eg. power outage affecting all machines in Cambridge) will result in a random distribution of labels failing.
 
 My plan is to implement Chord's protocol. However, there is some risk associated with me not being familiar with the scope of a practical implementation of the protocol. I will return to this during the research and planning phase of the project as a result of which slight changes to the protocol may be made.
 
 \subsection{Cooperative Storage Cloud}
 
-There are three layers of entities CSC stores in the DHT:
+There are three layers of entities \gls{csc} stores in the \gls{dht}:
 \begin{itemize}
-\item{User level lookup: maps user identities (ID) to filenames and file pointers}
+\item{User level lookup: maps user identities (\gls{uid}) to filenames and file pointers}
 \item{File level lookup: maps file pointers to block pointers and may provide additional metadata}
 \item{Block level lookup: maps block pointers to block contents}
 \end{itemize}
 
-Pointers could be hashes so that data are uniformly distributed across peers. This would allow for simultaneous download from $N-1$ clients.
+Pointers could be hash values so that data are randomly distributed across peers. This achieves load balancing and allows for simultaneous download of different chunks of the file from $N-1$ clients.
+
+It is expected that each peer logged on has a different \gls{uid}. As a result, there will be no concurrent publish operations competing against each other by trying to upload files with the same filename. The publish operation will 
+
+\begin{enumerate}
+\item{Split the file into blocks of fixed size.}
+\item{Upload these blocks keyed on the hash of each block to the block level lookup structure.}
+\item{Upload the list of hashes to the file level lookup structure.}
+\item{Upload the pointer to the file level lookup entry to the user level lookup structure.}
+\end{enumerate}
+
+If a node already stores a value for a key to be inserted, the operation of overwriting the old value has to be atomic. In this case eventual consistency is reached: it is possible that a download results in a slightly earlier (but consistent) version of the same file. However, as soon as the update reaches the file level lookup structure, the complete set of block pointers will be replaced.
 
 An extension to this layer is changing replication: even though replication is handled in the underlying layer, the way it is handled is suboptimal. Copies of the blocks are distributed to some successors. However, using an Erasure Code algorithm such as Reed-Solomon would make it possible to provide the same availability with less redundancy.
-
-\subsection{Cryptography}
-
-The owner of the data will sign every entry it stores in the DHT. Updates will be rejected unless the signature checks out. Data blocks will be encrypted so that only peers holding the key will be able to read them, while every other peer can still cooperate in the storage and transfer of the blocks. Java or third party libraries will be used for the cryptographic functions.
 
 \subsection{Implementation Method}
 
 The project will be written in Java, not only because of it being cross-platform but also because it carries the least amount of work: this is the language I am most familiar with, the quality of internal and third party libraries is outstanding, and so is the community support. I will use IntelliJ IDEA 14 or Eclipse as my IDE. These have built-in Git source control and testing features. For writing unit tests I will use the JUnit library.
 
 
-\section{Success Criterion}
+\section{Success Criteria}
 
 Assuming that at least one IP address of the participating peers is known, the system should provide the following features to users without a centrally managed entity:
 
@@ -198,30 +231,51 @@ Assuming that at least one IP address of the participating peers is known, the s
 \item{the contents of a file F can be uploaded}
 \item{once the upload finishes and the system is stabilised, knowing the identity of the uploader any peer can download the contents of F}
 \item{this remains true until F gets vacuumed, according to some vacuuming policy}
-\item{the above holds for a pool of 100 users for 20 minutes where users join at times according to the uniform distribution and their length of stay is according to the exponential distribution with a mean of 5 minutes.}
 \end{itemize}
 
 \section{Timetable and Milestones}
 
-The project is split into two-week blocks, starting the day after the submission of the proposal. Blocks 1-11 are intended to be used, blocks from 12 onwards are emergency slack. The plan is to use them to revise for the written papers. If the project overruns, these blocks will be used to complete the core parts of the project but no extensions will be implemented during this time.
+The project is split into two-week blocks, starting the day after the submission of the proposal. Blocks 1-11 are devoted to the project, blocks from 12 onwards are emergency slack. The plan is to use them mainly to revise for the written papers. If the project overruns, these blocks will be used to complete the core parts of the project but no extensions will be implemented during this time.
 
 
-\subsection{Block 1: Research}
+\subsection{Block 1: Chord's protocol}
 \emph{24 Oct - 6 Nov}  % 1
 
-This work block will assess the highest risk parts of the project. This will primarily involve research into the Chord Distributed Hash Table protocol. It is important to assess the scope of a practical implementation of the protocol and devise a strategy for the implementation, define the requirements and the testing methods for this module early on.
+During this work block I will deal with the highest risk parts of the project. This will primarily involve research into the Chord Distributed Hash Table protocol and the basics of Java's library support for networking. It is important to assess the scope of a practical implementation of Chord's protocol and devise a strategy for the implementation. Along with the research, an iterative approach of implementing the Chord layer will be started. This will initially focus on basic \gls{dht} functionality.
+
+%Deliverables:
+%\begin{itemize}
+%\item{Unit tests.}
+%\end{itemize}
 
 Milestones:
 \begin{itemize}
-\item{Draft of preparation chapter completed and submitted for review to my supervisor by EOD 2 Nov}
-\item{Plan for evaluation completed and submitted to my supervisor by EOD 5 Nov}
+\item{Draft of preparation chapter excluding the \gls{csc} layer completed and submitted for review to my supervisor by EOD 2 Nov}
+\item{Basic implementation of the \gls{dht} is complete, with the ability to store and retrieve entries but without any promises on performance and availability.}
 \end{itemize}
 
-\subsection{Block 2: Libraries}
+
+\subsection{Block 2: Additional research}
 \emph{7 Nov - 20 Nov}  % 2
-\subsection{Block 3: Implementation - DHT}
+
+I will do more research into the elaborate aspects of Chord, eg. handling concurrent peer joins. Having gained more insight into Chord's protocol by this time, I will define the requirements and testing methods for the Chord module. 
+
+Additional research will be conducted about how similar systems designed the file storage layer. I will focus in particular on Frank Davek's work on A Cooperative File System \cite{dabekcfs}. By the end of this block I will have designed the \gls{csc} layer.
+
+Milestones:
+\begin{itemize}
+\item{Plan for evaluation completed and submitted to my supervisor by todo}
+\item{Preparation chapter completed and submitted for review to my supervisor by todo}
+\item{Specification of my \gls{csc} protocol completed and submitted for review to my supervisor by todo}
+\end{itemize}
+
+
+\subsection{Block 3: Implementation}
 \emph{21 Nov - 4 Dec}  % 3  | 4 Dec - Michaelmas ends
-\subsection{Block 4: Implementation}
+
+I will continue the implementation of Chord's protocol by extending the set of algorithms used with Chord's protocol to deliver the different performance/availability promises iteratively.
+
+\subsection{Block 4: Implementation - \gls{dht}}
 \emph{5 Dec - 18 Dec}  % 4
 \subsection{Block 5: Implementation - CSC}
 \emph{19 Dec - 1 Jan}  % 5  | vacation
@@ -243,7 +297,28 @@ Milestones:
 \emph{23 Apr - 6 May}  % 14
 \emph{7 May - 15 May}  % 15 | May - deadline
 
+\clearpage
+\begin{thebibliography}{9}
 
+\bibitem{dabekcfs}
+  Frank Dabek,
+  \emph{A Cooperative File System},
+  Massachusetts Institute of Technology,
+  September 2001.
+
+\bibitem{dabekdht}
+  Frank Dabek,
+  \emph{A Distributed Hash Table},
+  Massachusetts Institute of Technology,
+  September 2005.
+
+\bibitem{chord}
+  Ion Stoica, Robert Morris, David Karger, M. Frans Kaashoek, Hari Balakrishnan,
+  \emph{Chord: A Scalable Peer-to-peer Lookup Service for Internet Applications},
+  MIT Laboratory for Computer Science,
+  2001.
+
+\end{thebibliography}
 
 
 \end{document}
