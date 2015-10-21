@@ -2,7 +2,47 @@
 \usepackage{a4wide}
 \usepackage{glossaries}
 \usepackage{hyperref}
-
+\usepackage{tikz}
+\usetikzlibrary{calc,trees,positioning,arrows,chains,shapes.geometric,%
+    decorations.pathreplacing,decorations.pathmorphing,shapes,%
+    matrix,shapes.symbols}
+\tikzset{
+>=stealth',
+  bbox/.style={
+    rectangle, 
+    rounded corners, 
+    % fill=black!10,
+    draw=black, very thick,
+    text width=10em, 
+    minimum height=2em, 
+    text centered}, 
+    %on chain},
+  ybox/.style={
+    rectangle, 
+    rounded corners, 
+    % fill=black!10,
+    draw=black, very thick,
+    text width=10em, 
+    minimum height=2em, 
+    minimum width=40em,
+    text centered}, 
+    %on chain},
+  line/.style={draw, thick, <-},
+  element/.style={
+    tape,
+    top color=white,
+    bottom color=blue!50!black!60!,
+    minimum width=8em,
+    draw=blue!40!black!90, very thick,
+    text width=10em, 
+    minimum height=3.5em, 
+    text centered, 
+    on chain},
+  every join/.style={->, thick,shorten >=1pt},
+  decoration={brace},
+  tuborg/.style={decorate},
+  tubnode/.style={midway, right=2pt},
+}
 \makeglossaries
  
 \newglossaryentry{csc}
@@ -37,61 +77,7 @@
 
 \begin{document}
 
-\thispagestyle{empty}
-
-\rightline{\large\al\emph{Gellert Weisz}\ar}
-\medskip
-\rightline{\large\al\emph{Churchill College}\ar}
-\medskip
-\rightline{\large\al\emph{gw361}\ar}
-
-\vfil
-
-\centerline{\large Diploma in Computer Science Project Proposal}
-\vspace{0.4in}
-\centerline{\Large\bf Cooperative Storage Cloud}
-\vspace{0.3in}
-\centerline{\large \al\emph{date}\ar}
-
-\vfil
-
-{\bf Project Originator:} Gellert Weisz
-
-\vspace{0.1in}
-
-{\bf Resources Required:} See attached Project Resource Form
-
-\vspace{0.5in}
-
-{\bf Project Supervisor:} \emph{Dr. John Fawcett}
-
-\vspace{0.2in}
-
-{\bf Signature:}
-
-\vspace{0.5in}
-
-{\bf Director of Studies:}  \emph{Dr. John Fawcett}
-
-\vspace{0.2in}
-
-{\bf Signature:}
-
-\vspace{0.5in}
-
-{\bf Overseers:} \emph{Anuj Dawar}\ and \emph{Robert Watson}
-
-\vspace{0.2in}
-
-{\bf Signatures:}
-
-\vfil
-\eject
-
-\clearpage
 \tableofcontents
-\clearpage
-\printglossaries
 \clearpage
 
 \section{Introduction and Description of the Work}
@@ -116,15 +102,18 @@ An important problem is caused by the transient nature of peers. They can connec
 The aim of the project is to design and implement a cooperative storage cloud. This completely decentralised\footnote{Provided at least one available participating peer's IP address is known.} system would allow exchanging files between peers. Any peer would be able to publish its files which could be downloaded by other peers.
 
 
-When sharing a file, after the initial upload phase the file will remain in the cloud. It will then be the cloud's responsibility to make the contents available to anyone. This means the owner of the file can log off, and so can any other peer. The system has to be stable even in the face of countinuous change of its peers. The required amount of replication has to be implemented to provide availability without much transfer overhead.
+When sharing a file, after the initial upload phase the file will remain in the cloud. It will then be the cloud's responsibility to make the contents available to anyone. This means the owner of the file can log off, and so can any other peer. 
+
+%The system has to be stable even in the face of continuous change of its peers. The required amount of replication has to be implemented to provide availability without much transfer overhead.
+
 
 The underlying method of communication will be a Distributed Hash Table. Based on preliminary research, Chord's protocol seems appropriate for this use case. At the expense of the communication volume and the storage requirements scaling logarithmically with the number of peers, Chord offers invaluable promises relating to availability (discussed in 4.1).
 
 \section{Resources Required}
 
-I will use my own computer (Macbook Pro mid 2015) for this project. Both the source code and the dissertation will be tracked using git, which will be pushed to a repository in my Github account. In addition to this I will take daily backups of my work folder by syncing it to Dropbox, where I have over a terabyte of free space. My contingency plan for equipment failure is to use one of the MCS machines. To write my dissertation I will not use any packages not supported by \TeX live, which is installed on the MCS machines. Java development is also supported by the Eclipse IDE that I am familiar with. Any external libraries my project uses will be synced to dropbox. Other than these, my project requires no special hardware or software and it would be relatively straight forward to continue with the work on an MCS machine.
+I will use my own computer (Macbook Pro mid 2015) for this project. Both the source code and the dissertation will be tracked using git, which will be pushed to a repository in my Github account. In addition to this I will take daily backups of my work folder by syncing it to Dropbox, where I have over a terabyte of free space. My contingency plan for equipment failure is to use one of the MCS machines. To write my dissertation I will not use any packages not supported by \TeX live, which is installed on the MCS machines. Java development is also supported by the Eclipse IDE that I am familiar with. Any external libraries my project uses will be synced to Dropbox. Other than these, my project requires no special hardware or software and it would be relatively straightforward to continue with the work on an MCS machine.
 
-The evaluation phase will require performance testing. I plan to use x MCS machines simultaneously with y amount of local storage space on each. My plan to get access to them is todo. 
+The evaluation phase will require performance testing. I plan to use many MCS machines simultaneously with significant amount of local storage space on each (specifics to be determined in work block 2). The milestones address acquiring necessary permissions well in time.
 
 \section{Starting Point}
 
@@ -159,19 +148,63 @@ The front-end of the project will be a simple terminal application supporting th
 \item{Various information about the system state will be written to the terminal.}
 \item{The user can enter commands to:}
 \begin{itemize}
-	\item{Retrieve of list of files stored for a user.}
-	\item{Download of a file from the list.}
+	\item{Retrieve a list of files stored for a user.}
+	\item{Download a file from the list.}
 	\item{Input a file name and upload the file.}
 
 \end{itemize}
 \end{itemize}
 
-The back-end will be split into the following two layers:
+The back-end will be split into the following two main layers:
 
 \begin{enumerate}
-\item{Distributed Hash Table}
-\item{Cooperative Storage Cloud}
+\item{Distributed Hash Table (\gls{dht})}
+\item{Cooperative Storage Cloud (\gls{csc})}
 \end{enumerate}
+
+\vspace{0.5cm}
+
+\begin{tikzpicture}[auto, node distance=2cm,>=latex']
+        \tikzstyle{block} = [draw, rectangle];
+        \tikzstyle{rblock}=[draw, shape=rectangle,rounded corners=0.5em];
+        \node [bbox] (publisher) {Uploader};
+        \node [bbox, below =1cm of publisher] (csc1) {\gls{csc} layer};
+        \node [bbox, below =1cm of csc1] (dht1) {\gls{dht} layer};
+        \node [bbox, right =2cm of csc1] (csc2) {\gls{csc} layer};
+        \node [bbox, right =2cm of dht1, below =1cm of csc2] (dht2) {\gls{dht} layer};
+        \node [bbox, right =2cm of csc2] (csc3) {\gls{csc} layer};
+        \node [bbox, above =1cm of csc3] (downloader) {Downloader};
+        \node [bbox, right =2cm of dht2, below =1cm of csc3] (dht3) {\gls{dht} layer};
+        \node [ybox, below =1cm of dht2] (network) {Network};
+
+        \node [below=1cm, align=flush center,text width=15cm] at (network)
+        {
+            Layer hierarchy of the system. Every node contributes to the underlying storage. The publisher uploads parts of the file to separate machines. Later when a peer wants to download the file it can consult every machine holding parts of the file.
+        };
+        %\node [block, below of=otsu] (gchannel) {Subtract the Green Channel};
+        %\node [block, left of=gchannel] (closing) {Morphological Closing};
+
+        \path[draw,-]
+            (publisher) edge (csc1)
+            (csc1) edge (dht1)
+
+            (downloader) edge (csc3)
+            (csc3) edge (dht3)
+
+            (csc2) edge (dht2)
+
+            (publisher) edge (csc1)
+            (csc1) edge (dht1)
+
+            %(otsu.east) -| (right) -- (left) |- (gchannel)
+            (dht1) edge (network) 
+            (dht2) edge (network) 
+            (dht3) edge (network) 
+
+            %(closing) edge (NN)
+            %(NN) edge (limit)
+            ;
+\end{tikzpicture}
 
 Additional layers such as cryptography, compression, diff analysis and file sync could be implemented on top of these as extensions. However to maximize utility, my focus will be skewed towards making the core layers more robust.
 
@@ -182,7 +215,7 @@ The core of the project will be designed relying on the following underlying ass
 \item{Hardware capabilities of connected peers are homogenous.}
 \end{enumerate}
 
-Dropping assumption 1 or 2 would make the protocol extremely hard to design. Dropping assumption 3 would lead to the introduction of virtual peers.\cite{dabekcfs}\cite{chord} It is a fairly straight forward but long implementation task to support them.
+Dropping assumption 1 or 2 would make the protocol extremely hard to design. Dropping assumption 3 would lead to the introduction of virtual peers.\cite{dabekcfs}\cite{chord} It is a fairly straightforward but long implementation task to support them.
 
 \subsection{Distributed Hash Table}
 Implementing this layer as well as possible is high priority as it provides the core for the entire project. The layers above will not be able to provide better performance or availability characteristics than what this layer provides.
@@ -190,9 +223,9 @@ Implementing this layer as well as possible is high priority as it provides the 
 Desired characteristics are that with high probability:
 \begin{itemize}
 \item{Load balancing: for N nodes and K keys each node should be responsible for at most $\frac{(1+\epsilon)K}{N}$ keys, for $\epsilon=O(\log N)$.}
-\item{The time to look up a value is $O(\log N)$.\footnote{even if the recent worload is systematic (eg. sequential) or random}}
-\item{Any node joining or leaving an N-node network will use $O(\log^2 N)$ messages to re-establish the routing invariants}
-\item{If every node fails with probability $\frac{1}{2}$, the system should still be able to serve lookups correnctly in O(log N) time.}
+\item{The time to look up a value is $O(\log N)$.\footnote{even if the recent worload is systematic (eg. sequential) or random}.}
+\item{Any node joining or leaving an N-node network will use $O(\log^2 N)$ messages to re-establish the routing invariants that the system relies on.}
+\item{If every node fails with probability $\frac{1}{2}$, the system should still be able to serve lookups correctly in O(log N) time.}
 \end{itemize}
 
 Chord's \gls{dht} protocol satisfies all of the above. \cite{chord} An important property of the protocol is that it uses a consistent hashing function f. Each node is labelled $f(ip_{node})$ and stores all keys between its label and the next biggest label in the system. This guarantees that failures, even if they are related to each other (eg. power outage affecting all machines in Cambridge) will result in a random distribution of labels failing.
@@ -225,7 +258,7 @@ An extension to this layer is changing replication: even though replication is h
 
 \subsection{Implementation Method}
 
-The project will be written in Java, not only because of it being cross-platform but also because it carries the least amount of work: this is the language I am most familiar with, the quality of internal and third party libraries is outstanding, and so is the community support. I will use IntelliJ IDEA 14 or Eclipse as my IDE. These have built-in Git source control and testing features. For writing unit tests I will use the JUnit library.
+The project will be written in Java, not only because of it being cross-platform but also because it carries the least amount of risk: this is the language I am most familiar with, the quality of internal and third party libraries is outstanding, and so is the community support. I will use IntelliJ IDEA 14 or Eclipse as my IDE. These have built-in Git source control and testing features. For version control I will use Git and push upstream to my private Github repository. For writing unit tests I will use the JUnit library.
 
 
 \section{Success Criteria}
@@ -255,8 +288,7 @@ During this work block I will deal with the highest risk parts of the project. T
 
 Milestones:
 \begin{itemize}
-\item{Draft of preparation chapter excluding the \gls{csc} layer completed and submitted for review to my supervisor by EOD 2 Nov}
-\item{Basic implementation of the \gls{dht} is complete, with the ability to store and retrieve entries but without any promises on performance and availability.}
+\item{Basic implementation of the \gls{dht} is complete, with the ability to store and retrieve entries but without any promises on performance and availability by EOD 4 Nov}
 \end{itemize}
 
 
@@ -265,13 +297,13 @@ Milestones:
 
 I will do more research into the elaborate aspects of Chord, eg. handling concurrent peer leaving or joining. Having gained more insight into Chord's protocol by this time, I will define the requirements and testing methods for the Chord module. The requirements will be split into necessary and desired properties.
 
-Additional research will be conducted about how similar systems designed the file storage layer. I will focus in particular on Frank Davek's work on A Cooperative File System \cite{dabekcfs}. By the end of this block I will have designed the \gls{csc} layer.
+Additional research will be conducted about how similar systems designed the file storage layer. I will focus in particular on Frank Davek's work on A Cooperative File System \cite{dabekcfs}. By the end of this block I will have written the preparaion chapter and designed the \gls{csc} layer. Consistent hashing algorithms will also be researched.
 
 Milestones:
 \begin{itemize}
-\item{Plan for evaluation completed and submitted to my supervisor by todo}
-\item{Preparation chapter completed and submitted for review to my supervisor by todo}
-\item{Specification of my \gls{csc} protocol completed and submitted for review to my supervisor by todo}
+\item{Plan for evaluation completed and submitted to my supervisor by EOD 17 Nov.}
+\item{Preparation chapter completed and submitted for review to my supervisor by EOD 14 Nov.}
+\item{Specification of my \gls{csc} protocol completed and submitted for review to my supervisor by EOD 19 Nov.}
 \end{itemize}
 
 
@@ -280,56 +312,106 @@ Milestones:
 
 I will continue the implementation of Chord's protocol by iteratively extending the set of algorithms used with Chord's protocol to deliver the different performance/availability promises. By the end of this block, the implemented \gls{dht} layer will have all necessary properties defined in the previous block.
 
+Milestones:
+\begin{itemize}
+\item{\gls{dht} layer is fully functional by EOD 2 Dec.}
+\end{itemize}
 
 \subsection{Block 4: Implementation}
 \emph{5 Dec - 18 Dec}  % 4 | vacation
 
 This block will be during the Christmas vacation. This means that I will have uninterrupted time to work on the project with two limitations: I will devote some time to spent with friends and family and I will have limited communication with my supervisor during this block. It makes sense to focus on parts that I can do with the least supervison. Therefore I will focus on implementing pre-defined components. I will prioritise on delivering a basic implementation of the \gls{csc} layer, having a decently working \gls{dht} layer in place. It will also address including the desired properties of Chord's protocol (defined in phase 2) to my implementation, to improve and finish the \gls{dht} layer.
 
+Milestones:
+\begin{itemize}
+\item{Final version of the \gls{dht} completed by EOD 14 Dec.}
+\item{\gls{dht} delivers the performance according to the pre-defined necessary promises, when tested locally by EOD 14 Dec.}
+\item{A basic implementation of \gls{csc} complete, capable of storing the lists of published files per user by EOD 16 Dec.}
+\end{itemize}
 
 \subsection{Block 5: Implementation}
 \emph{19 Dec - 1 Jan}  % 5  | vacation
 
-Since both Christmas and New Years' Eve fall under this period of time, I will only plan one weeks' of work for this block. The main objective is to finish the \gls{csc} layer.
+Since both Christmas and New Years' Eve fall under this period of time, I will only plan one weeks' worth of work for this block. It will serve mainly as slack to absorb overruns without the whole project becoming late. Any remaining time will be used to work on the \gls{csc} layer.
 
 
-\subsection{Block 6: Implementation chapter}
+Milestones:
+\begin{itemize}
+\item{Any milestone that was behind is done by EOD 30 Dec.}
+\end{itemize}
+
+\subsection{Block 6: Implementation and documentation}
 \emph{2 Jan - 15 Jan}  % 6  | 12 Jan - Lent starts
+I will finish the \gls{csc} layer. This will include using external libraries to perform consistent hashing and building the second and third level lookup layers. If the \gls{csc} layer is finished earlier than expected, I will use some of this time to implement extensions.
 
-I will write the implementation chapter of the dissertation during this block. This block also serves as a slack for the implementation phase. If that turns out not to be necessary, I will implement some of the many possible extensions during this time.
+I will also write a draft implementation chapter of the dissertation during this block. This is intended to be an initial incomplete draft, to be improved in the next block. 
 
 Lent term starts on the $12^{th}$ of Jan - I will reach out to the CL asking for permission to use the MCS machines for testing and evaluation in block 8.
 
+Milestones:
+\begin{itemize}
+\item{\gls{csc} layer finished: files can be uploaded and downloaded without corruption by EOD 9 Jan}
+\item{Draft implementation chapter written and submitted for review to my supervisor by EOD 13 Jan}
+\end{itemize}
 
 \subsection{Block 7: Testing and progress presentation}
 \emph{16 Jan - 29 Jan} % 7  | 29 Jan - progress report deadline
 
-Final integration tests will be run during this block and any problems will be solved that come up. Having tested each module extensively before it is expected that not many problems come up at a stage as late as this. I will also write the progress report during this block. Remaining time will be devoted to implementing extensions.
+During this block I will finish writing the implementation chapter of my dissertation.
+
+Final integration tests will also be run and any problems that come up will be solved. Having tested each module extensively before it is expected that not many problems come up at a stage as late as this. I will also write the progress report during this block.
 
 Milestones:
----got permission to use MCS machines
+\begin{itemize}
+\item{Implementation chapter written and submitted for review to my supervisor by EOD 27 Jan}
+\item{Acquired permission to use MCS machines.}
+\end{itemize}
 
-\subsection{Block 8: Evaluation}
+
+\subsection{Block 8: Data Collection}
 \emph{30 Jan - 12 Feb} % 8  
 
-I will collect the required evaluation data during this block. The testing method for the \gls{dht} layer defined in block 2 will serve as the basis of what characteristics to test about the system. MCS machines will likely be used for testing at scale, for which I will have acquired permission.
+I will collect the required evaluation data during this block. The testing method for the \gls{dht} layer defined in block 2 will serve as the basis of what characteristics to test about the system. I will compare performance to other file transfer protocols, eg to BitTorrent Sync and FTP. MCS machines will likely be used for testing at scale, for which I will have acquired permission in the previous block. Collected data will be processed, graphs and figures will be generated.
 
-Todo: specifics about what to compare to
+Remaining time will be used as slack, or otherwise extensions will be implemented and corresponding changes will be documented in the dissertation.
 
-\subsection{Block 9: Dissertation}
+Milestones:
+\begin{itemize}
+\item{Evaluation data collected by EOD 9 Feb.}
+\item{Evaluation data processed by EOD 10 Feb.}
+\end{itemize}
+
+\subsection{Block 9: Evaluation}
 \emph{13 Feb - 26 Feb} % 9
 
 I will write the evaluation chapter during this block.
 
-\subsection{Block 10: Dissertation}
-\emph{27 Feb - 11 Mar} % 10
+Milestones:
+\begin{itemize}
+\item{Evaluation chapter written and submitted for review to my supervisor by EOD 24 Feb.}
+
+\end{itemize}
+
+\subsection{Block 10: Conclusion}
+\emph{27 Feb - 11 Mar} % 10 | 11 Mar Lent ends
 
 The conclusion chapter and any supplementary material will be written during this block.
+
+Milestones:
+\begin{itemize}
+\item{Conclusion chapter written and submitted for review to my supervisor by EOD 9 Mar.}
+
+\end{itemize}
 
 \subsection{Block 11: Editing}
 \emph{12 Mar - 25 Mar} % 11
 
 This block will be used as a slack time to finish writing the dissertation. Also, the coversheet, proforma and declaration of originality will be written during this block. Any spare time will be used for revision.
+
+Milestones:
+\begin{itemize}
+\item{Dissertation printed and ready for submission by EOD 31 Mar.}
+\end{itemize}
 
 \subsection{Remaining blocks: Revision}
 \emph{26 Mar - 15 May}  % 12 | emergency
@@ -337,7 +419,7 @@ This block will be used as a slack time to finish writing the dissertation. Also
 %\emph{23 Apr - 6 May}  % 14
 %\emph{7 May - 15 May}  % 15 | May - deadline
 
-These blocks will be used for revising for the written papers. My plan reflects that I prefer distributing the time to spend on revision so that it is one bigger block close towards the exams. However, these blocks could also be used as emergency slack if necessary.
+These blocks will be used for revising for the written papers. My plan reflects that I prefer coagulating the time to spend on revision so that it is one bigger block close towards the exams. However, these blocks could also be used as emergency slack if necessary.
 
 \clearpage
 \begin{thebibliography}{9}
