@@ -7,11 +7,14 @@ import java.rmi.registry.Registry;
  * Created by gellert on 01/11/2015.
  */
 public class DhtClient {
-    public static void main(String[] args) {
-
-        String host = (args.length < 1) ? null : args[0];
+    public static void connect(String host) {
+        int port = 8000;
+        if (host.contains(":")) {
+            port = Integer.parseInt(host.split(":")[1]);
+            host = host.split(":")[0];
+        }
         try {
-            Registry registry = LocateRegistry.getRegistry(host, DhtClien.registryPort);
+            Registry registry = LocateRegistry.getRegistry(host, port);
             DhtComm stub = (DhtComm) registry.lookup("DhtComm");
             String response = stub.sayHello();
             System.out.println("response: " + response);
