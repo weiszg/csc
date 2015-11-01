@@ -12,4 +12,5 @@ public interface DhtComm extends Remote {
     String sayHello() throws RemoteException;
     DhtPeerAddress getNextHop(BigInteger target) throws RemoteException;
     Set<BigInteger> getNeighbours() throws RemoteException;
+
 }

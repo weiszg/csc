@@ -16,7 +16,6 @@ public class DhtServer implements DhtComm {
 
     public DhtServer(LocalPeer localPeer) {
         this.localPeer = localPeer;
-
     }
 
     public String sayHello() {
@@ -24,12 +23,7 @@ public class DhtServer implements DhtComm {
     }
 
     public DhtPeerAddress getNextHop(BigInteger target) {
-        BigInteger nextID = localPeer.getNeighbours().lower(target.subtract(BigInteger.ONE));
-        if (nextID == null) {
-            nextID = localPeer.getNeighbours().last();
-        }
-        DhtPeerAddress nextHop = localPeer.getHosts().getOrDefault(nextID, null);
-        return nextHop;
+        return localPeer.getNextHop(target);
     }
 
     public Set<BigInteger> getNeighbours() {
