@@ -9,8 +9,6 @@ import java.util.Set;
  * Created by gellert on 01/11/2015.
  */
 public interface DhtComm extends Remote {
-    String sayHello() throws RemoteException;
-    DhtPeerAddress getNextHop(BigInteger target) throws RemoteException;
-    Set<BigInteger> getNeighbours() throws RemoteException;
-
+    DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) throws RemoteException;
+    NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
 }

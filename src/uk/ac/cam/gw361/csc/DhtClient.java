@@ -10,24 +10,28 @@ import java.rmi.registry.Registry;
  */
 public class DhtClient {
     private LocalPeer localPeer;
-    private DhtComm comm;
+    //todo: cache connections
+    //todo: TTL for lookups so that execution time is bounded
 
     public DhtClient(LocalPeer localPeer) {
         this.localPeer = localPeer;
     }
 
     public void bootstrap(String host) {
-        doLookup(host, localPeer.userID);
-    }
-
-    private DhtComm connect(String host) {
         int port = 8000;
         if (host.contains(":")) {
             port = Integer.parseInt(host.split(":")[1]);
             host = host.split(":")[0];
         }
+        DhtPeerAddress pred = doLookup(new DhtPeerAddress(null, host, port), localPeer.userID);
+        localPeer.getNeighbourState().addNeighbour(pred);
+        localPeer.stabilise();
+    }
+
+    private DhtComm connect(DhtPeerAddress server) {
+        System.out.println("client connect");
         try {
-            Registry registry = LocateRegistry.getRegistry(host, port);
+            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
             return (DhtComm) registry.lookup("DhtComm");
         } catch (Exception e) {
             System.err.println("Client exception: " + e.toString());
@@ -37,25 +41,38 @@ public class DhtClient {
     }
 
     public DhtPeerAddress lookup(BigInteger target) {
+        System.out.println("client lookup");
         DhtPeerAddress start = localPeer.getNextHop(target);
-        if (start == null)
-            return new DhtPeerAddress(localPeer.userID, "mine");
+        if (start.getHost().equals("mine"))
+            return start;
         else
             return doLookup(start, target);
     }
 
     private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target) {
-        DhtPeerAddress nextHop = start;
-        DhtPeerAddress currentResult = new DhtPeerAddress(null, null);
-        while (!nextHop.getHost().equals(currentResult.getHost())) {
-            currentResult = nextHop;
-            DhtComm comm = connect(nextHop.getHost());
-            try {
-                nextHop = comm.getNextHop(target); //todo: refactor so that remote lookup responsible for everything will result in failures being closer to cuplrits
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+        System.out.println("client dolookup");
+        DhtPeerAddress result = null;
+        DhtComm comm = connect(start);
+        try {
+            result = comm.lookup(localPeer.localAddress, target);
+            if (result.getHost().equals("mine"))
+                result = new DhtPeerAddress(result.getUserID(), start.getHost(), start.getPort());
+        } catch (RemoteException e) {
+            e.printStackTrace();
         }
-
+        return result;
     }
+
+    public NeighbourState getNeighbourState(DhtPeerAddress peer) {
+        System.out.println("client getneighbourstate");
+        NeighbourState result = null;
+        DhtComm comm = connect(peer);
+        try {
+            result = comm.getNeighbourState(localPeer.localAddress);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
 }

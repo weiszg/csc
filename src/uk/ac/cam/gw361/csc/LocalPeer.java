@@ -12,14 +12,14 @@ import java.util.*;
 public class LocalPeer {
     final String userName;
     final BigInteger userID;
+    final DhtPeerAddress localAddress;
     private DhtServer dhtServer;
     private DhtClient dhtClient;
+    public DhtClient getClient() { return dhtClient; }
 
-    private TreeSet<BigInteger> peers = new TreeSet<>();
-    private Map<Integer, BigInteger> neighbours = new TreeMap<>();
-    private Map<BigInteger, DhtPeerAddress> hosts = new HashMap<>();
-    public synchronized Map<BigInteger, DhtPeerAddress> getHosts() { return hosts; }
-    private synchronized TreeSet<BigInteger> getPeers() { return peers; }
+    private NeighbourState neighbourState;
+    public synchronized NeighbourState getNeighbourState() { return neighbourState; }
+    private TreeSet<DhtPeerAddress> peers = new TreeSet<>();
 
     public LocalPeer(String userName) {
         int port = 8000;
@@ -38,26 +38,45 @@ public class LocalPeer {
             e.printStackTrace();
         }
         userID = new BigInteger(cript.digest());
-        peers.add(userID);
-        neighbours.add(0, userID);
-        hosts.put(userID, new DhtPeerAddress(userID, "mine"));
+        localAddress = new DhtPeerAddress(userID, "mine", port);
+        neighbourState = new NeighbourState(localAddress);
+        peers.add(localAddress);
 
+        dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this);
         dhtServer.startServer(port);
     }
 
-    //todo: initialize dhtClient on first incoming connection if not yet initialized
     public synchronized void join(String remotePeerIP) {
-        dhtClient = new DhtClient(this);
-        dhtClient.connect(remotePeerIP);
+        dhtClient.bootstrap(remotePeerIP);
     }
 
-    //todo: refactor this into DhtClient so that this method is responsible for performing the whole lookup
     public DhtPeerAddress getNextHop(BigInteger target) {
-        BigInteger nextID = getPeers().lower(target.add(BigInteger.ONE));
-        if (nextID == null) {
-            nextID = getPeers().last();
+        DhtPeerAddress next = peers.lower(new DhtPeerAddress(
+                target.add(BigInteger.ONE), null, null));
+        if (next == null) {
+            next = peers.last();
         }
-        return getHosts().getOrDefault(nextID, null);
+        return next;
+    }
+
+    public void stabilise() {
+        NeighbourState newState = new NeighbourState(localAddress);
+        // todo: time limits for remote calls and failure recognition
+        for (DhtPeerAddress neighbour : neighbourState.getPredecessors()) {
+            NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
+            if (remoteState != null) {
+                newState.mergeNeighbourState(remoteState);
+                newState.addNeighbour(neighbour);
+            }
+        }
+        for (DhtPeerAddress neighbour : neighbourState.getSuccessors()) {
+            NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
+            if (remoteState != null) {
+                newState.mergeNeighbourState(remoteState);
+                newState.addNeighbour(neighbour);
+            }
+        }
+        neighbourState = newState;
     }
 }

@@ -4,6 +4,8 @@ import java.math.BigInteger;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
+import java.rmi.server.RemoteServer;
+import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Set;
 
@@ -16,18 +18,6 @@ public class DhtServer implements DhtComm {
 
     public DhtServer(LocalPeer localPeer) {
         this.localPeer = localPeer;
-    }
-
-    public String sayHello() {
-        return "Hello, world!";
-    }
-
-    public DhtPeerAddress getNextHop(BigInteger target) {
-        return localPeer.getNextHop(target);
-    }
-
-    public Set<BigInteger> getNeighbours() {
-        return localPeer.getNeighbours();
     }
 
     public void startServer(int localPort) {
@@ -45,4 +35,25 @@ public class DhtServer implements DhtComm {
         }
     }
 
+    private void acceptConnection(DhtPeerAddress source) {
+        try {
+            String clientHost = RemoteServer.getClientHost();
+            localPeer.getNeighbourState().addNeighbour(
+                    new DhtPeerAddress(source.getUserID(), clientHost, source.getPort()));
+        } catch (ServerNotActiveException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) {
+        System.out.println("server lookup");
+        acceptConnection(source);
+        return localPeer.getClient().lookup(target);
+    }
+
+    public NeighbourState getNeighbourState(DhtPeerAddress source) {
+        System.out.println("server getneighbourstate");
+        acceptConnection(source);
+        return localPeer.getNeighbourState();
+    }
 }
