@@ -10,6 +10,7 @@ import java.rmi.registry.Registry;
  */
 public class DhtClient {
     private LocalPeer localPeer;
+    private final boolean debug = false;
     //todo: cache connections
     //todo: TTL for lookups so that execution time is bounded
 
@@ -29,7 +30,7 @@ public class DhtClient {
     }
 
     private DhtComm connect(DhtPeerAddress server) {
-        System.out.println("client connect");
+        if (debug) server.print("client connect: ");
         try {
             Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
             return (DhtComm) registry.lookup("DhtComm");
@@ -41,7 +42,7 @@ public class DhtClient {
     }
 
     public DhtPeerAddress lookup(BigInteger target) {
-        System.out.println("client lookup");
+        if (debug) System.out.println("client lookup");
         DhtPeerAddress start = localPeer.getNextHop(target);
         if (start.getHost().equals("mine"))
             return start;
@@ -50,7 +51,7 @@ public class DhtClient {
     }
 
     private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target) {
-        System.out.println("client dolookup");
+        if (debug) System.out.println("client dolookup");
         DhtPeerAddress result = null;
         DhtComm comm = connect(start);
         try {
@@ -64,7 +65,7 @@ public class DhtClient {
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress peer) {
-        System.out.println("client getneighbourstate");
+        if (debug) System.out.println("client getneighbourstate");
         NeighbourState result = null;
         DhtComm comm = connect(peer);
         try {

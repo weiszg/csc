@@ -16,6 +16,8 @@ public class LocalPeer {
     private DhtServer dhtServer;
     private DhtClient dhtClient;
     public DhtClient getClient() { return dhtClient; }
+    private FileStore fileStore;
+    public FileStore getfileStore() { return fileStore; }
 
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
@@ -42,9 +44,11 @@ public class LocalPeer {
         neighbourState = new NeighbourState(localAddress);
         peers.add(localAddress);
 
+        fileStore = new FileStore(this);
         dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this);
         dhtServer.startServer(port);
+        localAddress.print("Started: ");
     }
 
     public synchronized void join(String remotePeerIP) {
@@ -63,20 +67,33 @@ public class LocalPeer {
     public void stabilise() {
         NeighbourState newState = new NeighbourState(localAddress);
         // todo: time limits for remote calls and failure recognition
-        for (DhtPeerAddress neighbour : neighbourState.getPredecessors()) {
+        Set<DhtPeerAddress> asked = new HashSet<>();
+        for (DhtPeerAddress neighbour : neighbourState.getNeighbours()) {
+            asked.add(neighbour);
             NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
             if (remoteState != null) {
                 newState.mergeNeighbourState(remoteState);
                 newState.addNeighbour(neighbour);
             }
         }
-        for (DhtPeerAddress neighbour : neighbourState.getSuccessors()) {
-            NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
-            if (remoteState != null) {
-                newState.mergeNeighbourState(remoteState);
-                newState.addNeighbour(neighbour);
+
+        // ask new nodes too
+        boolean converged = false;
+        while (!converged) {
+            converged = true;
+            for (DhtPeerAddress neighbour : newState.getNeighbours()) {
+                if (!asked.contains(neighbour)) {
+                    converged = false;
+                    asked.add(neighbour);
+                    NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
+                    if (remoteState != null) {
+                        newState.mergeNeighbourState(remoteState);
+                        newState.addNeighbour(neighbour);
+                    }
+                }
             }
         }
+
         neighbourState = newState;
     }
 }

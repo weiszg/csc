@@ -10,11 +10,16 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
     private BigInteger userID;
     private Integer port;
     private String host;
+    public transient BigInteger relativeSort = BigInteger.ZERO;
 
     public DhtPeerAddress(BigInteger userID, String host, Integer port) {
         this.userID = userID;
         this.port = port;
         this.host = host;
+    }
+
+    public void setRelative (BigInteger relative) {
+        this.relativeSort = relative;
     }
 
     public BigInteger getUserID() { return userID; }
@@ -23,7 +28,14 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
 
     @Override
     public int compareTo(DhtPeerAddress other){
-        return userID.compareTo(other.userID);
+        int relMe = userID.compareTo(relativeSort);
+        int relOther = other.userID.compareTo(relativeSort);
+        if (relMe >= 0 && relOther < 0) return -1;
+        else if (relMe < 0 && relOther >= 0) return 1;
+        else return userID.compareTo(other.userID);
+
+        //return userID.subtract(relativeSort).compareTo(
+          //      other.userID.subtract(relativeSort));
     }
 
     @Override
@@ -45,5 +57,13 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
             return (this.compareTo(a) > 0 && this.compareTo(b) < 0);
         else
             return (this.compareTo(a) > 0 || this.compareTo(b) < 0);
+    }
+
+    public void print(String beginning) {
+        if (userID != null)
+            System.out.println(beginning + "host=" + host + " port=" + port +
+                " ID=" + userID.toString());
+        else
+            System.out.println(beginning + "host=" + host + " port=" + port);
     }
 }
