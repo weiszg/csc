@@ -33,9 +33,6 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
         if (relMe >= 0 && relOther < 0) return -1;
         else if (relMe < 0 && relOther >= 0) return 1;
         else return userID.compareTo(other.userID);
-
-        //return userID.subtract(relativeSort).compareTo(
-          //      other.userID.subtract(relativeSort));
     }
 
     @Override

@@ -5,13 +5,11 @@ import java.math.BigInteger;
 import java.net.Socket;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
-import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 
 /**
@@ -51,7 +49,7 @@ public class DhtServer implements DhtComm {
         }
     }
 
-    public DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) {
+    public DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) throws IOException {
         if (debug) System.out.println("server lookup");
         acceptConnection(source);
         return localPeer.getClient().lookup(target);
@@ -63,43 +61,33 @@ public class DhtServer implements DhtComm {
         return localPeer.getNeighbourState();
     }
 
-    public Long download(DhtPeerAddress source, Integer port, BigInteger target) {
+    public Long upload(DhtPeerAddress source, Integer port, BigInteger target) throws IOException {
+        acceptConnection(source);
+        Long size = localPeer.getFileStore().getLength(target);
+        FileInputStream fis = localPeer.getFileStore().readFile(target);
 
-        return null;
+        Socket socket = new Socket(source.getHost(), port);
+        Thread uploader = new FileTransfer(socket, fis);
+        uploader.start();
+        return size;
+    }
+
+    public void download(DhtPeerAddress source, Integer port, BigInteger target) throws IOException {
+        acceptConnection(source);
+        FileOutputStream fos = localPeer.getFileStore().writeFile(target);
+
+        Socket socket = new Socket(source.getHost(), port);
+        Thread downloader = new FileTransfer(socket, fos);
+        downloader.start();
     }
 
     public Map<BigInteger, Long> getRange(DhtPeerAddress source,
                                              BigInteger from, BigInteger to) {
         return null;
     }
-}
 
-
-class Uploader extends Thread {
-    Socket socket;
-    FileInputStream fileInputStream;
-
-    public Uploader(Socket socket, FileInputStream fileInputStream) {
-        this.socket = socket;
-        this.fileInputStream = fileInputStream;
-    }
-
-    public void run() {
-        byte[] data = new byte[100000];
-        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-        try {
-            OutputStream outputStream = socket.getOutputStream();
-            System.out.println("Sending Files...");
-
-            int bytesRead = 0;
-            while (bytesRead != -1) {
-                bytesRead = bufferedInputStream.read(data, 0, data.length);
-                outputStream.write(data, 0, bytesRead);
-            }
-            outputStream.flush();
-            socket.close();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
+    public Boolean isAlive(DhtPeerAddress source) {
+        acceptConnection(source);
+        return true;
     }
 }

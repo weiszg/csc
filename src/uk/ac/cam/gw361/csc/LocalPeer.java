@@ -1,5 +1,6 @@
 package uk.ac.cam.gw361.csc;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -17,11 +18,12 @@ public class LocalPeer {
     private DhtClient dhtClient;
     public DhtClient getClient() { return dhtClient; }
     private FileStore fileStore;
-    public FileStore getfileStore() { return fileStore; }
+    public FileStore getFileStore() { return fileStore; }
 
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
     private TreeSet<DhtPeerAddress> peers = new TreeSet<>();
+    private Boolean stabilising = false;
 
     public LocalPeer(String userName) {
         int port = 8000;
@@ -52,7 +54,12 @@ public class LocalPeer {
     }
 
     public synchronized void join(String remotePeerIP) {
-        dhtClient.bootstrap(remotePeerIP);
+        try {
+            dhtClient.bootstrap(remotePeerIP);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            System.err.println("Failed to connect to DHT pool");
+        }
     }
 
     public DhtPeerAddress getNextHop(BigInteger target) {
@@ -65,15 +72,39 @@ public class LocalPeer {
     }
 
     public void stabilise() {
+        synchronized (this) {
+            if (!stabilising) {
+                doStabilise();
+                return;
+            }
+        }
+        while (true) {
+            synchronized (this) {
+                if (!stabilising)
+                    return;
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ie) {}
+        }
+    }
+
+    private void doStabilise() {
+        synchronized (this) {
+            stabilising = true;
+        }
+
         NeighbourState newState = new NeighbourState(localAddress);
         // todo: time limits for remote calls and failure recognition
         Set<DhtPeerAddress> asked = new HashSet<>();
         for (DhtPeerAddress neighbour : neighbourState.getNeighbours()) {
             asked.add(neighbour);
-            NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
-            if (remoteState != null) {
+            try {
+                NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
                 newState.mergeNeighbourState(remoteState);
                 newState.addNeighbour(neighbour);
+            } catch (IOException e) {
+                // this is fine, we won't add this failing peer
             }
         }
 
@@ -85,15 +116,36 @@ public class LocalPeer {
                 if (!asked.contains(neighbour)) {
                     converged = false;
                     asked.add(neighbour);
-                    NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
-                    if (remoteState != null) {
+                    try {
+                        NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
                         newState.mergeNeighbourState(remoteState);
                         newState.addNeighbour(neighbour);
+                    } catch (IOException e) {
+                        // this is fine, we won't add this failing peer
                     }
                 }
             }
         }
 
         neighbourState = newState;
+        synchronized (this) {
+            stabilising = false;
+        }
+    }
+
+    public FileTransfer getFile(BigInteger file) throws IOException {
+        FileTransfer ft = null;
+        DhtPeerAddress target = dhtClient.lookup(file);
+        if (file != null)
+            ft = dhtClient.download(target, file);
+        return ft;
+    }
+
+    public FileTransfer publishFile(BigInteger file) throws IOException {
+        FileTransfer ft = null;
+        DhtPeerAddress target = dhtClient.lookup(file);
+        if (file != null)
+            ft = dhtClient.upload(target, file);
+        return ft;
     }
 }
