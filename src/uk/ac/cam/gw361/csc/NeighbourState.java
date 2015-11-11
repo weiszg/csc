@@ -17,37 +17,34 @@ public class NeighbourState implements Serializable {
     private TreeSet<DhtPeerAddress> predecessors = new TreeSet<>();
 
     public synchronized ArrayList<DhtPeerAddress> getPredecessors() {
-        ArrayList<DhtPeerAddress> preds = new ArrayList<>(predecessors);
-        ArrayList<DhtPeerAddress> ret = new ArrayList<>();
-        int i = 0;
-        while (i<preds.size() && preds.get(i).compareTo(localAddress) <= 0)
-            i++;
-        i--;
-        for (int j=0; j<preds.size(); j++) {
-            int index = (i-j)%preds.size();
-            if (index<0) index += preds.size();
-            ret.add(preds.get(index));
+        ArrayList<DhtPeerAddress> ret = new ArrayList<>(predecessors);
+        for (int i=0; i<ret.size()/2; i++) {
+            DhtPeerAddress temp = ret.get(i);
+            ret.set(i, ret.get(ret.size()-i-1));
+            ret.set(ret.size()-i-1, temp);
         }
+
         return ret;
     }
+
     public synchronized ArrayList<DhtPeerAddress> getSuccessors() {
-        ArrayList<DhtPeerAddress> succs = new ArrayList<>(successors);
-        ArrayList<DhtPeerAddress> ret = new ArrayList<>();
-        int i = 0;
-        while (i<succs.size() && succs.get(i).compareTo(localAddress) < 0)
-            i++;
-        for (int j=0; j<succs.size(); j++) {
-            int index = (i+j)%succs.size();
-            if (index<0) index += succs.size();
-            ret.add(succs.get(index));
-        }
+        ArrayList<DhtPeerAddress> ret = new ArrayList<>(successors);
         return ret;
     }
+
     public synchronized TreeSet<DhtPeerAddress> getNeighbours() {
-        TreeSet<DhtPeerAddress> neighbours = new TreeSet<>();
-        neighbours.addAll(predecessors);
-        neighbours.addAll(successors);
-        return neighbours;
+        TreeSet<DhtPeerAddress> peers = new TreeSet<>();
+        for (DhtPeerAddress peer : predecessors) {
+            DhtPeerAddress neutralPeer = new DhtPeerAddress(peer.getUserID(),
+                    peer.getHost(), peer.getPort());
+            peers.add(neutralPeer);
+        }
+        for (DhtPeerAddress peer : successors) {
+            DhtPeerAddress neutralPeer = new DhtPeerAddress(peer.getUserID(),
+                    peer.getHost(), peer.getPort());
+            peers.add(neutralPeer);
+        }
+        return peers;
     }
 
     public NeighbourState(DhtPeerAddress localAddress,
@@ -106,16 +103,25 @@ public class NeighbourState implements Serializable {
         }
     }
 
+    private void checkRelative() {
+        for (DhtPeerAddress a : predecessors) {
+            if (!a.relativeSort.equals(localAddress.getUserID()))
+                System.err.println("Relative address mismatch");
+        }
+    }
+
     public synchronized void removeNeighbour(DhtPeerAddress item) {
         successors.remove(item);
         predecessors.remove(item);
     }
 
     public synchronized void mergeNeighbourState(NeighbourState toMerge) {
-        for (DhtPeerAddress item: toMerge.successors)
+        for (DhtPeerAddress item: toMerge.successors) {
             addNeighbour(item);
-        for (DhtPeerAddress item: toMerge.predecessors)
+        }
+        for (DhtPeerAddress item: toMerge.predecessors) {
             addNeighbour(item);
+        }
     }
 
     public synchronized void cut() {

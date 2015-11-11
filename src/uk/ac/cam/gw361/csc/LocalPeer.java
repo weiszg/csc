@@ -66,13 +66,8 @@ public class LocalPeer {
     }
 
     public DhtPeerAddress getNextHop(BigInteger target) {
-        TreeSet<DhtPeerAddress> peers = new TreeSet<>();
+        TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
-        TreeSet<DhtPeerAddress> neighbours = neighbourState.getNeighbours();
-        for (DhtPeerAddress peer : neighbours) {
-            peer.setRelative(BigInteger.ZERO);
-            peers.add(peer);
-        }
 
         DhtPeerAddress next = peers.lower(new DhtPeerAddress(target, null, null));
         if (next == null) {

@@ -54,6 +54,10 @@ public class DhtNeighbourTest {
                         checkWith = actualSuccessors.get(actualIndex);
                     else
                         checkWith = actualPredecessors.get(actualIndex);
+                    if (!sortedAddresses.get(index).equals(checkWith)) {
+                        System.err.println("Expected: " + sortedAddresses.get(index).toString());
+                        System.err.println("     got: " + checkWith.toString());
+                    }
                     Assert.assertTrue(sortedAddresses.get(index).equals(checkWith));
                 }
             }
