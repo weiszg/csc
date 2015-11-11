@@ -106,6 +106,11 @@ public class NeighbourState implements Serializable {
         }
     }
 
+    public synchronized void removeNeighbour(DhtPeerAddress item) {
+        successors.remove(item);
+        predecessors.remove(item);
+    }
+
     public synchronized void mergeNeighbourState(NeighbourState toMerge) {
         for (DhtPeerAddress item: toMerge.successors)
             addNeighbour(item);

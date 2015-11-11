@@ -1,5 +1,7 @@
 package uk.ac.cam.gw361.csc;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -22,8 +24,9 @@ public class LocalPeer {
 
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
-    private TreeSet<DhtPeerAddress> peers = new TreeSet<>();
     private Boolean stabilising = false;
+
+    private Set<FileTransfer> runningTransfers = new HashSet<>();
 
     public LocalPeer(String userName) {
         int port = 8000;
@@ -42,20 +45,20 @@ public class LocalPeer {
             e.printStackTrace();
         }
         userID = new BigInteger(cript.digest());
-        localAddress = new DhtPeerAddress(userID, "mine", port);
+        localAddress = new DhtPeerAddress(userID, "localhost", port);
         neighbourState = new NeighbourState(localAddress);
-        peers.add(localAddress);
 
         fileStore = new FileStore(this);
         dhtClient = new DhtClient(this);
-        dhtServer = new DhtServer(this);
-        dhtServer.startServer(port);
+        dhtServer = new DhtServer(this, port);
+        dhtServer.startServer();
         localAddress.print("Started: ");
     }
 
     public synchronized void join(String remotePeerIP) {
         try {
             dhtClient.bootstrap(remotePeerIP);
+            System.out.println("Connected to DHT pool");
         } catch (IOException ioe) {
             ioe.printStackTrace();
             System.err.println("Failed to connect to DHT pool");
@@ -63,8 +66,15 @@ public class LocalPeer {
     }
 
     public DhtPeerAddress getNextHop(BigInteger target) {
-        DhtPeerAddress next = peers.lower(new DhtPeerAddress(
-                target.add(BigInteger.ONE), null, null));
+        TreeSet<DhtPeerAddress> peers = new TreeSet<>();
+        peers.add(localAddress);
+        TreeSet<DhtPeerAddress> neighbours = neighbourState.getNeighbours();
+        for (DhtPeerAddress peer : neighbours) {
+            peer.setRelative(BigInteger.ZERO);
+            peers.add(peer);
+        }
+
+        DhtPeerAddress next = peers.lower(new DhtPeerAddress(target, null, null));
         if (next == null) {
             next = peers.last();
         }
@@ -105,6 +115,9 @@ public class LocalPeer {
                 newState.addNeighbour(neighbour);
             } catch (IOException e) {
                 // this is fine, we won't add this failing peer
+                System.err.println("Failing link " + localAddress.getHost() + ":" +
+                        localAddress.getPort() + " - " + neighbour.getHost() + ":" +
+                        neighbour.getPort());
             }
         }
 
@@ -119,9 +132,12 @@ public class LocalPeer {
                     try {
                         NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
                         newState.mergeNeighbourState(remoteState);
-                        newState.addNeighbour(neighbour);
                     } catch (IOException e) {
-                        // this is fine, we won't add this failing peer
+                        // this is fine, we'll just remove this failing peer
+                        System.err.println("Failing link " + localAddress.getHost() + ":" +
+                                localAddress.getPort() + " - " + neighbour.getHost() + ":" +
+                                neighbour.getPort());
+                        newState.removeNeighbour(neighbour);
                     }
                 }
             }
@@ -138,14 +154,25 @@ public class LocalPeer {
         DhtPeerAddress target = dhtClient.lookup(file);
         if (file != null)
             ft = dhtClient.download(target, file);
+        runningTransfers.add(ft);
         return ft;
     }
 
-    public FileTransfer publishFile(BigInteger file) throws IOException {
+    public FileTransfer publishFile(String file) throws IOException {
+        BigInteger hash = FileHasher.hashFile(file);
         FileTransfer ft = null;
-        DhtPeerAddress target = dhtClient.lookup(file);
+        DhtPeerAddress target = dhtClient.lookup(hash);
         if (file != null)
-            ft = dhtClient.upload(target, file);
+            ft = dhtClient.upload(target, hash, file);
+        runningTransfers.add(ft);
         return ft;
+    }
+
+    synchronized void notifyTransferCompleted(FileTransfer ft, boolean success) {
+        runningTransfers.remove(ft);
+    }
+
+    synchronized void disconnect() {
+        dhtServer.stopServer();
     }
 }
