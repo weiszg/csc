@@ -12,7 +12,7 @@ import java.util.Set;
  * Created by gellert on 01/11/2015.
  */
 public interface DhtComm extends Remote {
-    DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) throws IOException;
+    DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
     void download(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;

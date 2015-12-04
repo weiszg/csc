@@ -3,6 +3,7 @@ package uk.ac.cam.gw361.csc;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
@@ -47,12 +48,15 @@ public class DhtServer implements DhtComm {
             DhtComm stub = (DhtComm) UnicastRemoteObject.exportObject(this, 0);
 
             // Bind the remote object's stub in the registry
-            registry.bind("DhtComm", stub);
+            try {
+                registry.bind("DhtComm", stub);
+            } catch (AlreadyBoundException e) {
+                registry.rebind("DhtComm", stub);
+            }
 
             if (debug) System.out.println("DHT Server ready on " + port);
-        } catch (Exception e) {
+        } catch (RemoteException e) {
             System.err.println("DHT Server exception: " + e.toString());
-            e.printStackTrace();
         }
     }
 
@@ -74,10 +78,10 @@ public class DhtServer implements DhtComm {
         }
     }
 
-    public DhtPeerAddress lookup(DhtPeerAddress source, BigInteger target) throws IOException {
+    public DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
         if (debug) System.out.println("server lookup");
         acceptConnection(source);
-        return localPeer.getClient().lookup(target);
+        return localPeer.getNextLocalHop(target);
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress source) {

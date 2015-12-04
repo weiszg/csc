@@ -12,7 +12,7 @@ import java.util.TreeSet;
 public class NeighbourState implements Serializable {
     public static final int k = 5;
     private boolean debug = false;
-    final DhtPeerAddress localAddress;
+    DhtPeerAddress localAddress;
     private TreeSet<DhtPeerAddress> successors = new TreeSet<>();
     private TreeSet<DhtPeerAddress> predecessors = new TreeSet<>();
 
@@ -60,6 +60,15 @@ public class NeighbourState implements Serializable {
         this.predecessors = new TreeSet<>();
     }
 
+    public synchronized boolean isClose (DhtPeerAddress item) {
+        // returns whether item is within k hops and at least one hop away
+        if (item.equals(localAddress)) return false;
+        item.setRelative(localAddress.getUserID());
+
+        return (successors.size() < k || predecessors.size() < k ||
+                successors.last().compareTo(item) > 0 ||
+                predecessors.last().compareTo(item) < 0);
+    }
 
     public synchronized void addNeighbour(DhtPeerAddress item) {
         if (item.equals(localAddress)) return;

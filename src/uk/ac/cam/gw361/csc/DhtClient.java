@@ -17,7 +17,6 @@ public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
     private Map<DhtPeerAddress, DhtComm> connections = new HashMap<>();
-    //todo: TTL for lookups so that execution time is bounded
 
     public DhtClient(LocalPeer localPeer) {
         this.localPeer = localPeer;
@@ -101,7 +100,7 @@ public class DhtClient {
     public DhtPeerAddress lookup(BigInteger target)
             throws IOException {
         if (debug) System.out.println("client lookup");
-        DhtPeerAddress start = localPeer.getNextHop(target);
+        DhtPeerAddress start = localPeer.getNextLocalHop(target);
         if (start.getHost().equals("localhost"))
             return start;
         else
@@ -111,13 +110,17 @@ public class DhtClient {
     private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target)
             throws IOException {
         if (debug) System.out.println("client dolookup");
-        DhtPeerAddress result;
-        DhtComm comm = connect(start);
+        DhtPeerAddress nextHop = start, prevHop = null;
 
-        result = comm.lookup(localPeer.localAddress, target);
-        if (result.getHost().equals("localhost"))
-            result = new DhtPeerAddress(result.getUserID(), start.getHost(), start.getPort());
-        return result;
+        do {
+            prevHop = nextHop;
+            DhtComm comm = connect(prevHop);
+            nextHop = comm.nextHop(localPeer.localAddress, target);
+            if (nextHop.getHost().equals("localhost"))
+                nextHop = new DhtPeerAddress(nextHop.getUserID(),
+                        nextHop.getHost(), nextHop.getPort());
+        } while (!nextHop.equals(prevHop));
+        return nextHop;
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress peer)

@@ -65,7 +65,7 @@ public class LocalPeer {
         }
     }
 
-    public DhtPeerAddress getNextHop(BigInteger target) {
+    public DhtPeerAddress getNextLocalHop(BigInteger target) {
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
 
@@ -95,47 +95,36 @@ public class LocalPeer {
     }
 
     private void doStabilise() {
+        // todo: time limits for remote calls and failure recognition
         synchronized (this) {
             stabilising = true;
         }
 
         NeighbourState newState = new NeighbourState(localAddress);
-        // todo: time limits for remote calls and failure recognition
+        Set<DhtPeerAddress> candidates = neighbourState.getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
-        for (DhtPeerAddress neighbour : neighbourState.getNeighbours()) {
-            asked.add(neighbour);
-            try {
-                NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
-                newState.mergeNeighbourState(remoteState);
-                newState.addNeighbour(neighbour);
-            } catch (IOException e) {
-                // this is fine, we won't add this failing peer
-                System.err.println("Failing link " + localAddress.getHost() + ":" +
-                        localAddress.getPort() + " - " + neighbour.getHost() + ":" +
-                        neighbour.getPort());
-            }
-        }
 
-        // ask new nodes too
-        boolean converged = false;
-        while (!converged) {
-            converged = true;
-            for (DhtPeerAddress neighbour : newState.getNeighbours()) {
-                if (!asked.contains(neighbour)) {
-                    converged = false;
-                    asked.add(neighbour);
+        while (!candidates.isEmpty()) {
+            Set<DhtPeerAddress> newCandidates = new HashSet<>();
+
+            for (Iterator<DhtPeerAddress> iterator = candidates.iterator(); iterator.hasNext(); ) {
+                DhtPeerAddress candidate = iterator.next();
+                iterator.remove();
+                if (!asked.contains(candidate) && neighbourState.isClose(candidate)) {
+                    asked.add(candidate);
                     try {
-                        NeighbourState remoteState = dhtClient.getNeighbourState(neighbour);
-                        newState.mergeNeighbourState(remoteState);
+                        NeighbourState remoteState = dhtClient.getNeighbourState(candidate);
+                        newCandidates.addAll(remoteState.getNeighbours());
+                        newState.addNeighbour(candidate);
                     } catch (IOException e) {
-                        // this is fine, we'll just remove this failing peer
+                        // this is fine, we won't add this failing peer
                         System.err.println("Failing link " + localAddress.getHost() + ":" +
-                                localAddress.getPort() + " - " + neighbour.getHost() + ":" +
-                                neighbour.getPort());
-                        newState.removeNeighbour(neighbour);
+                                localAddress.getPort() + " - " + candidate.getHost() + ":" +
+                                candidate.getPort());
                     }
                 }
             }
+            candidates = newCandidates;
         }
 
         neighbourState = newState;
