@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -15,7 +16,8 @@ public interface DhtComm extends Remote {
     DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
-    void download(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
-    Map<BigInteger, Long> getRange(DhtPeerAddress source, BigInteger from, BigInteger to) throws RemoteException;
+    Boolean download(DhtPeerAddress source, Integer port, BigInteger file, DhtPeerAddress owner)
+            throws IOException;
     Boolean isAlive(DhtPeerAddress source) throws RemoteException;
+    Map<BigInteger, Boolean> storingFiles(List<DhtFile> files) throws IOException;
 }

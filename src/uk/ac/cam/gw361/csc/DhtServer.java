@@ -12,6 +12,7 @@ import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -47,7 +48,7 @@ public class DhtServer implements DhtComm {
         try {
             DhtComm stub = (DhtComm) UnicastRemoteObject.exportObject(this, 0);
 
-            // Bind the remote object's stub in the registry
+            // bind the remote object's stub in the registry
             try {
                 registry.bind("DhtComm", stub);
             } catch (AlreadyBoundException e) {
@@ -90,31 +91,46 @@ public class DhtServer implements DhtComm {
         return localPeer.getNeighbourState();
     }
 
-    public Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException {
+    public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
+            throws IOException {
         acceptConnection(source);
         Long size = localPeer.getFileStore().getLength(file);
         FileInputStream fis = localPeer.getFileStore().readFile(file);
 
         Socket socket = new Socket(source.getHost(), port);
-        Thread uploader = new FileTransfer(localPeer, socket, fis, file);
+        Thread uploader = new FileTransfer(localPeer, source, socket, fis, file);
         uploader.start();
         return size;
     }
 
-    public void download(DhtPeerAddress source, Integer port, BigInteger file) throws IOException {
+    public Boolean download(DhtPeerAddress source, Integer port, BigInteger file, DhtPeerAddress owner)
+            throws IOException {
         acceptConnection(source);
+
+        // only accept if owner is within successor range
+        if (!localPeer.getNeighbourState().getSuccessors().contains(owner))
+            return false;
+
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.toString());
         FileOutputStream fos = localPeer.getFileStore().writeFile(file);
 
         Socket socket = new Socket(source.getHost(), port);
-        Thread downloader = new FileTransfer(localPeer, socket, fos, file);
+        Thread downloader = new FileTransfer(localPeer, source, socket, fos, file, owner);
         downloader.start();
+        return true;
     }
 
-    public Map<BigInteger, Long> getRange(DhtPeerAddress source,
-                                             BigInteger from, BigInteger to) {
-        return null;
+    public Map<BigInteger, Boolean> storingFiles(List<DhtFile> files) {
+        // get a list of files with their owners. Return a list of file IDs associated with
+        // bools describing whether they are stored locally. Update owners in the meantime
+        // if necessary
+        Map<BigInteger, Boolean> result = new HashMap<>();
+        for (DhtFile file : files) {
+            result.put(file.fileHash, localPeer.getFileStore().containsFile(file.fileHash));
+            localPeer.getFileStore().refreshResponsibility(file.fileHash, file.owner, false);
+        }
+        return result;
     }
 
     public Boolean isAlive(DhtPeerAddress source) {

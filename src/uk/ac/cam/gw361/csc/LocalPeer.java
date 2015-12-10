@@ -1,7 +1,5 @@
 package uk.ac.cam.gw361.csc;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -95,7 +93,9 @@ public class LocalPeer {
     }
 
     private void doStabilise() {
+        System.out.println("stabilise");
         // todo: time limits for remote calls and failure recognition
+        // todo: transfer ownership for files whose owners disappeared
         synchronized (this) {
             stabilising = true;
         }
@@ -103,6 +103,7 @@ public class LocalPeer {
         NeighbourState newState = new NeighbourState(localAddress);
         Set<DhtPeerAddress> candidates = neighbourState.getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
+        Set<DhtPeerAddress> failingPeers = new HashSet<>();
 
         while (!candidates.isEmpty()) {
             Set<DhtPeerAddress> newCandidates = new HashSet<>();
@@ -117,7 +118,8 @@ public class LocalPeer {
                         newCandidates.addAll(remoteState.getNeighbours());
                         newState.addNeighbour(candidate);
                     } catch (IOException e) {
-                        // this is fine, we won't add this failing peer
+                        // candidate is failing, migrate responsibilities
+                        failingPeers.add(candidate);
                         System.err.println("Failing link " + localAddress.getHost() + ":" +
                                 localAddress.getPort() + " - " + candidate.getHost() + ":" +
                                 candidate.getPort());
@@ -128,6 +130,9 @@ public class LocalPeer {
         }
 
         neighbourState = newState;
+        migrateResponsibilities(failingPeers);
+        stabiliseReplicas();
+
         synchronized (this) {
             stabilising = false;
         }
@@ -147,9 +152,82 @@ public class LocalPeer {
         FileTransfer ft = null;
         DhtPeerAddress target = dhtClient.lookup(hash);
         if (file != null)
-            ft = dhtClient.upload(target, hash, file);
+            ft = dhtClient.upload(target, hash, file, target);
         runningTransfers.add(ft);
         return ft;
+    }
+
+    private void migrateResponsibilities(Set<DhtPeerAddress> failingPeers) {
+        // set all foster file's responsibility to me for the time being
+        // stabiliseReplicas will communicate with successors to establish who the real owner is
+        for (DhtPeerAddress peer : failingPeers) {
+            List<DhtFile> fosterFiles = fileStore.getResponsibilitiesFor(peer);
+            for (DhtFile file : fosterFiles)
+                fileStore.refreshResponsibility(file.fileHash, localAddress, true);
+        }
+    }
+
+    private void stabiliseReplicas() {
+        List<DhtFile> myFiles = fileStore.getResponsibilitiesFor(localAddress);
+        Set<DhtPeerAddress> neighbours = neighbourState.getNeighbours();
+        Set<BigInteger> doNotTransfer = new HashSet<>();
+        HashMap<BigInteger, List<DhtPeerAddress>> transfers = new HashMap<>();
+
+        // first talk to neighbours to determine who has what, what needs to be replicated
+        for (DhtPeerAddress p : neighbours) {
+            try {
+                Map<BigInteger, Boolean> stored = dhtClient.storingFiles(p, myFiles);
+                for (BigInteger file : stored.keySet())
+                    // we are only interested in replicating if peer is a predecessor
+                    // or if it is between us and the file
+                    if (neighbourState.isPredecessor(p) ||
+                            p.isBetween(localAddress, new DhtPeerAddress(file, null, null))) {
+
+                        if (!stored.get(file)) {
+                            // add to transfers
+                            if (!transfers.containsKey(file)) {
+                                LinkedList<DhtPeerAddress> ll = new LinkedList<>();
+                                ll.add(p);
+                                transfers.put(file, ll);
+                            } else
+                                transfers.get(file).add(p);
+                        } else
+                            if (fileStore.refreshResponsibility(file, p, false))
+                                // this means one of our successors has the file therefore
+                                // we are wrong in believing that we are the owners
+                                // hence prevent all transfers of this file
+                                doNotTransfer.add(file);
+                    }
+            } catch (IOException e) {
+                // if a neighbour is not responding, the next synchronisation loop will take care
+                e.printStackTrace();
+            }
+        }
+
+        // do all the transfers
+        for (BigInteger file : transfers.keySet()) {
+            if (!doNotTransfer.contains(file))
+                for (DhtPeerAddress remotePeer : transfers.get(file)) {
+                    try {
+                        FileTransfer ft = dhtClient.upload(remotePeer, file, localAddress);
+                        runningTransfers.add(ft);
+                        // when transfer finishes, make it the new owner if is between me and file
+                    } catch (IOException e) {
+                        // no replication to failing link, the link will be deleted when
+                        // we synchronize next
+                        e.printStackTrace();
+                    }
+                }
+        }
+    }
+
+    void replicate(BigInteger file) throws IOException {
+        List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
+        FileTransfer ft = null;
+        for (DhtPeerAddress p : predecessors) {
+            ft = dhtClient.upload(p, file, localAddress);
+            runningTransfers.add(ft);
+        }
     }
 
     synchronized void notifyTransferCompleted(FileTransfer ft, boolean success) {

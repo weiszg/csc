@@ -47,6 +47,10 @@ public class NeighbourState implements Serializable {
         return peers;
     }
 
+    public synchronized boolean isPredecessor(DhtPeerAddress peer) {
+        return predecessors.contains(peer);
+    }
+
     public NeighbourState(DhtPeerAddress localAddress,
                           TreeSet<DhtPeerAddress> successors,
                           TreeSet<DhtPeerAddress> predecessors) {
@@ -107,7 +111,8 @@ public class NeighbourState implements Serializable {
                 System.out.print("predecessors: ");
                 for (DhtPeerAddress p : predecessors)
                     System.out.print(p.getPort() + " ");
-                System.out.println(" --- " + item.getPort());
+                System.out.println(" - " + predecessors.first().relativeSort +
+                        " --- " + item.getPort());
             }
         }
     }

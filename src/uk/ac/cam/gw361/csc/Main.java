@@ -11,10 +11,9 @@ import java.util.Scanner;
  */
 public class Main {
     public static void main(String[] args) {
-        System.setProperty("sun.rmi.transport.proxy.connectTimeout", "10");
-        System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "10");
-        System.setProperty("sun.rmi.transport.tcp.responseTimeout", "10");
-
+        System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
 
         String userName = (args.length < 1) ? null : args[0];
         String host = (args.length < 2) ? null : args[1];

@@ -8,6 +8,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,8 +35,7 @@ public class DhtClient {
         localPeer.stabilise();
     }
 
-    private DhtComm connect(DhtPeerAddress server)
-            throws ConnectionFailedException {
+    private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         DhtComm comm;
         try {
             comm = doConnect(server);
@@ -43,7 +43,8 @@ public class DhtClient {
             System.err.println("Connection failed 1, retrying");
             try {
                 Thread.sleep(1000);
-            } catch (InterruptedException ie) {}
+            } catch (InterruptedException ie) {
+            }
             try {
                 comm = doConnect(server);
             } catch (ConnectionFailedException e2) {
@@ -55,7 +56,8 @@ public class DhtClient {
                     System.err.println("Connection failed 3, retrying");
                     try {
                         Thread.sleep(1000);
-                    } catch (InterruptedException ie) {}
+                    } catch (InterruptedException ie) {
+                    }
                     try {
                         comm = doConnect(server);
                     } catch (ConnectionFailedException e4) {
@@ -99,6 +101,7 @@ public class DhtClient {
 
     public DhtPeerAddress lookup(BigInteger target)
             throws IOException {
+        // navigate to the highest peer lower than the target
         if (debug) System.out.println("client lookup");
         DhtPeerAddress start = localPeer.getNextLocalHop(target);
         if (start.getHost().equals("localhost"))
@@ -137,6 +140,20 @@ public class DhtClient {
         }
     }
 
+    public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress peer, List<DhtFile> files)
+            throws IOException {
+        if (debug) System.out.println("client getstoringfiles");
+        Map<BigInteger, Boolean> result;
+        DhtComm comm = connect(peer);
+        try {
+            result = comm.storingFiles(files);
+            return result;
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
     public FileTransfer download(DhtPeerAddress peer, BigInteger file)
             throws IOException {
         if (debug) System.out.println("client download");
@@ -145,7 +162,8 @@ public class DhtClient {
         try {
             ServerSocket listener = new ServerSocket(0);
             FileOutputStream fos = localPeer.getFileStore().writeFile(file);
-            ft = new FileTransfer(localPeer, listener, fos, file);
+            // the owner doesn't matter, the destination of the download could be a different folder
+            ft = new FileTransfer(localPeer, peer, listener, fos, file, localPeer.localAddress);
             ft.start();
             Long size = comm.upload(localPeer.localAddress, listener.getLocalPort(), file);
             if (size == null)
@@ -157,27 +175,30 @@ public class DhtClient {
         return ft;
     }
 
-    public FileTransfer upload(DhtPeerAddress peer, BigInteger file) throws IOException {
+    public FileTransfer upload(DhtPeerAddress peer, BigInteger file,
+                               DhtPeerAddress owner) throws IOException {
         FileInputStream fis = localPeer.getFileStore().readFile(file);
-        return doUpload(peer, file, fis);
+        return doUpload(peer, file, fis, owner);
     }
 
-    public FileTransfer upload(DhtPeerAddress peer, BigInteger file, String name)
+    public FileTransfer upload(DhtPeerAddress peer, BigInteger file, String name,
+                               DhtPeerAddress owner)
             throws IOException {
         FileInputStream fis = new FileInputStream(name);
-        return doUpload(peer, file, fis);
+        return doUpload(peer, file, fis, owner);
     }
 
-    public FileTransfer doUpload(DhtPeerAddress peer, BigInteger file, FileInputStream fis)
+    public FileTransfer doUpload(DhtPeerAddress peer, BigInteger file, FileInputStream fis,
+                                 DhtPeerAddress owner)
             throws IOException {
         if (debug) System.out.println("client upload");
         DhtComm comm = connect(peer);
         FileTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
-            ft = new FileTransfer(localPeer, listener, fis, file);
+            ft = new FileTransfer(localPeer, peer, listener, fis, file);
             ft.start();
-            comm.download(localPeer.localAddress, listener.getLocalPort(), file);
+            comm.download(localPeer.localAddress, listener.getLocalPort(), file, owner);
         } catch (IOException ioe) {
             ioe.printStackTrace();
             throw ioe;

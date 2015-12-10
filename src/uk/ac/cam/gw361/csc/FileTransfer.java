@@ -17,36 +17,50 @@ public class FileTransfer extends Thread {
     ServerSocket ssocket = null;
     FileOutputStream fileOutputStream = null;
     FileInputStream fileInputStream = null;
+    DhtPeerAddress owner = null;
     BigInteger fileHash;
     LocalPeer localPeer;
+    DhtPeerAddress remotePeer;
     byte[] data = new byte[8192];
 
-    public FileTransfer(LocalPeer localPeer, ServerSocket socket,
-                        FileOutputStream fileOutputStream, BigInteger fileHash) {
+    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                        FileOutputStream fileOutputStream, BigInteger fileHash,
+                        DhtPeerAddress owner) {
+        // download file, server mode
+        this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileOutputStream = fileOutputStream;
+        this.owner = owner;
     }
 
-    public FileTransfer(LocalPeer localPeer, Socket socket,
-                        FileOutputStream fileOutputStream, BigInteger fileHash) {
+    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
+                        FileOutputStream fileOutputStream, BigInteger fileHash,
+                        DhtPeerAddress owner) {
+        // download file, client mode
+        this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileOutputStream = fileOutputStream;
+        this.owner = owner;
     }
 
-    public FileTransfer(LocalPeer localPeer, ServerSocket socket,
-            FileInputStream fileInputStream, BigInteger fileHash) {
+    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                        FileInputStream fileInputStream, BigInteger fileHash) {
+        // upload mode, server mode
+        this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileInputStream = fileInputStream;
     }
 
-    public FileTransfer(LocalPeer localPeer, Socket socket,
+    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
                         FileInputStream fileInputStream, BigInteger fileHash) {
+        // upload file, client mode
+        this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
@@ -68,8 +82,14 @@ public class FileTransfer extends Thread {
                 totalRead += bytesRead;
             }
             BigInteger realHash = new BigInteger(digest.digest());
+
             if (realHash.equals(fileHash)) {
-                localPeer.getFileStore().setLength(fileHash, totalRead);
+                // complete download, add to list of local files
+                localPeer.getFileStore().addFile(new DhtFile(fileHash, totalRead, owner));
+                if (owner.equals(localPeer.localAddress)) {
+                    // replicate to predecessors
+                    localPeer.replicate(fileHash);
+                }
                 System.out.println("Download complete");
             } else {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +
@@ -91,11 +111,13 @@ public class FileTransfer extends Thread {
         try {
             System.out.println("Starting upload");
             int bytesRead;
-            int totalRead = 0;
             while ((bytesRead = bufferedInputStream.read(data, 0, data.length)) != -1) {
                 outputStream.write(data, 0, bytesRead);
-                totalRead += bytesRead;
             }
+            outputStream.flush();
+
+            // upload complete, refresh responsibility for the file
+            localPeer.getFileStore().refreshResponsibility(fileHash, remotePeer, false);
             System.out.println("Upload complete");
         } finally {
             outputStream.flush();
