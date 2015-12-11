@@ -36,34 +36,29 @@ public class DhtClient {
     }
 
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
+        if (server.equals(localPeer.localAddress)) return localPeer.getServer();
         DhtComm comm;
         try {
             comm = doConnect(server);
         } catch (ConnectionFailedException e1) {
             System.err.println("Connection failed 1, retrying");
             try {
-                Thread.sleep(1000);
+                Thread.sleep(500);
             } catch (InterruptedException ie) {
             }
             try {
                 comm = doConnect(server);
             } catch (ConnectionFailedException e2) {
-                System.err.println("Connection failed 2, running stabilise");
-                localPeer.stabilise();
+                System.err.println("Connection failed 2, retrying");
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
+                }
                 try {
                     comm = doConnect(server);
                 } catch (ConnectionFailedException e3) {
-                    System.err.println("Connection failed 3, retrying");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ie) {
-                    }
-                    try {
-                        comm = doConnect(server);
-                    } catch (ConnectionFailedException e4) {
-                        System.err.println("Giving up, try later");
-                        throw e4;
-                    }
+                    System.err.println("Giving up, try later");
+                    throw e3;
                 }
             }
         }

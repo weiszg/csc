@@ -75,7 +75,7 @@ public class DhtServer implements DhtComm {
             localPeer.getNeighbourState().addNeighbour(
                     new DhtPeerAddress(source.getUserID(), clientHost, source.getPort()));
         } catch (ServerNotActiveException e) {
-            e.printStackTrace();
+            // this is fine
         }
     }
 
@@ -103,12 +103,13 @@ public class DhtServer implements DhtComm {
         return size;
     }
 
-    public Boolean download(DhtPeerAddress source, Integer port, BigInteger file, DhtPeerAddress owner)
-            throws IOException {
+    public Boolean download(DhtPeerAddress source, Integer port, BigInteger file,
+                            DhtPeerAddress owner) throws IOException {
         acceptConnection(source);
-
-        // only accept if owner is within successor range
-        if (!localPeer.getNeighbourState().getSuccessors().contains(owner))
+        owner.setRelative(localPeer.localAddress.getUserID());
+        // only accept if owner is within predecessor range
+        if (!owner.equals(localPeer.localAddress) &&
+                !localPeer.getNeighbourState().getSuccessors().contains(owner))
             return false;
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
@@ -127,6 +128,7 @@ public class DhtServer implements DhtComm {
         // if necessary
         Map<BigInteger, Boolean> result = new HashMap<>();
         for (DhtFile file : files) {
+            file.owner.setRelative(localPeer.localAddress.getUserID());
             result.put(file.fileHash, localPeer.getFileStore().containsFile(file.fileHash));
             localPeer.getFileStore().refreshResponsibility(file.fileHash, file.owner, false);
         }

@@ -41,7 +41,7 @@ public class FileStore {
                     BigInteger key = new BigInteger(f.getName());
                     System.out.println(key.toString());
                     // the owner doesn't matter, replicas could/should be deleted
-                    files.put(key, new DhtFile(key, f.length(), localPeer.localAddress));
+                    addFile(new DhtFile(key, f.length(), localPeer.localAddress));
                     if (debug) System.out.println("File found " + f.getName());
                 } catch (NumberFormatException e) { }
             }
@@ -76,13 +76,20 @@ public class FileStore {
         }
     }
 
+    public synchronized void removeFile(BigInteger file) {
+        System.out.println("Removing file " + file.toString());
+        files.remove(file);
+        File toRemove = new File(myFolder.getPath() + "/" + file.toString());
+        toRemove.delete();
+    }
+
     public synchronized void addFile(DhtFile file) {
         files.put(file.fileHash, file);
         addResponsibility(file);
     }
 
     private void addResponsibility(DhtFile file) {
-        if (!responsibilities.containsKey(file.owner))
+        if (responsibilities.containsKey(file.owner))
             responsibilities.get(file.owner).add(file);
         else {
             HashSet<DhtFile> ll = new HashSet<>();
@@ -129,9 +136,20 @@ public class FileStore {
             files = new LinkedList<>();
         return files;
     }
+
+    public synchronized void print(String beginning) {
+        for (BigInteger file : files.keySet()) {
+            System.out.print(beginning);
+            if (files.get(file).owner.equals(localPeer.localAddress))
+                System.out.print("xxx ");
+            else
+                System.out.print("    ");
+            System.out.println(file.toString());
+        }
+    }
 }
 
-class DhtFile {
+class DhtFile implements Serializable {
     BigInteger fileHash;
     Long size;
     DhtPeerAddress owner;

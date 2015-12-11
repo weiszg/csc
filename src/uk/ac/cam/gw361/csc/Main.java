@@ -22,7 +22,7 @@ public class Main {
 
         if (userName == null) {
             Scanner scanner = new Scanner(System.in);
-            System.out.println("username");
+            System.out.println("username, host, ct");
             userName = scanner.next();
             host = scanner.next();
             if (host.equals("-")) host = null;
@@ -78,10 +78,11 @@ class CommandReader extends Thread {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             String readStr = scanner.nextLine();
-            System.out.println("processing command " + readStr);
             try {
                 if (readStr.equals("nb")) {
                     localPeer.getNeighbourState().print("");
+                } else if (readStr.equals("files")) {
+                    localPeer.getFileStore().print("");
                 } else if (readStr.equals("stabilise")) {
                     localPeer.stabilise();
                 } else if (readStr.startsWith("dl")) {

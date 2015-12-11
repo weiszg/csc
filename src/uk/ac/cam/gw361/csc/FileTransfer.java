@@ -84,16 +84,26 @@ public class FileTransfer extends Thread {
             BigInteger realHash = new BigInteger(digest.digest());
 
             if (realHash.equals(fileHash)) {
+                bufferedOutputStream.flush();
+                bufferedOutputStream.close();
+                fileOutputStream.close();
+
                 // complete download, add to list of local files
                 localPeer.getFileStore().addFile(new DhtFile(fileHash, totalRead, owner));
+                // maybe we are the next owners
+                localPeer.getFileStore().refreshResponsibility(fileHash,
+                        localPeer.localAddress, false);
+                System.out.println("Download complete");
+
                 if (owner.equals(localPeer.localAddress)) {
                     // replicate to predecessors
                     localPeer.replicate(fileHash);
                 }
-                System.out.println("Download complete");
             } else {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +
                         " got: " + realHash.toString());
+                fileOutputStream.close();
+                localPeer.getFileStore().removeFile(fileHash);
                 throw new IOException();
             }
         } catch (NoSuchAlgorithmException e) {

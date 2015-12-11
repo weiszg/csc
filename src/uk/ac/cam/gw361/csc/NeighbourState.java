@@ -163,11 +163,11 @@ public class NeighbourState implements Serializable {
     public synchronized void print(String beginning) {
         System.out.println(beginning + "Predecessors:");
         for (DhtPeerAddress address : predecessors) {
-            if (debug) address.print(beginning + "  ");
+            address.print(beginning + "  ");
         }
         System.out.println(beginning + "Successors:");
         for (DhtPeerAddress address : successors) {
-            if (debug) address.print(beginning + "  ");
+            address.print(beginning + "  ");
         }
     }
 }

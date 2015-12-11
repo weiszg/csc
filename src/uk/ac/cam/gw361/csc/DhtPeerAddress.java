@@ -12,10 +12,11 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
     private String host;
     public transient BigInteger relativeSort = BigInteger.ZERO;
 
-    public DhtPeerAddress(BigInteger userID, String host, Integer port) {
+    public DhtPeerAddress(BigInteger userID, String host, Integer port, BigInteger relativeSort) {
         this.userID = userID;
         this.port = port;
         this.host = host;
+        this.relativeSort = relativeSort;
     }
 
     public void setRelative (BigInteger relative) {
@@ -28,6 +29,9 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
 
     @Override
     public int compareTo(DhtPeerAddress other){
+        if (relativeSort == null)
+            System.out.println("what");
+        System.out.println(relativeSort.toString());
         int relMe = userID.compareTo(relativeSort);
         int relOther = other.userID.compareTo(relativeSort);
         if (relMe >= 0 && relOther < 0) return -1;
@@ -37,6 +41,7 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
 
     @Override
     public boolean equals(Object other) {
+        if (userID == null) return false;
         if (!(other instanceof DhtPeerAddress))
             return false;
         else
