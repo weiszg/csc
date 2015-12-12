@@ -7,30 +7,42 @@ import java.util.*;
 /**
  * Created by gellert on 10/12/2015.
  */
-public class Stabiliser extends TimerTask {
+public class Stabiliser extends Thread {
     private Boolean stabilising = false;
-    private Timer timer = new Timer(true);
     private LocalPeer localPeer;
     private boolean debug = false;
+    private long interval;
+    private boolean running = true;
     
-    public Stabiliser(LocalPeer localPeer) {
+    public Stabiliser(LocalPeer localPeer, Long interval) {
         this.localPeer = localPeer;
-        timer.scheduleAtFixedRate(this, 10000, 10000);
+        this.interval = interval;
+        this.start();
+    }
+
+    public void disconnect() {
+        synchronized (this) { running = false; }
     }
     
     @Override
     public void run() {
-        stabilise();
+        while (running) {
+            try {
+                Thread.sleep(interval);
+            } catch (InterruptedException ie) {
+            }
+            stabilise();
+        }
     }
 
     public void stabilise() {
         synchronized (this) {
-            if (!stabilising) {
+            if (!stabilising && running) {
                 doStabilise();
                 return;
             }
         }
-        while (true) {
+        while (true && running) {
             synchronized (this) {
                 if (!stabilising)
                     return;
@@ -47,7 +59,7 @@ public class Stabiliser extends TimerTask {
             stabilising = true;
         }
 
-        if (debug) System.out.println("stabilising...");
+        System.out.println("stabilising... " + localPeer.localAddress.getPort());
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
@@ -56,11 +68,9 @@ public class Stabiliser extends TimerTask {
         while (!candidates.isEmpty()) {
             Set<DhtPeerAddress> newCandidates = new HashSet<>();
 
-            for (Iterator<DhtPeerAddress> iterator = candidates.iterator(); iterator.hasNext(); ) {
-                DhtPeerAddress candidate = iterator.next();
-                iterator.remove();
+            for (DhtPeerAddress candidate : candidates ) {
                 if (!asked.contains(candidate) &&
-                        localPeer.getNeighbourState().isClose(candidate)) {
+                        newState.isClose(candidate)) {
                     asked.add(candidate);
                     try {
                         NeighbourState remoteState =
@@ -116,7 +126,8 @@ public class Stabiliser extends TimerTask {
                     // or if it is between us and the file
                     if (localPeer.getNeighbourState().isPredecessor(p) ||
                             p.isBetween(localPeer.localAddress,
-                                    new DhtPeerAddress(file, null, null))) {
+                                    new DhtPeerAddress(file, null, null,
+                                            localPeer.localAddress.getUserID()))) {
 
                         if (!stored.get(file)) {
                             // add to transfers
@@ -135,7 +146,7 @@ public class Stabiliser extends TimerTask {
                     }
             } catch (IOException e) {
                 // if a neighbour is not responding, the next synchronisation loop will take care
-                e.printStackTrace();
+                if (debug) e.printStackTrace();
             }
         }
 

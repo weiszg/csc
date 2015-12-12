@@ -12,7 +12,7 @@ import java.util.*;
  */
 public class LocalPeer {
     final String userName;
-    final BigInteger userID;
+    private final BigInteger userID;
     final DhtPeerAddress localAddress;
     private DhtServer dhtServer;
     private DhtClient dhtClient;
@@ -34,7 +34,7 @@ public class LocalPeer {
 
     private Set<FileTransfer> runningTransfers = new HashSet<>();
 
-    public LocalPeer(String userName) {
+    public LocalPeer(String userName, long stabiliseInterval) {
         int port = 8000;
         if (userName.contains(":")) {
             port = Integer.parseInt(userName.split(":")[1]);
@@ -51,14 +51,14 @@ public class LocalPeer {
             e.printStackTrace();
         }
         userID = new BigInteger(cript.digest());
-        localAddress = new DhtPeerAddress(userID, "localhost", port);
+        localAddress = new DhtPeerAddress(userID, "localhost", port, userID);
         neighbourState = new NeighbourState(localAddress);
 
         fileStore = new FileStore(this);
         dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
-        stabiliser = new Stabiliser(this);
+        stabiliser = new Stabiliser(this, stabiliseInterval);
         localAddress.print("Started: ");
     }
 
@@ -76,7 +76,8 @@ public class LocalPeer {
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
 
-        DhtPeerAddress next = peers.lower(new DhtPeerAddress(target, null, null));
+        DhtPeerAddress next = peers.lower(
+                new DhtPeerAddress(target, null, null, localAddress.getUserID()));
         if (next == null) {
             next = peers.last();
         }
@@ -115,7 +116,8 @@ public class LocalPeer {
         runningTransfers.remove(ft);
     }
 
-    synchronized void disconnect() {
+    void disconnect() {
         dhtServer.stopServer();
+        stabiliser.disconnect();
     }
 }

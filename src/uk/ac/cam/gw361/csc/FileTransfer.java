@@ -72,7 +72,6 @@ public class FileTransfer extends Thread {
         try {
             InputStream inputStream = socket.getInputStream();
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
-            System.out.println("Starting download");
 
             int bytesRead;
             long totalRead = 0;
@@ -93,7 +92,8 @@ public class FileTransfer extends Thread {
                 // maybe we are the next owners
                 localPeer.getFileStore().refreshResponsibility(fileHash,
                         localPeer.localAddress, false);
-                System.out.println("Download complete");
+                System.out.println("Download complete: " + socket.getPort()
+                        + " - " + socket.getPort());
 
                 if (owner.equals(localPeer.localAddress)) {
                     // replicate to predecessors
@@ -119,7 +119,8 @@ public class FileTransfer extends Thread {
         BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
         OutputStream outputStream = socket.getOutputStream();
         try {
-            System.out.println("Starting upload");
+            System.out.println("Starting upload: " + socket.getLocalPort()
+                    + " - " + socket.getPort());
             int bytesRead;
             while ((bytesRead = bufferedInputStream.read(data, 0, data.length)) != -1) {
                 outputStream.write(data, 0, bytesRead);
@@ -128,7 +129,6 @@ public class FileTransfer extends Thread {
 
             // upload complete, refresh responsibility for the file
             localPeer.getFileStore().refreshResponsibility(fileHash, remotePeer, false);
-            System.out.println("Upload complete");
         } finally {
             outputStream.flush();
             bufferedInputStream.close();
@@ -139,6 +139,7 @@ public class FileTransfer extends Thread {
     public void run() {
         try {
             if (socket == null) {
+                ssocket.setSoTimeout(1000);
                 socket = ssocket.accept();
                 ssocket.close();
             }
@@ -149,7 +150,7 @@ public class FileTransfer extends Thread {
                 download();
             localPeer.notifyTransferCompleted(this, true);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            System.out.println(ioe.toString());
             localPeer.notifyTransferCompleted(this, false);
         }
         finally {

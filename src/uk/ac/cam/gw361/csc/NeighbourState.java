@@ -10,11 +10,15 @@ import java.util.TreeSet;
  * Created by gellert on 02/11/2015.
  */
 public class NeighbourState implements Serializable {
-    public static final int k = 5;
+    public static int k = 5;
     private boolean debug = false;
-    DhtPeerAddress localAddress;
+    private transient DhtPeerAddress localAddress;
     private TreeSet<DhtPeerAddress> successors = new TreeSet<>();
     private TreeSet<DhtPeerAddress> predecessors = new TreeSet<>();
+
+    synchronized void setLocalAddress(DhtPeerAddress localAddress) {
+        this.localAddress = localAddress;
+    }
 
     public synchronized ArrayList<DhtPeerAddress> getPredecessors() {
         ArrayList<DhtPeerAddress> ret = new ArrayList<>(predecessors);
@@ -36,12 +40,12 @@ public class NeighbourState implements Serializable {
         TreeSet<DhtPeerAddress> peers = new TreeSet<>();
         for (DhtPeerAddress peer : predecessors) {
             DhtPeerAddress neutralPeer = new DhtPeerAddress(peer.getUserID(),
-                    peer.getHost(), peer.getPort());
+                    peer.getHost(), peer.getPort(), localAddress.getUserID());
             peers.add(neutralPeer);
         }
         for (DhtPeerAddress peer : successors) {
             DhtPeerAddress neutralPeer = new DhtPeerAddress(peer.getUserID(),
-                    peer.getHost(), peer.getPort());
+                    peer.getHost(), peer.getPort(), localAddress.getUserID());
             peers.add(neutralPeer);
         }
         return peers;
@@ -70,8 +74,8 @@ public class NeighbourState implements Serializable {
         item.setRelative(localAddress.getUserID());
 
         return (successors.size() < k || predecessors.size() < k ||
-                successors.last().compareTo(item) > 0 ||
-                predecessors.last().compareTo(item) < 0);
+                successors.last().compareTo(item) >= 0 ||
+                predecessors.first().compareTo(item) <= 0);
     }
 
     public synchronized void addNeighbour(DhtPeerAddress item) {
@@ -115,49 +119,6 @@ public class NeighbourState implements Serializable {
                         " --- " + item.getPort());
             }
         }
-    }
-
-    private void checkRelative() {
-        for (DhtPeerAddress a : predecessors) {
-            if (!a.relativeSort.equals(localAddress.getUserID()))
-                System.err.println("Relative address mismatch");
-        }
-    }
-
-    public synchronized void removeNeighbour(DhtPeerAddress item) {
-        successors.remove(item);
-        predecessors.remove(item);
-    }
-
-    public synchronized void mergeNeighbourState(NeighbourState toMerge) {
-        for (DhtPeerAddress item: toMerge.successors) {
-            addNeighbour(item);
-        }
-        for (DhtPeerAddress item: toMerge.predecessors) {
-            addNeighbour(item);
-        }
-    }
-
-    public synchronized void cut() {
-        TreeSet<DhtPeerAddress> cutSuccessors = new TreeSet<>();
-        TreeSet<DhtPeerAddress> cutPredecessors = new TreeSet<>();
-
-        Iterator<DhtPeerAddress> it = successors.iterator();
-        int i = 0;
-        while (i < k && it.hasNext()) {
-            cutSuccessors.add(it.next());
-            i++;
-        }
-
-        it = predecessors.iterator();
-        i = 0;
-        while (i < k && it.hasNext()) {
-            cutPredecessors.add(it.next());
-            i++;
-        }
-
-        successors = cutSuccessors;
-        predecessors = cutPredecessors;
     }
 
     public synchronized void print(String beginning) {

@@ -64,6 +64,7 @@ public class DhtServer implements DhtComm {
     public void stopServer() {
         try {
             registry.unbind("DhtComm");
+            UnicastRemoteObject.unexportObject(this, true);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -73,7 +74,8 @@ public class DhtServer implements DhtComm {
         try {
             String clientHost = RemoteServer.getClientHost();
             localPeer.getNeighbourState().addNeighbour(
-                    new DhtPeerAddress(source.getUserID(), clientHost, source.getPort()));
+                    new DhtPeerAddress(source.getUserID(), clientHost, source.getPort(),
+                            localPeer.localAddress.getUserID()));
         } catch (ServerNotActiveException e) {
             // this is fine
         }

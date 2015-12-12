@@ -30,7 +30,8 @@ public class DhtClient {
             port = Integer.parseInt(host.split(":")[1]);
             host = host.split(":")[0];
         }
-        DhtPeerAddress pred = doLookup(new DhtPeerAddress(null, host, port), localPeer.userID);
+        DhtPeerAddress pred = doLookup(new DhtPeerAddress(null, host, port,
+                        localPeer.localAddress.getUserID()), localPeer.localAddress.getUserID());
         localPeer.getNeighbourState().addNeighbour(pred);
         localPeer.stabilise();
     }
@@ -41,7 +42,7 @@ public class DhtClient {
         try {
             comm = doConnect(server);
         } catch (ConnectionFailedException e1) {
-            System.err.println("Connection failed 1, retrying");
+            if (debug) System.err.println("Connection failed 1, retrying");
             try {
                 Thread.sleep(500);
             } catch (InterruptedException ie) {
@@ -49,7 +50,7 @@ public class DhtClient {
             try {
                 comm = doConnect(server);
             } catch (ConnectionFailedException e2) {
-                System.err.println("Connection failed 2, retrying");
+                if (debug) System.err.println("Connection failed 2, retrying");
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException ie) {
@@ -57,7 +58,7 @@ public class DhtClient {
                 try {
                     comm = doConnect(server);
                 } catch (ConnectionFailedException e3) {
-                    System.err.println("Giving up, try later");
+                    if (debug) System.err.println("Giving up, try later");
                     throw e3;
                 }
             }
@@ -89,7 +90,7 @@ public class DhtClient {
                 connections.put(server, ret);
             return ret;
         } catch (Exception e) {
-            System.err.println("Client exception: " + e.toString());
+            if (debug) System.err.println("Client exception: " + e.toString());
             throw new ConnectionFailedException();
         }
     }
@@ -116,7 +117,7 @@ public class DhtClient {
             nextHop = comm.nextHop(localPeer.localAddress, target);
             if (nextHop.getHost().equals("localhost"))
                 nextHop = new DhtPeerAddress(nextHop.getUserID(),
-                        nextHop.getHost(), nextHop.getPort());
+                        nextHop.getHost(), nextHop.getPort(), localPeer.localAddress.getUserID());
         } while (!nextHop.equals(prevHop));
         return nextHop;
     }
@@ -128,6 +129,7 @@ public class DhtClient {
         DhtComm comm = connect(peer);
         try {
             result = comm.getNeighbourState(localPeer.localAddress);
+            result.setLocalAddress(localPeer.localAddress);
             return result;
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -193,7 +195,10 @@ public class DhtClient {
             ServerSocket listener = new ServerSocket(0);
             ft = new FileTransfer(localPeer, peer, listener, fis, file);
             ft.start();
-            comm.download(localPeer.localAddress, listener.getLocalPort(), file, owner);
+
+            if (!comm.download(localPeer.localAddress, listener.getLocalPort(), file, owner))
+                System.out.println("Me " + localPeer.localAddress.getPort() +
+                        " of range for receiver " + peer.getPort());
         } catch (IOException ioe) {
             ioe.printStackTrace();
             throw ioe;

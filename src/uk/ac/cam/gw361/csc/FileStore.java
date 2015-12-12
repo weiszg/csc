@@ -117,7 +117,7 @@ public class FileStore {
         if (files.containsKey(file)) {
             DhtFile oldFile = files.get(file);
             if (!oldFile.owner.equals(owner) && (force || owner.isBetween(localPeer.localAddress,
-                    new DhtPeerAddress(file, null, null)))) {
+                    new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
                 if (responsibilities.containsKey(oldFile.owner))
                     responsibilities.get(oldFile.owner).remove(oldFile);
                 oldFile.owner = owner;

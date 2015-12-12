@@ -29,9 +29,6 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
 
     @Override
     public int compareTo(DhtPeerAddress other){
-        if (relativeSort == null)
-            System.out.println("what");
-        System.out.println(relativeSort.toString());
         int relMe = userID.compareTo(relativeSort);
         int relOther = other.userID.compareTo(relativeSort);
         if (relMe >= 0 && relOther < 0) return -1;

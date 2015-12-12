@@ -3,6 +3,8 @@ package uk.ac.cam.gw361.csc;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
+import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -12,8 +14,9 @@ public class DhtNeighbourTest {
 
     @Test
     public void testNeighbours() {
-        int peerCount = 100;
-        int startPort = 12000;
+        NeighbourState.k = 5;
+        int peerCount = 50;
+        int startPort = 11000;
         int k = NeighbourState.k;
 
         List<LocalPeer> peers = new ArrayList<>();
@@ -22,10 +25,13 @@ public class DhtNeighbourTest {
 
         for (int i = 0; i < peerCount; i++) {
             LocalPeer newPeer = new LocalPeer(Integer.toString(i) + ":" +
-                    Integer.toString(startPort+i));
+                    Integer.toString(startPort+i), 100000);
             if (i>0) newPeer.join("localhost:" + startPort);
             peers.add(newPeer);
-            addresses.add(newPeer.localAddress);
+            addresses.add(new DhtPeerAddress(newPeer.localAddress.getUserID(),
+                                             newPeer.localAddress.getHost(),
+                                             newPeer.localAddress.getPort(),
+                                             BigInteger.ZERO));
             peerLookup.put(newPeer.localAddress, newPeer);
         }
         List<DhtPeerAddress> sortedAddresses = new ArrayList<>(addresses);
