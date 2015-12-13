@@ -59,7 +59,7 @@ public class Stabiliser extends Thread {
             stabilising = true;
         }
 
-        System.out.println("stabilising... " + localPeer.localAddress.getPort());
+        if (debug) System.out.println("stabilising... " + localPeer.localAddress.getPort());
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();

@@ -88,16 +88,18 @@ public class FileTransfer extends Thread {
                 fileOutputStream.close();
 
                 // complete download, add to list of local files
-                localPeer.getFileStore().addFile(new DhtFile(fileHash, totalRead, owner));
-                // maybe we are the next owners
-                localPeer.getFileStore().refreshResponsibility(fileHash,
-                        localPeer.localAddress, false);
-                System.out.println("Download complete: " + socket.getPort()
-                        + " - " + socket.getPort());
+                if (owner != null) {
+                    localPeer.getFileStore().addFile(new DhtFile(fileHash, totalRead, owner));
+                    // maybe we are the next owners
+                    localPeer.getFileStore().refreshResponsibility(fileHash,
+                            localPeer.localAddress, false);
+                    System.out.println("Download complete: " + socket.getPort()
+                            + " - " + socket.getPort());
 
-                if (owner.equals(localPeer.localAddress)) {
-                    // replicate to predecessors
-                    localPeer.replicate(fileHash);
+                    if (owner.equals(localPeer.localAddress)) {
+                        // replicate to predecessors
+                        localPeer.replicate(fileHash);
+                    }
                 }
             } else {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +

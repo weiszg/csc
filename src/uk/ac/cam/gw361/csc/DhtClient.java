@@ -132,7 +132,7 @@ public class DhtClient {
             result.setLocalAddress(localPeer.localAddress);
             return result;
         } catch (RemoteException e) {
-            e.printStackTrace();
+            if (debug) e.printStackTrace();
             throw e;
         }
     }
@@ -146,7 +146,7 @@ public class DhtClient {
             result = comm.storingFiles(files);
             return result;
         } catch (RemoteException e) {
-            e.printStackTrace();
+            if (debug) e.printStackTrace();
             throw e;
         }
     }
@@ -158,15 +158,15 @@ public class DhtClient {
         FileTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
-            FileOutputStream fos = localPeer.getFileStore().writeFile(file);
+            FileOutputStream fos = new FileOutputStream(file.toString());
             // the owner doesn't matter, the destination of the download could be a different folder
-            ft = new FileTransfer(localPeer, peer, listener, fos, file, localPeer.localAddress);
+            ft = new FileTransfer(localPeer, peer, listener, fos, file, null);
             ft.start();
             Long size = comm.upload(localPeer.localAddress, listener.getLocalPort(), file);
             if (size == null)
                 throw new IOException("Size null");
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            if (debug) ioe.printStackTrace();
             throw ioe;
         }
         return ft;
@@ -200,7 +200,7 @@ public class DhtClient {
                 System.out.println("Me " + localPeer.localAddress.getPort() +
                         " of range for receiver " + peer.getPort());
         } catch (IOException ioe) {
-            ioe.printStackTrace();
+            if (debug) ioe.printStackTrace();
             throw ioe;
         }
         return ft;
