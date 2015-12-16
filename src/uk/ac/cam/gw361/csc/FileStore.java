@@ -118,14 +118,39 @@ public class FileStore {
             DhtFile oldFile = files.get(file);
             if (!oldFile.owner.equals(owner) && (force || owner.isBetween(localPeer.localAddress,
                     new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
-                if (responsibilities.containsKey(oldFile.owner))
-                    responsibilities.get(oldFile.owner).remove(oldFile);
+
+                if (responsibilities.containsKey(oldFile.owner)) {
+                    Set<DhtFile> respFiles = responsibilities.get(oldFile.owner);
+                    respFiles.remove(oldFile);
+                    if (respFiles.isEmpty())
+                        responsibilities.remove(oldFile.owner);
+                }
                 oldFile.owner = owner;
                 addResponsibility(oldFile);
+                // refreshed last queried time
+                oldFile.lastQueried = new Date();
                 return true;
             }
         }
         return false;
+    }
+
+    public synchronized void vacuum() {
+        List<BigInteger> toRemove = new LinkedList<>();
+
+        for (BigInteger fileHash : files.keySet()) {
+            DhtFile file = files.get(fileHash);
+            if (!file.owner.equals(localPeer.localAddress)) {
+                // check timestamp
+                Date now = new Date();
+                long ageSeconds = (now.getTime() - file.lastQueried.getTime()) / 1000;
+                if (ageSeconds > 30)
+                    toRemove.add(fileHash);
+            }
+        }
+
+        for (BigInteger fileHash : toRemove)
+            removeFile(fileHash);
     }
 
     public synchronized List<DhtFile> getResponsibilitiesFor(DhtPeerAddress peer) {
@@ -153,10 +178,12 @@ class DhtFile implements Serializable {
     BigInteger fileHash;
     Long size;
     DhtPeerAddress owner;
+    transient Date lastQueried;
 
     DhtFile(BigInteger fileHash, Long size, DhtPeerAddress owner) {
         this.fileHash = fileHash;
         this.size = size;
         this.owner = owner;
+        this.lastQueried = new Date();
     }
 }

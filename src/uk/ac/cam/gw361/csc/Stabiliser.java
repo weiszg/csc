@@ -92,6 +92,7 @@ public class Stabiliser extends Thread {
         localPeer.setNeighbourState(newState);
         migrateResponsibilities(failingPeers);
         stabiliseReplicas();
+        localPeer.getFileStore().vacuum();
 
         if (debug) System.out.println("stabilised");
         synchronized (this) {

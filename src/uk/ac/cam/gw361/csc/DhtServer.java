@@ -131,7 +131,8 @@ public class DhtServer implements DhtComm {
         Map<BigInteger, Boolean> result = new HashMap<>();
         for (DhtFile file : files) {
             file.owner.setRelative(localPeer.localAddress.getUserID());
-            result.put(file.fileHash, localPeer.getFileStore().containsFile(file.fileHash));
+            boolean contains = localPeer.getFileStore().containsFile(file.fileHash);
+            result.put(file.fileHash, contains);
             localPeer.getFileStore().refreshResponsibility(file.fileHash, file.owner, false);
         }
         return result;
