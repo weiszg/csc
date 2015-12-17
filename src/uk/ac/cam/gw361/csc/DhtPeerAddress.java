@@ -1,5 +1,6 @@
 package uk.ac.cam.gw361.csc;
 
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.math.BigInteger;
 
@@ -58,11 +59,11 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
             return (this.compareTo(a) > 0 || this.compareTo(b) < 0);
     }
 
-    public void print(String beginning) {
+    public void print(PrintStream out, String beginning) {
         if (userID != null)
-            System.out.println(beginning + "host=" + host + " port=" + port +
+            out.println(beginning + "host=" + host + " port=" + port +
                 " ID=" + userID.toString());
         else
-            System.out.println(beginning + "host=" + host + " port=" + port);
+            out.println(beginning + "host=" + host + " port=" + port);
     }
 }

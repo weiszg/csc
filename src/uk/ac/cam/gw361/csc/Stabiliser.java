@@ -121,30 +121,35 @@ public class Stabiliser extends Thread {
         // first talk to neighbours to determine who has what, what needs to be replicated
         for (DhtPeerAddress p : neighbours) {
             try {
-                Map<BigInteger, Boolean> stored = localPeer.getClient().storingFiles(p, myFiles);
-                for (BigInteger file : stored.keySet())
+                List<DhtFile> askFiles = new LinkedList<>();
+                // calculate which files to enquire about
+                for (DhtFile file : myFiles)
                     // we are only interested in replicating if peer is a predecessor
                     // or if it is between us and the file
                     if (localPeer.getNeighbourState().isPredecessor(p) ||
                             p.isBetween(localPeer.localAddress,
-                                    new DhtPeerAddress(file, null, null,
-                                            localPeer.localAddress.getUserID()))) {
+                                    new DhtPeerAddress(file.fileHash, null, null,
+                                            localPeer.localAddress.getUserID())))
+                        askFiles.add(file);
 
-                        if (!stored.get(file)) {
-                            // add to transfers
-                            if (!transfers.containsKey(file)) {
-                                LinkedList<DhtPeerAddress> ll = new LinkedList<>();
-                                ll.add(p);
-                                transfers.put(file, ll);
-                            } else
-                                transfers.get(file).add(p);
+                // ask which files neighbour has
+                Map<BigInteger, Boolean> stored = localPeer.getClient().storingFiles(p, askFiles);
+
+                for (BigInteger file : stored.keySet()) {
+                    if (!stored.get(file)) {
+                        // add to transfers
+                        if (!transfers.containsKey(file)) {
+                            LinkedList<DhtPeerAddress> ll = new LinkedList<>();
+                            ll.add(p);
+                            transfers.put(file, ll);
                         } else
-                        if (localPeer.getFileStore().refreshResponsibility(file, p, false))
-                            // this means one of our successors has the file therefore
-                            // we are wrong in believing that we are the owners
-                            // hence prevent all transfers of this file
-                            doNotTransfer.add(file);
-                    }
+                            transfers.get(file).add(p);
+                    } else if (localPeer.getFileStore().refreshResponsibility(file, p, false))
+                        // this means one of our successors has the file therefore
+                        // we are wrong in believing that we are the owners
+                        // hence prevent all transfers of this file
+                        doNotTransfer.add(file);
+                }
             } catch (IOException e) {
                 // if a neighbour is not responding, the next synchronisation loop will take care
                 if (debug) e.printStackTrace();

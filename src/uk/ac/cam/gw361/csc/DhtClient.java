@@ -68,7 +68,7 @@ public class DhtClient {
 
     private DhtComm doConnect(DhtPeerAddress server)
             throws ConnectionFailedException {
-        if (debug) server.print("client connect: ");
+        if (debug) server.print(System.out, "client connect: ");
 
         // cache lookup
         if (server.getUserID() != null && connections.containsKey(server)) {
@@ -143,7 +143,7 @@ public class DhtClient {
         Map<BigInteger, Boolean> result;
         DhtComm comm = connect(peer);
         try {
-            result = comm.storingFiles(files);
+            result = comm.storingFiles(localPeer.localAddress, files);
             return result;
         } catch (RemoteException e) {
             if (debug) e.printStackTrace();
@@ -204,6 +204,12 @@ public class DhtClient {
             throw ioe;
         }
         return ft;
+    }
+
+    public String query(DhtPeerAddress peer, String input) throws IOException {
+        if (debug) System.out.println("client query");
+        DhtComm comm = connect(peer);
+        return comm.query(input);
     }
 }
 

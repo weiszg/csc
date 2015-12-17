@@ -72,6 +72,7 @@ public class DhtServer implements DhtComm {
 
     private void acceptConnection(DhtPeerAddress source) {
         try {
+            source.setRelative(localPeer.localAddress.getUserID());
             String clientHost = RemoteServer.getClientHost();
             localPeer.getNeighbourState().addNeighbour(
                     new DhtPeerAddress(source.getUserID(), clientHost, source.getPort(),
@@ -110,9 +111,14 @@ public class DhtServer implements DhtComm {
         acceptConnection(source);
         owner.setRelative(localPeer.localAddress.getUserID());
         // only accept if owner is within predecessor range
+        // or if I am between the current owner and the file, in which case I'll be the next owner
         if (!owner.equals(localPeer.localAddress) &&
-                !localPeer.getNeighbourState().getSuccessors().contains(owner))
+                !localPeer.localAddress.isBetween(owner,
+                        new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())) &&
+                !localPeer.getNeighbourState().getSuccessors().contains(owner)) {
+            System.err.println("refusing download");
             return false;
+        }
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.toString());
@@ -124,16 +130,18 @@ public class DhtServer implements DhtComm {
         return true;
     }
 
-    public Map<BigInteger, Boolean> storingFiles(List<DhtFile> files) {
+    public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files) {
         // get a list of files with their owners. Return a list of file IDs associated with
         // bools describing whether they are stored locally. Update owners in the meantime
         // if necessary
+        acceptConnection(source);
+
         Map<BigInteger, Boolean> result = new HashMap<>();
         for (DhtFile file : files) {
             file.owner.setRelative(localPeer.localAddress.getUserID());
             boolean contains = localPeer.getFileStore().containsFile(file.fileHash);
             result.put(file.fileHash, contains);
-            localPeer.getFileStore().refreshResponsibility(file.fileHash, file.owner, false);
+            localPeer.getFileStore().refreshResponsibility(file.fileHash, source, false);
         }
         return result;
     }
@@ -141,5 +149,9 @@ public class DhtServer implements DhtComm {
     public Boolean isAlive(DhtPeerAddress source) {
         acceptConnection(source);
         return true;
+    }
+
+    public String query(String input) {
+        return localPeer.executeQuery(input);
     }
 }

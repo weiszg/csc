@@ -53,7 +53,7 @@ public class DhtHandoffTest {
         try { Thread.sleep(2000); } catch (InterruptedException e) { }
         LocalPeer remainingPeer = peers.get(0);
         remainingPeer.stabilise();
-        remainingPeer.getFileStore().print("");
+        remainingPeer.getFileStore().print(System.out, "");
         List<DhtFile> responsible = remainingPeer.getFileStore()
                 .getResponsibilitiesFor(remainingPeer.localAddress);
 

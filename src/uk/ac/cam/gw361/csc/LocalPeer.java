@@ -1,7 +1,6 @@
 package uk.ac.cam.gw361.csc;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -59,7 +58,7 @@ public class LocalPeer {
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
         stabiliser = new Stabiliser(this, stabiliseInterval);
-        localAddress.print("Started: ");
+        localAddress.print(System.out, "Started: ");
     }
 
     public synchronized void join(String remotePeerIP) {
@@ -119,5 +118,38 @@ public class LocalPeer {
     void disconnect() {
         dhtServer.stopServer();
         stabiliser.disconnect();
+    }
+
+    public String executeQuery(String input) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PrintStream printStream = new PrintStream(baos);
+
+        try {
+            if (input.equals("nb")) {
+                getNeighbourState().print(printStream, "");
+            } else if (input.equals("files")) {
+                getFileStore().print(printStream, "");
+            } else if (input.equals("stabilise")) {
+                stabilise();
+            } else if (input.startsWith("dl")) {
+                input = input.substring("dl ".length());
+                BigInteger target = new BigInteger(input);
+                printStream.println("downloading " + target.toString());
+                getFile(target);
+            } else if (input.startsWith("ul")) {
+                input = input.substring("ul ".length());
+                publishFile(input);
+                System.out.println("upload started");
+            } else if (input.contains(" ")) {
+                String[] splitStr = input.split(" ", 2);
+                int connectPort = Integer.parseInt(splitStr[0]);
+                DhtPeerAddress toConnect = new DhtPeerAddress(null, "localhost", connectPort, null);
+                System.out.println(getClient().query(toConnect, splitStr[1]));
+            } else System.out.println("Unrecognised command: " + input);
+        } catch (IOException e) {
+            printStream.println(e.toString());
+        }
+        printStream.flush();
+        return baos.toString();
     }
 }

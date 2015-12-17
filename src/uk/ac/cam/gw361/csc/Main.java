@@ -68,7 +68,7 @@ public class Main {
 
 
 class CommandReader extends Thread {
-    private LocalPeer localPeer;
+    private static LocalPeer localPeer;
 
     public CommandReader(LocalPeer localPeer) {
         this.localPeer = localPeer;
@@ -78,26 +78,9 @@ class CommandReader extends Thread {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             String readStr = scanner.nextLine();
-            try {
-                if (readStr.equals("nb")) {
-                    localPeer.getNeighbourState().print("");
-                } else if (readStr.equals("files")) {
-                    localPeer.getFileStore().print("");
-                } else if (readStr.equals("stabilise")) {
-                    localPeer.stabilise();
-                } else if (readStr.startsWith("dl")) {
-                    readStr = readStr.substring("dl ".length());
-                    BigInteger target = new BigInteger(readStr);
-                    System.out.println("downloading " + target.toString());
-                    localPeer.getFile(target);
-                } else if (readStr.startsWith("ul")) {
-                    readStr = readStr.substring("ul ".length());
-                    localPeer.publishFile(readStr);
-                    System.out.println("upload started");
-                } else System.out.println("Unrecognised command: " + readStr);
-            } catch (IOException | NumberFormatException e) {
-                e.printStackTrace();
-            }
+            System.out.println(localPeer.executeQuery(readStr));
         }
     }
+
+
 }

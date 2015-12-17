@@ -111,12 +111,14 @@ public class FileStore {
 
     public synchronized boolean refreshResponsibility(BigInteger file, DhtPeerAddress owner,
                                                    boolean force) {
-        // update responsibility for file file to owner owner but only if owner is closer to the
-        // file than the previous owner. Returns whether change has been made.
+        // update responsibility for the file's owner to new owner but only if owner is closer
+        // to the file than the previous owner. Returns whether change has been made.
         // set responsibility anyway if force is true
         if (files.containsKey(file)) {
             DhtFile oldFile = files.get(file);
-            if (!oldFile.owner.equals(owner) && (force || owner.isBetween(localPeer.localAddress,
+            // refresh last queried time
+            oldFile.lastQueried = new Date();
+            if (!oldFile.owner.equals(owner) && (force || owner.isBetween(oldFile.owner,
                     new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
 
                 if (responsibilities.containsKey(oldFile.owner)) {
@@ -127,8 +129,6 @@ public class FileStore {
                 }
                 oldFile.owner = owner;
                 addResponsibility(oldFile);
-                // refreshed last queried time
-                oldFile.lastQueried = new Date();
                 return true;
             }
         }
@@ -162,14 +162,15 @@ public class FileStore {
         return files;
     }
 
-    public synchronized void print(String beginning) {
+    public synchronized void print(PrintStream out, String beginning) {
         for (BigInteger file : files.keySet()) {
-            System.out.print(beginning);
+            out.print(beginning);
             if (files.get(file).owner.equals(localPeer.localAddress))
-                System.out.print("xxx ");
+                out.print("xxx ");
             else
-                System.out.print("    ");
-            System.out.println(file.toString());
+                out.print("    ");
+            out.print(file.toString() + "  ");
+            out.println(files.get(file).lastQueried.toString());
         }
     }
 }

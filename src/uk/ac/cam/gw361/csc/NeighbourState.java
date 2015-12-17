@@ -1,5 +1,6 @@
 package uk.ac.cam.gw361.csc;
 
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -121,14 +122,14 @@ public class NeighbourState implements Serializable {
         }
     }
 
-    public synchronized void print(String beginning) {
-        System.out.println(beginning + "Predecessors:");
+    public synchronized void print(PrintStream out, String beginning) {
+        out.println(beginning + "Predecessors:");
         for (DhtPeerAddress address : predecessors) {
-            address.print(beginning + "  ");
+            address.print(out, beginning + "  ");
         }
-        System.out.println(beginning + "Successors:");
+        out.println(beginning + "Successors:");
         for (DhtPeerAddress address : successors) {
-            address.print(beginning + "  ");
+            address.print(out, beginning + "  ");
         }
     }
 }
