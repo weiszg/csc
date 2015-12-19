@@ -4,7 +4,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.*;
-import java.math.BigInteger;
 import java.util.*;
 
 /**
@@ -34,7 +33,7 @@ public class DhtHandoffTest {
                     Integer.toString(startPort+i), 1000);
             if (i>0) newPeer.join("localhost:" + startPort);
             try {
-                newPeer.publishFile("test" + i + ".txt");
+                newPeer.publishEntity("test" + i + ".txt");
             } catch (IOException e) {
                 Assert.assertTrue(false);
             }
@@ -53,8 +52,8 @@ public class DhtHandoffTest {
         try { Thread.sleep(2000); } catch (InterruptedException e) { }
         LocalPeer remainingPeer = peers.get(0);
         remainingPeer.stabilise();
-        remainingPeer.getFileStore().print(System.out, "");
-        List<DhtFile> responsible = remainingPeer.getFileStore()
+        remainingPeer.getDhtStore().print(System.out, "");
+        List<DhtFile> responsible = remainingPeer.getDhtStore()
                 .getResponsibilitiesFor(remainingPeer.localAddress);
 
         Assert.assertTrue(responsible.size() == 10);

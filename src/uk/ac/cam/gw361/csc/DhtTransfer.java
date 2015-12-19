@@ -10,61 +10,65 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Created by gellert on 10/11/2015.
  */
-public class FileTransfer extends Thread {
+public class DhtTransfer extends Thread {
     // todo: error handling
 
     Socket socket = null;
     ServerSocket ssocket = null;
     FileOutputStream fileOutputStream = null;
     FileInputStream fileInputStream = null;
-    DhtPeerAddress owner = null;
+    TransferContinuation continuation = null;
     BigInteger fileHash;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
     byte[] data = new byte[8192];
 
-    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                        FileOutputStream fileOutputStream, BigInteger fileHash,
-                        DhtPeerAddress owner) {
+    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                       FileOutputStream fileOutputStream, BigInteger fileHash,
+                       TransferContinuation continuation) {
         // download file, server mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileOutputStream = fileOutputStream;
-        this.owner = owner;
+        this.continuation = continuation;
     }
 
-    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                        FileOutputStream fileOutputStream, BigInteger fileHash,
-                        DhtPeerAddress owner) {
+    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
+                       FileOutputStream fileOutputStream, BigInteger fileHash,
+                       TransferContinuation continuation) {
         // download file, client mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileOutputStream = fileOutputStream;
-        this.owner = owner;
+        this.continuation = continuation;
     }
 
-    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                        FileInputStream fileInputStream, BigInteger fileHash) {
+    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                       FileInputStream fileInputStream, BigInteger fileHash,
+                       TransferContinuation continuation) {
         // upload mode, server mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileInputStream = fileInputStream;
+        this.continuation = continuation;
     }
 
-    public FileTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                        FileInputStream fileInputStream, BigInteger fileHash) {
+    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
+                       FileInputStream fileInputStream, BigInteger fileHash,
+                       TransferContinuation continuation) {
         // upload file, client mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileInputStream = fileInputStream;
+        this.continuation = continuation;
     }
 
     private void download() throws IOException {
@@ -87,25 +91,16 @@ public class FileTransfer extends Thread {
                 bufferedOutputStream.close();
                 fileOutputStream.close();
 
-                // complete download, add to list of local files
-                if (owner != null) {
-                    localPeer.getFileStore().addFile(new DhtFile(fileHash, totalRead, owner));
-                    // maybe we are the next owners
-                    localPeer.getFileStore().refreshResponsibility(fileHash,
-                            localPeer.localAddress, false);
-                    System.out.println("Download complete: " + socket.getPort()
-                            + " - " + socket.getPort());
+                if (continuation != null)
+                    continuation.notifyFinished(this, totalRead);
 
-                    if (owner.equals(localPeer.localAddress)) {
-                        // replicate to predecessors
-                        localPeer.replicate(fileHash);
-                    }
-                }
+                System.out.println("Download complete: " + socket.getPort()
+                        + " - " + socket.getPort());
             } else {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +
                         " got: " + realHash.toString());
                 fileOutputStream.close();
-                localPeer.getFileStore().removeFile(fileHash);
+                localPeer.getDhtStore().removeFile(fileHash);
                 throw new IOException();
             }
         } catch (NoSuchAlgorithmException e) {
@@ -130,7 +125,7 @@ public class FileTransfer extends Thread {
             outputStream.flush();
 
             // upload complete, refresh responsibility for the file
-            localPeer.getFileStore().refreshResponsibility(fileHash, remotePeer, false);
+            localPeer.getDhtStore().refreshResponsibility(fileHash, remotePeer, false);
         } finally {
             outputStream.flush();
             bufferedInputStream.close();
@@ -162,5 +157,43 @@ public class FileTransfer extends Thread {
                 ioe.printStackTrace();
             }
         }
+    }
+}
+
+interface TransferContinuation {
+    void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException;
+}
+
+class InternalDownloadContinuation implements TransferContinuation {
+    private DhtPeerAddress owner;
+
+    InternalDownloadContinuation(DhtPeerAddress owner) {
+        this.owner = owner;
+    }
+
+    @Override
+    public void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException {
+        // complete download, add to list of local files
+        LocalPeer localPeer = finishedTransfer.localPeer;
+        BigInteger fileHash = finishedTransfer.fileHash;
+        if (owner != null) {
+            localPeer.getDhtStore().addFile(new DhtFile(fileHash, size, owner));
+            // maybe we are the next owners
+            localPeer.getDhtStore().refreshResponsibility(fileHash,
+                    localPeer.localAddress, false);
+
+
+            if (owner.equals(localPeer.localAddress)) {
+                // replicate to predecessors
+                finishedTransfer.localPeer.replicate(fileHash);
+            }
+        }
+    }
+}
+
+class FileDownloadContinuation implements TransferContinuation {
+    @Override
+    public void notifyFinished(DhtTransfer finishedTransfer, Long size) {
+
     }
 }

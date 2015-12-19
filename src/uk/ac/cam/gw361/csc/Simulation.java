@@ -7,7 +7,6 @@ package uk.ac.cam.gw361.csc;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.Properties;
 import java.util.Random;
 import java.util.Scanner;
 

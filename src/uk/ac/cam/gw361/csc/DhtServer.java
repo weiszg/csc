@@ -97,11 +97,11 @@ public class DhtServer implements DhtComm {
     public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
             throws IOException {
         acceptConnection(source);
-        Long size = localPeer.getFileStore().getLength(file);
-        FileInputStream fis = localPeer.getFileStore().readFile(file);
+        Long size = localPeer.getDhtStore().getLength(file);
+        FileInputStream fis = localPeer.getDhtStore().readFile(file);
 
         Socket socket = new Socket(source.getHost(), port);
-        Thread uploader = new FileTransfer(localPeer, source, socket, fis, file);
+        Thread uploader = new DhtTransfer(localPeer, source, socket, fis, file, null);
         uploader.start();
         return size;
     }
@@ -122,10 +122,11 @@ public class DhtServer implements DhtComm {
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.toString());
-        FileOutputStream fos = localPeer.getFileStore().writeFile(file);
+        FileOutputStream fos = localPeer.getDhtStore().writeFile(file);
 
         Socket socket = new Socket(source.getHost(), port);
-        Thread downloader = new FileTransfer(localPeer, source, socket, fos, file, owner);
+        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file,
+                new InternalDownloadContinuation(owner));
         downloader.start();
         return true;
     }
@@ -139,9 +140,9 @@ public class DhtServer implements DhtComm {
         Map<BigInteger, Boolean> result = new HashMap<>();
         for (DhtFile file : files) {
             file.owner.setRelative(localPeer.localAddress.getUserID());
-            boolean contains = localPeer.getFileStore().containsFile(file.fileHash);
+            boolean contains = localPeer.getDhtStore().containsFile(file.fileHash);
             result.put(file.fileHash, contains);
-            localPeer.getFileStore().refreshResponsibility(file.fileHash, source, false);
+            localPeer.getDhtStore().refreshResponsibility(file.fileHash, source, false);
         }
         return result;
     }

@@ -1,7 +1,5 @@
 package uk.ac.cam.gw361.csc;
 
-import sun.awt.image.ImageWatched;
-
 import java.io.*;
 import java.math.BigInteger;
 import java.util.*;
@@ -9,7 +7,7 @@ import java.util.*;
 /**
  * Created by gellert on 06/11/2015.
  */
-public class FileStore {
+public class DhtStore {
     private static final boolean debug = true;
     private LocalPeer localPeer;
     // files and their properties stored locally
@@ -19,7 +17,7 @@ public class FileStore {
     // private folder used for storage
     private File myFolder;
 
-    public FileStore(LocalPeer localPeer) {
+    public DhtStore(LocalPeer localPeer) {
         this.localPeer = localPeer;
         myFolder = new File("./storage/" + localPeer.userName);
 
@@ -57,7 +55,7 @@ public class FileStore {
                         + "/" + file.toString());
                 return fis;
             } catch (FileNotFoundException fnf) {
-                System.err.println("FileStore broken, file not found");
+                System.err.println("DhtStore broken, file not found");
                 return null;
             }
         }
@@ -71,7 +69,7 @@ public class FileStore {
                     + "/" + file.toString());
             return fos;
         } catch (FileNotFoundException fnf) {
-            System.err.println("FileStore broken, file not found");
+            System.err.println("DhtStore broken, file not found");
             return null;
         }
     }

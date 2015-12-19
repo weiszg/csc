@@ -1,9 +1,5 @@
 package uk.ac.cam.gw361.csc;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.math.BigInteger;
 import java.util.Scanner;
 
 /**

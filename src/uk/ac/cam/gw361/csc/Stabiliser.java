@@ -92,7 +92,7 @@ public class Stabiliser extends Thread {
         localPeer.setNeighbourState(newState);
         migrateResponsibilities(failingPeers);
         stabiliseReplicas();
-        localPeer.getFileStore().vacuum();
+        localPeer.getDhtStore().vacuum();
 
         if (debug) System.out.println("stabilised");
         synchronized (this) {
@@ -104,15 +104,15 @@ public class Stabiliser extends Thread {
         // set all foster file's responsibility to me for the time being
         // stabiliseReplicas will communicate with successors to establish who the real owner is
         for (DhtPeerAddress peer : failingPeers) {
-            List<DhtFile> fosterFiles = localPeer.getFileStore().getResponsibilitiesFor(peer);
+            List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(peer);
             for (DhtFile file : fosterFiles)
-                localPeer.getFileStore().refreshResponsibility(file.fileHash,
+                localPeer.getDhtStore().refreshResponsibility(file.fileHash,
                         localPeer.localAddress, true);
         }
     }
 
     private void stabiliseReplicas() {
-        List<DhtFile> myFiles = localPeer.getFileStore().
+        List<DhtFile> myFiles = localPeer.getDhtStore().
                 getResponsibilitiesFor(localPeer.localAddress);
         Set<DhtPeerAddress> neighbours = localPeer.getNeighbourState().getNeighbours();
         Set<BigInteger> doNotTransfer = new HashSet<>();
@@ -144,7 +144,7 @@ public class Stabiliser extends Thread {
                             transfers.put(file, ll);
                         } else
                             transfers.get(file).add(p);
-                    } else if (localPeer.getFileStore().refreshResponsibility(file, p, false))
+                    } else if (localPeer.getDhtStore().refreshResponsibility(file, p, false))
                         // this means one of our successors has the file therefore
                         // we are wrong in believing that we are the owners
                         // hence prevent all transfers of this file
@@ -161,7 +161,7 @@ public class Stabiliser extends Thread {
             if (!doNotTransfer.contains(file))
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
-                        FileTransfer ft = localPeer.getClient().upload(remotePeer, file, localPeer.localAddress);
+                        DhtTransfer ft = localPeer.getClient().upload(remotePeer, file, localPeer.localAddress);
                         localPeer.addRunningTransfer(ft);
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {

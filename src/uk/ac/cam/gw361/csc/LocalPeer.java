@@ -18,20 +18,20 @@ public class LocalPeer {
     private Stabiliser stabiliser;
     public DhtClient getClient() { return dhtClient; }
     public DhtServer getServer() { return dhtServer; }
-    private FileStore fileStore;
-    public FileStore getFileStore() { return fileStore; }
+    private DhtStore dhtStore;
+    public DhtStore getDhtStore() { return dhtStore; }
 
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
     public synchronized void setNeighbourState(NeighbourState newState) {
         neighbourState = newState;
     }
-    public synchronized void addRunningTransfer(FileTransfer ft) {
+    public synchronized void addRunningTransfer(DhtTransfer ft) {
         runningTransfers.add(ft);
     }
     public void stabilise() { stabiliser.stabilise(); }
 
-    private Set<FileTransfer> runningTransfers = new HashSet<>();
+    private Set<DhtTransfer> runningTransfers = new HashSet<>();
 
     public LocalPeer(String userName, long stabiliseInterval) {
         int port = 8000;
@@ -53,7 +53,7 @@ public class LocalPeer {
         localAddress = new DhtPeerAddress(userID, "localhost", port, userID);
         neighbourState = new NeighbourState(localAddress);
 
-        fileStore = new FileStore(this);
+        dhtStore = new DhtStore(this);
         dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
@@ -83,8 +83,8 @@ public class LocalPeer {
         return next;
     }
 
-    public FileTransfer getFile(BigInteger file) throws IOException {
-        FileTransfer ft = null;
+    public DhtTransfer getEntity(BigInteger file) throws IOException {
+        DhtTransfer ft = null;
         DhtPeerAddress target = dhtClient.lookup(file);
         if (file != null)
             ft = dhtClient.download(target, file);
@@ -92,9 +92,9 @@ public class LocalPeer {
         return ft;
     }
 
-    public FileTransfer publishFile(String file) throws IOException {
+    public DhtTransfer publishEntity(String file) throws IOException {
         BigInteger hash = FileHasher.hashFile(file);
-        FileTransfer ft = null;
+        DhtTransfer ft = null;
         DhtPeerAddress target = dhtClient.lookup(hash);
         if (file != null)
             ft = dhtClient.upload(target, hash, file, target);
@@ -102,16 +102,24 @@ public class LocalPeer {
         return ft;
     }
 
+    public DhtTransfer getFile(BigInteger fileMeta) throws IOException {
+        return null;
+    }
+
+    public DhtTransfer publishFile(String file) throws IOException {
+        return null;
+    }
+
     void replicate(BigInteger file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
-        FileTransfer ft = null;
+        DhtTransfer ft = null;
         for (DhtPeerAddress p : predecessors) {
             ft = dhtClient.upload(p, file, localAddress);
             runningTransfers.add(ft);
         }
     }
 
-    synchronized void notifyTransferCompleted(FileTransfer ft, boolean success) {
+    synchronized void notifyTransferCompleted(DhtTransfer ft, boolean success) {
         runningTransfers.remove(ft);
     }
 
@@ -128,17 +136,17 @@ public class LocalPeer {
             if (input.equals("nb")) {
                 getNeighbourState().print(printStream, "");
             } else if (input.equals("files")) {
-                getFileStore().print(printStream, "");
+                getDhtStore().print(printStream, "");
             } else if (input.equals("stabilise")) {
                 stabilise();
             } else if (input.startsWith("dl")) {
                 input = input.substring("dl ".length());
                 BigInteger target = new BigInteger(input);
                 printStream.println("downloading " + target.toString());
-                getFile(target);
+                getEntity(target);
             } else if (input.startsWith("ul")) {
                 input = input.substring("ul ".length());
-                publishFile(input);
+                publishEntity(input);
                 System.out.println("upload started");
             } else if (input.contains(" ")) {
                 String[] splitStr = input.split(" ", 2);
