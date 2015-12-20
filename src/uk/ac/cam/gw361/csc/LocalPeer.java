@@ -31,7 +31,7 @@ public class LocalPeer {
     }
     public void stabilise() { stabiliser.stabilise(); }
 
-    private Set<DhtTransfer> runningTransfers = new HashSet<>();
+    Set<DhtTransfer> runningTransfers = new HashSet<>();
 
     public LocalPeer(String userName, long stabiliseInterval) {
         int port = 8000;
@@ -84,38 +84,38 @@ public class LocalPeer {
     }
 
     public DhtTransfer getEntity(BigInteger file) throws IOException {
-        DhtTransfer ft = null;
-        DhtPeerAddress target = dhtClient.lookup(file);
-        if (file != null)
-            ft = dhtClient.download(target, file);
-        runningTransfers.add(ft);
-        return ft;
+        return dhtClient.download(FileDownloadContinuation.transferDir + file.toString(),
+                file, null);
     }
 
     public DhtTransfer publishEntity(String file) throws IOException {
-        BigInteger hash = FileHasher.hashFile(file);
-        DhtTransfer ft = null;
-        DhtPeerAddress target = dhtClient.lookup(hash);
-        if (file != null)
-            ft = dhtClient.upload(target, hash, file, target);
-        runningTransfers.add(ft);
-        return ft;
+        return dhtClient.upload(file, null);
     }
 
     public DhtTransfer getFile(BigInteger fileMeta) throws IOException {
-        return null;
+        return dhtClient.download(FileDownloadContinuation.transferDir
+                            + fileMeta.toString(), fileMeta, new FileDownloadContinuation());
     }
 
-    public DhtTransfer publishFile(String file) throws IOException {
-        return null;
+    public DhtTransfer publishFile(String fileName) throws IOException {
+        FileMetadata meta = new FileMetadata(fileName);
+        String lastName = fileName;
+        if (fileName.contains("/"))
+            lastName = fileName.substring(fileName.lastIndexOf("/"));
+        String metaLocation = FileUploadContinuation.transferDir + lastName + ".metadata";
+
+        try (ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(metaLocation))) {
+            ous.writeObject(meta);
+        }
+
+        FileUploadContinuation continuation = new FileUploadContinuation(fileName, meta);
+        return dhtClient.upload(fileName, continuation);
     }
 
     void replicate(BigInteger file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
-        DhtTransfer ft = null;
         for (DhtPeerAddress p : predecessors) {
-            ft = dhtClient.upload(p, file, localAddress);
-            runningTransfers.add(ft);
+             dhtClient.upload(p, file, localAddress, null);
         }
     }
 
@@ -139,14 +139,23 @@ public class LocalPeer {
                 getDhtStore().print(printStream, "");
             } else if (input.equals("stabilise")) {
                 stabilise();
+            } else if (input.startsWith("dle")) {
+                input = input.substring("dle ".length());
+                BigInteger target = new BigInteger(input);
+                printStream.println("downloading " + target.toString());
+                getEntity(target);
+            } else if (input.startsWith("ule")) {
+                input = input.substring("ule ".length());
+                publishEntity(input);
+                System.out.println("upload started");
             } else if (input.startsWith("dl")) {
                 input = input.substring("dl ".length());
                 BigInteger target = new BigInteger(input);
                 printStream.println("downloading " + target.toString());
-                getEntity(target);
+                getFile(target);
             } else if (input.startsWith("ul")) {
                 input = input.substring("ul ".length());
-                publishEntity(input);
+                publishFile(input);
                 System.out.println("upload started");
             } else if (input.contains(" ")) {
                 String[] splitStr = input.split(" ", 2);

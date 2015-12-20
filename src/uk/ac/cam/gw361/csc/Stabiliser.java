@@ -161,7 +161,8 @@ public class Stabiliser extends Thread {
             if (!doNotTransfer.contains(file))
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
-                        DhtTransfer ft = localPeer.getClient().upload(remotePeer, file, localPeer.localAddress);
+                        DhtTransfer ft = localPeer.getClient().upload(remotePeer, file,
+                                localPeer.localAddress, null);
                         localPeer.addRunningTransfer(ft);
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {

@@ -11,7 +11,7 @@ import java.util.TreeMap;
  * Created by gellert on 13/12/2015.
  */
 public class FileMetadata implements CscData, Serializable {
-    static final long blockSize = 1024*1024;
+    static final int blockSize = 1024*1024;
     private ArrayList<BigInteger> hashes;
     public final long length;
     public final int blocks;
@@ -34,16 +34,18 @@ public class FileMetadata implements CscData, Serializable {
         }
     }
 
-    public ArrayList<BigInteger> getChunks() {
-        return hashes;
+    public TreeMap<Integer, BigInteger> getChunks() {
+        TreeMap<Integer, BigInteger> result = new TreeMap<>();
+        for (int i=0; i<blocks; i++)
+            result.put(i, hashes.get(i));
+        return result;
     }
 
     public TreeMap<Integer, BigInteger> getDiff(FileMetadata other) {
         TreeMap<Integer, BigInteger> result = new TreeMap<>();
-        for (int i=0; i<blocks; i++) {
+        for (int i=0; i<blocks; i++)
             if (i >= other.blocks || !hashes.get(i).equals(other.hashes.get(i)))
                 result.put(i, hashes.get(i));
-        }
         return result;
     }
 }

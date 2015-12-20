@@ -6,6 +6,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Created by gellert on 10/11/2015.
@@ -182,7 +185,6 @@ class InternalDownloadContinuation implements TransferContinuation {
             localPeer.getDhtStore().refreshResponsibility(fileHash,
                     localPeer.localAddress, false);
 
-
             if (owner.equals(localPeer.localAddress)) {
                 // replicate to predecessors
                 finishedTransfer.localPeer.replicate(fileHash);
@@ -191,9 +193,110 @@ class InternalDownloadContinuation implements TransferContinuation {
     }
 }
 
-class FileDownloadContinuation implements TransferContinuation {
-    @Override
-    public void notifyFinished(DhtTransfer finishedTransfer, Long size) {
+class FileUploadContinuation implements TransferContinuation {
+    static String transferDir = "./uploads/";
+    static int maxConcurrentTransfers = 5;
+    int concurrentTransfers = 0;
+    private boolean first = true;
+    private int finishedBlocks = 0;
+    private String fileName;
+    FileMetadata meta;
+    TreeMap<Integer, BigInteger> waitingChunks;
+    Set<DhtTransfer> runningTransfers = new HashSet<>();
 
+    FileUploadContinuation(String file, FileMetadata meta) throws IOException {
+        this.meta = meta;
+        waitingChunks = meta.getChunks();
+
+        String lastName = file;
+        if (file.contains("/"))
+            lastName = file.substring(file.lastIndexOf("/"));
+        fileName = FileUploadContinuation.transferDir + lastName;
+
+        System.out.println("Copying file to upload directory");
+        splitFile(file);
+        System.out.println("Copying finished");
+    }
+
+    private void splitFile(String file) throws IOException {
+        int index = 0;
+        byte[] buffer = new byte[FileMetadata.blockSize];
+
+        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+            int bytesRead = 0; // bytesRead should always be blockSize for internal blocks
+            while ((bytesRead = bis.read(buffer)) > 0) {
+                File newFile = new File(fileName + "." + index++);
+                try (FileOutputStream out = new FileOutputStream(newFile)) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
+        }
+    }
+
+    @Override
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
+            throws IOException {
+        LocalPeer localPeer = finishedTransfer.localPeer;
+        runningTransfers.remove(finishedTransfer);
+        if (first) {
+            // metadata upload has finished, process metadata and start file blocks
+            first = false;
+            System.out.println("Metadata uploaded");
+        } else {
+            finishedBlocks++;
+            System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+        }
+
+        while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
+            int nextIndex = waitingChunks.firstKey();
+            BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
+
+            concurrentTransfers++;
+            runningTransfers.add(localPeer.getClient().upload(fileName + "." + nextIndex, this));
+        }
+    }
+}
+
+class FileDownloadContinuation implements TransferContinuation {
+    static String transferDir = "./downloads/";
+    static int maxConcurrentTransfers = 5;
+    int concurrentTransfers = 0;
+    private boolean first = true;
+    private int finishedBlocks = 0;
+    FileMetadata meta;
+    TreeMap<Integer, BigInteger> waitingChunks;
+    Set<DhtTransfer> runningTransfers = new HashSet<>();
+
+    @Override
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
+            throws IOException {
+        LocalPeer localPeer = finishedTransfer.localPeer;
+        runningTransfers.remove(finishedTransfer);
+        if (first) {
+            // metadata download has finished, process metadata and start file blocks
+            first = false;
+            FileInputStream fis = new FileInputStream(transferDir +
+                    finishedTransfer.fileHash.toString());
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            try {
+                meta = (FileMetadata) ois.readObject();
+                waitingChunks = meta.getChunks();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace(); // invalid file or differing versions
+                throw new IOException("Metadata download raised ClassNotFoundException");
+            }
+            System.out.println("Metadata collected");
+        } else {
+            finishedBlocks++;
+            System.out.println("Downloaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+        }
+
+        while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
+            BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
+
+            concurrentTransfers++;
+            runningTransfers.add(localPeer.getClient().download(FileDownloadContinuation.transferDir
+                    + finishedTransfer.fileHash.toString(), nextTransfer, this));
+        }
     }
 }

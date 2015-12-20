@@ -8,6 +8,7 @@ import java.util.*;
  * Created by gellert on 06/11/2015.
  */
 public class DhtStore {
+    static final String storeDir = "./storage";
     private static final boolean debug = true;
     private LocalPeer localPeer;
     // files and their properties stored locally
@@ -19,10 +20,10 @@ public class DhtStore {
 
     public DhtStore(LocalPeer localPeer) {
         this.localPeer = localPeer;
-        myFolder = new File("./storage/" + localPeer.userName);
+        myFolder = new File(storeDir + localPeer.userName);
 
         if (!myFolder.exists()) {
-            File storageFolder = new File("./storage");
+            File storageFolder = new File(storeDir);
             if (!storageFolder.exists())
                 storageFolder.mkdir();
             System.out.println("creating directory: " + localPeer.userName);
