@@ -26,7 +26,7 @@ public class FileHasher {
             int n = 0;
             long totalRead = 0;
             byte[] buffer = new byte[8192];
-            while (n != -1 || size > 0 && totalRead < size) {
+            while (n != -1 && (size == 0 || totalRead < size)) {
                 if (size == 0)
                     n = is.read(buffer);
                 else

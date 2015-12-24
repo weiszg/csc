@@ -193,6 +193,7 @@ public class DhtClient {
     public DhtTransfer upload(String name, FileUploadContinuation continuation)
             throws IOException {
         BigInteger fileHash = FileHasher.hashFile(name);
+        System.out.println("Hash for " + name + " is " + fileHash.toString()); // todo: remove later when public key auth in place
         FileInputStream fis = new FileInputStream(name);
 
         DhtTransfer ft = null;
@@ -216,9 +217,13 @@ public class DhtClient {
             ft = new DhtTransfer(localPeer, peer, listener, fis, file, continuation);
             ft.start();
 
-            if (!comm.download(localPeer.localAddress, listener.getLocalPort(), file, owner))
+            Integer response = comm.download(localPeer.localAddress,
+                    listener.getLocalPort(), file, owner);
+            if (response.equals(1))
                 System.out.println("Me " + localPeer.localAddress.getPort() +
                         " of range for receiver " + peer.getPort());
+            else if (response.equals(2))
+                ft.stopWithSuccess();
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;

@@ -74,7 +74,11 @@ class CommandReader extends Thread {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             String readStr = scanner.nextLine();
-            System.out.println(localPeer.executeQuery(readStr));
+            try {
+                System.out.println(localPeer.executeQuery(readStr));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

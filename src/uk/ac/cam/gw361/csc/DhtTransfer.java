@@ -24,6 +24,7 @@ public class DhtTransfer extends Thread {
     BigInteger fileHash;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
+    boolean stoppedWithSuccess = false;
     byte[] data = new byte[8192];
 
     public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
@@ -75,13 +76,20 @@ public class DhtTransfer extends Thread {
     }
 
     private void download() throws IOException {
-        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream);
+        long totalRead = 0;
+
+        MessageDigest digest;
         try {
+            digest = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("No such algorithm");
+        }
+
+        try (BufferedOutputStream bufferedOutputStream
+                     = new BufferedOutputStream(fileOutputStream)) {
             InputStream inputStream = socket.getInputStream();
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
 
             int bytesRead;
-            long totalRead = 0;
             while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
                 bufferedOutputStream.write(data, 0, bytesRead);
                 digest.update(data, 0, bytesRead);
@@ -89,51 +97,54 @@ public class DhtTransfer extends Thread {
             }
             BigInteger realHash = new BigInteger(digest.digest());
 
-            if (realHash.equals(fileHash)) {
-                bufferedOutputStream.flush();
-                bufferedOutputStream.close();
-                fileOutputStream.close();
-
-                if (continuation != null)
-                    continuation.notifyFinished(this, totalRead);
-
-                System.out.println("Download complete: " + socket.getPort()
-                        + " - " + socket.getPort());
-            } else {
+            if (!realHash.equals(fileHash)) {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +
                         " got: " + realHash.toString());
                 fileOutputStream.close();
                 localPeer.getDhtStore().removeFile(fileHash);
                 throw new IOException();
             }
-        } catch (NoSuchAlgorithmException e) {
-            throw new IOException("No such algorithm");
-        } finally {
             bufferedOutputStream.flush();
-            bufferedOutputStream.close();
-            fileOutputStream.close();
         }
+
+        System.out.println("Download complete: " + socket.getPort()
+                + " - " + socket.getPort());
+
+        if (continuation != null)
+            continuation.notifyFinished(this, totalRead);
     }
 
     private void upload() throws IOException {
-        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-        OutputStream outputStream = socket.getOutputStream();
-        try {
-            System.out.println("Starting upload: " + socket.getLocalPort()
-                    + " - " + socket.getPort());
-            int bytesRead;
-            while ((bytesRead = bufferedInputStream.read(data, 0, data.length)) != -1) {
-                outputStream.write(data, 0, bytesRead);
+        long totalWritten = 0;
+        try (BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream)) {
+            try (OutputStream outputStream = socket.getOutputStream()) {
+                System.out.println("Starting upload: " + socket.getLocalPort()
+                        + " - " + socket.getPort());
+                int bytesWritten;
+                while ((bytesWritten = bufferedInputStream.read(data, 0, data.length)) != -1) {
+                    outputStream.write(data, 0, bytesWritten);
+                    totalWritten += bytesWritten;
+                }
+                outputStream.flush();
             }
-            outputStream.flush();
-
-            // upload complete, refresh responsibility for the file
-            localPeer.getDhtStore().refreshResponsibility(fileHash, remotePeer, false);
-        } finally {
-            outputStream.flush();
-            bufferedInputStream.close();
-            fileInputStream.close();
         }
+
+        if (continuation != null)
+            continuation.notifyFinished(this, totalWritten);
+    }
+
+    synchronized void stopWithSuccess() {
+        System.out.println("Stopping transfer because it's redundant");
+        stoppedWithSuccess = true;
+
+        if (continuation != null)
+            try {
+                continuation.notifyFinished(this, localPeer.getDhtStore().getLength(fileHash));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        localPeer.notifyTransferCompleted(this, true);
     }
 
     public void run() {
@@ -148,23 +159,43 @@ public class DhtTransfer extends Thread {
                 upload();
             else if (fileOutputStream != null)
                 download();
-            localPeer.notifyTransferCompleted(this, true);
+
+            synchronized (this) {
+                if (!stoppedWithSuccess)
+                    localPeer.notifyTransferCompleted(this, true);
+            }
         } catch (IOException ioe) {
-            System.out.println(ioe.toString());
-            localPeer.notifyTransferCompleted(this, false);
+            synchronized (this) {
+                if (!stoppedWithSuccess) {
+                    System.out.println(ioe.toString());
+                    localPeer.notifyTransferCompleted(this, false);
+                }
+            }
         }
         finally {
-            try {
-                if (socket != null) socket.close();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
+            try { if (fileInputStream != null) fileInputStream.close(); }
+            catch (IOException ioe) { ioe.printStackTrace(); }
+
+            try { if (fileOutputStream != null) fileOutputStream.close(); }
+            catch (IOException ioe) { ioe.printStackTrace(); }
+
+            try { if (socket != null) socket.close(); }
+            catch (IOException ioe) { ioe.printStackTrace(); }
         }
     }
 }
 
 interface TransferContinuation {
     void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException;
+}
+
+class InternalUploadContinuation implements  TransferContinuation {
+    @Override
+    public void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException {
+        // upload complete, refresh responsibility for the file
+        finishedTransfer.localPeer.getDhtStore().refreshResponsibility(
+                finishedTransfer.fileHash, finishedTransfer.remotePeer, false);
+    }
 }
 
 class InternalDownloadContinuation implements TransferContinuation {
@@ -204,6 +235,15 @@ class FileUploadContinuation implements TransferContinuation {
     TreeMap<Integer, BigInteger> waitingChunks;
     Set<DhtTransfer> runningTransfers = new HashSet<>();
 
+    public static void createDir() {
+        File myFolder = new File(transferDir);
+        if (!myFolder.exists()) {
+            System.out.println("creating directory: " + transferDir);
+            if (!myFolder.mkdir())
+                System.err.println("creating folder failed");
+        }
+    }
+
     FileUploadContinuation(String file, FileMetadata meta) throws IOException {
         this.meta = meta;
         waitingChunks = meta.getChunks();
@@ -226,8 +266,9 @@ class FileUploadContinuation implements TransferContinuation {
             int bytesRead = 0; // bytesRead should always be blockSize for internal blocks
             while ((bytesRead = bis.read(buffer)) > 0) {
                 File newFile = new File(fileName + "." + index++);
-                try (FileOutputStream out = new FileOutputStream(newFile)) {
-                    out.write(buffer, 0, bytesRead);
+                try (BufferedOutputStream bos = new BufferedOutputStream(
+                        new FileOutputStream(newFile))) {
+                    bos.write(buffer, 0, bytesRead);
                 }
             }
         }
@@ -244,12 +285,13 @@ class FileUploadContinuation implements TransferContinuation {
             System.out.println("Metadata uploaded");
         } else {
             finishedBlocks++;
+            concurrentTransfers--;
             System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
         }
 
         while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
             int nextIndex = waitingChunks.firstKey();
-            BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
+            waitingChunks.remove(waitingChunks.firstKey());
 
             concurrentTransfers++;
             runningTransfers.add(localPeer.getClient().upload(fileName + "." + nextIndex, this));
@@ -263,9 +305,51 @@ class FileDownloadContinuation implements TransferContinuation {
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
+    private String fileName;
     FileMetadata meta;
     TreeMap<Integer, BigInteger> waitingChunks;
     Set<DhtTransfer> runningTransfers = new HashSet<>();
+
+    public FileDownloadContinuation(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public static void createDir() {
+        File myFolder = new File(transferDir);
+        if (!myFolder.exists()) {
+            System.out.println("creating directory: " + transferDir);
+            if (!myFolder.mkdir())
+                System.err.println("creating folder failed");
+        }
+    }
+
+    private void mergeFile() throws IOException {
+        int index = 0;
+        byte[] buffer = new byte[FileMetadata.blockSize];
+
+        try (FileOutputStream fos = new FileOutputStream(transferDir + fileName)) {
+            try (BufferedOutputStream bos = new BufferedOutputStream(fos)) {
+                // opened target output file
+                while ((new File(transferDir + fileName + "." + index)).exists()) {
+                    // for each index if file exists open for input
+                    try (BufferedInputStream bis = new BufferedInputStream(
+                            new FileInputStream(transferDir + fileName + "." + index))) {
+                        // read all contents of input chunk and write to output
+                        int bytesRead;
+                        while ((bytesRead = bis.read(buffer)) > 0) {
+                            bos.write(buffer, 0, bytesRead);
+                        }
+                    }
+                    bos.flush();
+
+                    // delete file since it has been merged
+                    new File(transferDir + fileName + "." + index).delete();
+
+                    index++;
+                }
+            }
+        }
+    }
 
     @Override
     public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
@@ -275,8 +359,7 @@ class FileDownloadContinuation implements TransferContinuation {
         if (first) {
             // metadata download has finished, process metadata and start file blocks
             first = false;
-            FileInputStream fis = new FileInputStream(transferDir +
-                    finishedTransfer.fileHash.toString());
+            FileInputStream fis = new FileInputStream(transferDir + fileName + ".meta");
             ObjectInputStream ois = new ObjectInputStream(fis);
             try {
                 meta = (FileMetadata) ois.readObject();
@@ -286,17 +369,28 @@ class FileDownloadContinuation implements TransferContinuation {
                 throw new IOException("Metadata download raised ClassNotFoundException");
             }
             System.out.println("Metadata collected");
+
+            // delete metadata
+            new File(transferDir + fileName + ".meta").delete();
         } else {
             finishedBlocks++;
+            concurrentTransfers--;
             System.out.println("Downloaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+
+            // if done merge downloaded chunks
+            if (waitingChunks.isEmpty() && concurrentTransfers==0) {
+                mergeFile();
+                System.out.println("Merging succesful, download complete");
+            }
         }
 
         while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
+            int nextIndex = waitingChunks.firstKey();
             BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
 
             concurrentTransfers++;
             runningTransfers.add(localPeer.getClient().download(FileDownloadContinuation.transferDir
-                    + finishedTransfer.fileHash.toString(), nextTransfer, this));
+                    + fileName + "." + nextIndex, nextTransfer, this));
         }
     }
 }

@@ -8,7 +8,7 @@ import java.util.*;
  * Created by gellert on 06/11/2015.
  */
 public class DhtStore {
-    static final String storeDir = "./storage";
+    static final String storeDir = "./storage/";
     private static final boolean debug = true;
     private LocalPeer localPeer;
     // files and their properties stored locally

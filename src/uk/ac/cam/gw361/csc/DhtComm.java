@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -16,8 +17,8 @@ public interface DhtComm extends Remote {
     DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
-    Boolean download(DhtPeerAddress source, Integer port, BigInteger file, DhtPeerAddress owner)
-            throws IOException;
+    Integer download(DhtPeerAddress source, Integer port, BigInteger file,
+                                     DhtPeerAddress owner) throws IOException;
     Boolean isAlive(DhtPeerAddress source) throws RemoteException;
     Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException;

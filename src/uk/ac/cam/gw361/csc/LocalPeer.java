@@ -93,11 +93,14 @@ public class LocalPeer {
     }
 
     public DhtTransfer getFile(BigInteger fileMeta) throws IOException {
-        return dhtClient.download(FileDownloadContinuation.transferDir
-                            + fileMeta.toString(), fileMeta, new FileDownloadContinuation());
+        FileDownloadContinuation.createDir();
+        String fileName = "filename"; // todo: replace placeholder
+        return dhtClient.download(FileDownloadContinuation.transferDir + fileName + ".meta",
+                fileMeta, new FileDownloadContinuation(fileName));
     }
 
     public DhtTransfer publishFile(String fileName) throws IOException {
+        FileUploadContinuation.createDir();
         FileMetadata meta = new FileMetadata(fileName);
         String lastName = fileName;
         if (fileName.contains("/"))
@@ -109,7 +112,8 @@ public class LocalPeer {
         }
 
         FileUploadContinuation continuation = new FileUploadContinuation(fileName, meta);
-        return dhtClient.upload(fileName, continuation);
+        return dhtClient.upload(FileUploadContinuation.transferDir + lastName + ".metadata",
+                continuation);
     }
 
     void replicate(BigInteger file) throws IOException {

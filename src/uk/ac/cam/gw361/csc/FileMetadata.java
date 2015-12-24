@@ -19,7 +19,7 @@ public class FileMetadata implements CscData, Serializable {
     FileMetadata(String file) throws IOException {
         File f = new File(file);
         length = f.length();
-        blocks = (int)((length+1) / blockSize);
+        blocks = (int)((length-1) / blockSize) + 1;
         hashes = new ArrayList<>(blocks);
 
         FileInputStream fis = new FileInputStream(file);
@@ -27,7 +27,7 @@ public class FileMetadata implements CscData, Serializable {
             BufferedInputStream bis = new BufferedInputStream(fis);
             for (int i = 0; i < blocks; i++) {
                 BigInteger nextHash = FileHasher.hashFile(bis, blockSize);
-                hashes.set(i, nextHash);
+                hashes.add(nextHash);
             }
         } finally {
             fis.close();
