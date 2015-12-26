@@ -2,8 +2,7 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.util.*;
 
 /**
@@ -11,6 +10,7 @@ import java.util.*;
  */
 public class LocalPeer {
     final String userName;
+    final String fileListPath;
     private final BigInteger userID;
     final DhtPeerAddress localAddress;
     private DhtServer dhtServer;
@@ -33,6 +33,11 @@ public class LocalPeer {
 
     Set<DhtTransfer> runningTransfers = new HashSet<>();
 
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
+    FileList fileList;
+    private FileList lastQueriedFileList;
+
     public LocalPeer(String userName, long stabiliseInterval) {
         int port = 8000;
         if (userName.contains(":")) {
@@ -41,15 +46,7 @@ public class LocalPeer {
         }
 
         this.userName = userName;
-        MessageDigest cript = null;
-        try {
-            cript = MessageDigest.getInstance("SHA-1");
-            cript.reset();
-            cript.update(userName.getBytes("utf8"));
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        userID = new BigInteger(cript.digest());
+        userID = Hasher.hashString(userName);
         localAddress = new DhtPeerAddress(userID, "localhost", port, userID);
         neighbourState = new NeighbourState(localAddress);
 
@@ -57,6 +54,13 @@ public class LocalPeer {
         dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
+
+        KeyPair keyPair = FileList.initKeys("./keys/" + userName + "-");
+        privateKey = keyPair.getPrivate();
+        publicKey = keyPair.getPublic();
+        fileListPath = "./storage/" + userName + "/" + "FileList";
+        fileList = FileList.loadOrCreate(fileListPath, publicKey);
+
         stabiliser = new Stabiliser(this, stabiliseInterval);
         localAddress.print(System.out, "Started: ");
     }
@@ -85,26 +89,55 @@ public class LocalPeer {
 
     public DhtTransfer getEntity(BigInteger file) throws IOException {
         return dhtClient.download(FileDownloadContinuation.transferDir + file.toString(),
-                file, null);
+                file, true, null);
     }
 
     public DhtTransfer publishEntity(String file) throws IOException {
         return dhtClient.upload(file, null);
     }
 
-    public DhtTransfer getFile(BigInteger fileMeta) throws IOException {
+    public DhtTransfer getFileList(String user, String publicKeyLoc) throws IOException {
+        BigInteger ID = Hasher.hashString(user);
+        PublicKey publicKey = null;
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(publicKeyLoc))) {
+            Object myobj = ois.readObject();
+            if (!(myobj instanceof PublicKey)) {
+                System.err.println("Not a valid public key");
+                return null;
+            }
+            publicKey = (PublicKey) myobj;
+            FileDownloadContinuation.createDir();
+            String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
+            return dhtClient.download(fileName, ID, false,
+                    new FileListDownloadContinuation(fileName, publicKey));
+        } catch (ClassNotFoundException e) {
+            System.err.println(e.toString());
+            return null;
+        }
+    }
+
+    public DhtTransfer getFile(String fileName) throws IOException {
+        if (lastQueriedFileList == null || lastQueriedFileList.get(fileName) == null) {
+            System.err.println("File not found");
+            return null;
+        }
+        BigInteger fileMeta = lastQueriedFileList.get(fileName);
+        return getFile(fileName, fileMeta);
+    }
+
+    public DhtTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
-        String fileName = "filename"; // todo: replace placeholder
         return dhtClient.download(FileDownloadContinuation.transferDir + fileName + ".meta",
-                fileMeta, new FileDownloadContinuation(fileName));
+                fileMeta, true, new FileDownloadContinuation(fileName));
     }
 
     public DhtTransfer publishFile(String fileName) throws IOException {
         FileUploadContinuation.createDir();
-        FileMetadata meta = new FileMetadata(fileName);
         String lastName = fileName;
         if (fileName.contains("/"))
             lastName = fileName.substring(fileName.lastIndexOf("/"));
+        FileMetadata meta = new FileMetadata(fileName, lastName);
+
         String metaLocation = FileUploadContinuation.transferDir + lastName + ".metadata";
 
         try (ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(metaLocation))) {
@@ -125,6 +158,25 @@ public class LocalPeer {
 
     synchronized void notifyTransferCompleted(DhtTransfer ft, boolean success) {
         runningTransfers.remove(ft);
+    }
+
+    synchronized void saveFileList() {
+        try {
+            SignedObject so = fileList.getSignedVersion(privateKey);
+            ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(fileListPath));
+            ous.writeObject(so);
+            ous.flush();
+            ous.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    synchronized void setLastQueriedFileList(FileList fileList) {
+        lastQueriedFileList = fileList;
+        System.out.println("Files:");
+        for (String file : fileList.getFileList())
+            System.out.println("   " + file);
     }
 
     void disconnect() {
@@ -152,11 +204,14 @@ public class LocalPeer {
                 input = input.substring("ule ".length());
                 publishEntity(input);
                 System.out.println("upload started");
+            } else if (input.startsWith("files")) {
+                input = input.substring("dl ".length());
+                printStream.println("getting file list for user " + input);
+                getFileList(input, "./keys/" + userName + "-public.key");
             } else if (input.startsWith("dl")) {
                 input = input.substring("dl ".length());
-                BigInteger target = new BigInteger(input);
-                printStream.println("downloading " + target.toString());
-                getFile(target);
+                printStream.println("downloading " + input);
+                getFile(input);
             } else if (input.startsWith("ul")) {
                 input = input.substring("ul ".length());
                 publishFile(input);

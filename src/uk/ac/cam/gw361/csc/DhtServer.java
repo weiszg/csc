@@ -128,7 +128,8 @@ public class DhtServer implements DhtComm {
         FileOutputStream fos = localPeer.getDhtStore().writeFile(file);
 
         Socket socket = new Socket(source.getHost(), port);
-        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file,
+        // do not check hash for this download - might be signed content
+        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file, false,
                 new InternalDownloadContinuation(owner));
         downloader.start();
         return 0;

@@ -3,8 +3,6 @@ package uk.ac.cam.gw361.csc;
 import java.io.*;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -15,18 +13,20 @@ public class FileMetadata implements CscData, Serializable {
     private ArrayList<BigInteger> hashes;
     public final long length;
     public final int blocks;
+    final String fileName;
 
-    FileMetadata(String file) throws IOException {
-        File f = new File(file);
+    FileMetadata(String filePath, String fileName) throws IOException {
+        this.fileName = fileName;
+        File f = new File(filePath);
         length = f.length();
         blocks = (int)((length-1) / blockSize) + 1;
         hashes = new ArrayList<>(blocks);
 
-        FileInputStream fis = new FileInputStream(file);
+        FileInputStream fis = new FileInputStream(filePath);
         try {
             BufferedInputStream bis = new BufferedInputStream(fis);
             for (int i = 0; i < blocks; i++) {
-                BigInteger nextHash = FileHasher.hashFile(bis, blockSize);
+                BigInteger nextHash = Hasher.hashFile(bis, blockSize);
                 hashes.add(nextHash);
             }
         } finally {

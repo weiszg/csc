@@ -2,6 +2,8 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.security.PublicKey;
+import java.security.SignedObject;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeMap;
@@ -55,6 +57,9 @@ class FileUploadContinuation implements TransferContinuation {
     private boolean first = true;
     private int finishedBlocks = 0;
     private String fileName;
+    private String lastName;
+    private boolean fileListUpdated = false;
+    private BigInteger metaHash;
     FileMetadata meta;
     TreeMap<Integer, BigInteger> waitingChunks;
     Set<DhtTransfer> runningTransfers = new HashSet<>();
@@ -72,7 +77,7 @@ class FileUploadContinuation implements TransferContinuation {
         this.meta = meta;
         waitingChunks = meta.getChunks();
 
-        String lastName = file;
+        lastName = file;
         if (file.contains("/"))
             lastName = file.substring(file.lastIndexOf("/"));
         fileName = FileUploadContinuation.transferDir + lastName;
@@ -106,11 +111,27 @@ class FileUploadContinuation implements TransferContinuation {
         if (first) {
             // metadata upload has finished, process metadata and start file blocks
             first = false;
+            // save the hash of the metadata, the entry point for the file
+            metaHash = finishedTransfer.fileHash;
             System.out.println("Metadata uploaded");
         } else {
             finishedBlocks++;
             concurrentTransfers--;
             System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+
+            // if done update FileList
+            if (waitingChunks.isEmpty() && concurrentTransfers==0) {
+                if (!fileListUpdated) {
+                    System.out.println("File upload finished, updating FileList");
+                    localPeer.fileList.put(lastName, metaHash);
+                    localPeer.saveFileList();
+                    runningTransfers.add(localPeer.getClient().upload(
+                            localPeer.fileListPath, localPeer.localAddress.getUserID(), this));
+                    fileListUpdated = true;
+                } else {
+                    System.out.println("Done.");
+                }
+            }
         }
 
         while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
@@ -214,7 +235,31 @@ class FileDownloadContinuation implements TransferContinuation {
 
             concurrentTransfers++;
             runningTransfers.add(localPeer.getClient().download(FileDownloadContinuation.transferDir
-                    + fileName + "." + nextIndex, nextTransfer, this));
+                    + fileName + "." + nextIndex, nextTransfer, true, this));
+        }
+    }
+}
+
+class FileListDownloadContinuation implements TransferContinuation {
+    static String transferDir = "./downloads/";
+    String fileName;
+    PublicKey publicKey;
+
+    FileListDownloadContinuation(String fileName, PublicKey publicKey) {
+        this.fileName = fileName;
+        this.publicKey = publicKey;
+    }
+
+    @Override
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
+            throws IOException {
+        LocalPeer localPeer = finishedTransfer.localPeer;
+
+        FileList fileList = FileList.load(fileName, publicKey);
+        if (fileList == null) {
+            System.err.println("Error reading file list");
+        } else {
+            localPeer.setLastQueriedFileList(fileList);
         }
     }
 }

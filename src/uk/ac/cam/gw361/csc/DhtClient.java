@@ -150,18 +150,18 @@ public class DhtClient {
         }
     }
 
-    public DhtTransfer download(String fileName, BigInteger fileHash,
+    public DhtTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
                                 TransferContinuation continuation) throws IOException {
         DhtTransfer ft = null;
         DhtPeerAddress target = lookup(fileHash);
         if (fileHash != null)
-            ft = doDownload(target, fileName, fileHash, continuation);
+            ft = doDownload(target, fileName, fileHash, hashCheck, continuation);
         localPeer.runningTransfers.add(ft);
         return ft;
     }
 
     private DhtTransfer doDownload(DhtPeerAddress peer, String fileName, BigInteger fileHash,
-                                TransferContinuation continuation)
+                                boolean hashCheck, TransferContinuation continuation)
             throws IOException {
         if (debug) System.out.println("client download");
         DhtComm comm = connect(peer);
@@ -170,7 +170,7 @@ public class DhtClient {
             ServerSocket listener = new ServerSocket(0);
             FileOutputStream fos = new FileOutputStream(fileName);
             // the owner doesn't matter, the destination of the download could be a different folder
-            ft = new DhtTransfer(localPeer, peer, listener, fos, fileHash, continuation);
+            ft = new DhtTransfer(localPeer, peer, listener, fos, fileHash, hashCheck, continuation);
             ft.start();
             Long size = comm.upload(localPeer.localAddress, listener.getLocalPort(), fileHash);
             if (size == null)
@@ -192,7 +192,7 @@ public class DhtClient {
 
     public DhtTransfer upload(String name, FileUploadContinuation continuation)
             throws IOException {
-        BigInteger fileHash = FileHasher.hashFile(name);
+        BigInteger fileHash = Hasher.hashFile(name);
         System.out.println("Hash for " + name + " is " + fileHash.toString()); // todo: remove later when public key auth in place
         FileInputStream fis = new FileInputStream(name);
 
@@ -201,6 +201,22 @@ public class DhtClient {
         if (fileHash != null)
             // owner is target
             ft = doUpload(target, fileHash, fis, target, continuation);
+
+        localPeer.runningTransfers.add(ft);
+        return ft;
+    }
+
+    public DhtTransfer upload(String name, BigInteger fileID, FileUploadContinuation continuation)
+            throws IOException {
+        // used for uploads signed with a private key - they aren't hash checked and can be uploaded
+        // to an arbitrary target
+        FileInputStream fis = new FileInputStream(name);
+
+        DhtTransfer ft = null;
+        DhtPeerAddress target = lookup(fileID);
+        if (fileID != null)
+            // owner is target
+            ft = doUpload(target, fileID, fis, target, continuation);
 
         localPeer.runningTransfers.add(ft);
         return ft;

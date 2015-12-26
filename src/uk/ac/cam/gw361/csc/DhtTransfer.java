@@ -14,8 +14,6 @@ import java.util.TreeMap;
  * Created by gellert on 10/11/2015.
  */
 public class DhtTransfer extends Thread {
-    // todo: error handling
-
     Socket socket = null;
     ServerSocket ssocket = null;
     FileOutputStream fileOutputStream = null;
@@ -25,29 +23,32 @@ public class DhtTransfer extends Thread {
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
     boolean stoppedWithSuccess = false;
+    boolean hashCheck = true; // used to disregard hash checks for signed content downloads
     byte[] data = new byte[8192];
 
     public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
                        FileOutputStream fileOutputStream, BigInteger fileHash,
-                       TransferContinuation continuation) {
+                       boolean hashCheck, TransferContinuation continuation) {
         // download file, server mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileOutputStream = fileOutputStream;
+        this.hashCheck = hashCheck;
         this.continuation = continuation;
     }
 
     public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
                        FileOutputStream fileOutputStream, BigInteger fileHash,
-                       TransferContinuation continuation) {
+                       Boolean hashCheck, TransferContinuation continuation) {
         // download file, client mode
         this.remotePeer = remotePeer;
         this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileOutputStream = fileOutputStream;
+        this.hashCheck = hashCheck;
         this.continuation = continuation;
     }
 
@@ -97,7 +98,7 @@ public class DhtTransfer extends Thread {
             }
             BigInteger realHash = new BigInteger(digest.digest());
 
-            if (!realHash.equals(fileHash)) {
+            if (hashCheck && !realHash.equals(fileHash)) {
                 System.err.println("Hash mismatch, expected: " + fileHash.toString() +
                         " got: " + realHash.toString());
                 fileOutputStream.close();

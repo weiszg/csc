@@ -1,9 +1,6 @@
 package uk.ac.cam.gw361.csc;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -11,7 +8,7 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Created by gellert on 10/11/2015.
  */
-public class FileHasher {
+public class Hasher {
     public static BigInteger hashFile(String name) throws IOException {
             BufferedInputStream is = new BufferedInputStream(new FileInputStream(name));
             return hashFile(is, 0);
@@ -39,6 +36,19 @@ public class FileHasher {
             return new BigInteger(digest.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("No such algorithm");
+        }
+    }
+
+    public static BigInteger hashString(String input) {
+        MessageDigest cript = null;
+        try {
+            cript = MessageDigest.getInstance("SHA-1");
+            cript.reset();
+            cript.update(input.getBytes("utf8"));
+            return new BigInteger(cript.digest());
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return BigInteger.ZERO;
         }
     }
 }
