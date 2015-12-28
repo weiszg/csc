@@ -31,9 +31,11 @@ class InternalUploadContinuation extends  TransferContinuation {
 
 class InternalDownloadContinuation extends TransferContinuation {
     private DhtPeerAddress owner;
+    BigInteger realHash = null;
 
-    InternalDownloadContinuation(DhtPeerAddress owner) {
-        this.owner = owner;
+    InternalDownloadContinuation(DhtFile file) {
+        this.owner = file.owner;
+        this.realHash = file.realHash;
     }
 
     @Override
@@ -47,7 +49,12 @@ class InternalDownloadContinuation extends TransferContinuation {
         LocalPeer localPeer = finishedTransfer.localPeer;
         BigInteger fileHash = finishedTransfer.fileHash;
         if (owner != null) {
-            DhtFile downloadedFile = new DhtFile(fileHash, transferSize, owner);
+            DhtFile downloadedFile;
+            if (realHash == null)
+                downloadedFile = new DhtFile(fileHash, transferSize, owner);
+            else
+                downloadedFile = new DhtFile(fileHash, realHash, transferSize, owner);
+
             localPeer.getDhtStore().addFile(downloadedFile);
             // maybe we are the next owners
             localPeer.getDhtStore().refreshResponsibility(fileHash,
@@ -137,9 +144,11 @@ class FileUploadContinuation extends TransferContinuation {
                 if (!fileListUpdated) {
                     System.out.println("File upload finished, updating FileList");
                     localPeer.fileList.put(lastName, metaHash);
-                    localPeer.saveFileList();
-                    runningTransfers.add(localPeer.getClient().signedUpload(
-                            localPeer.fileListPath, localPeer.localAddress.getUserID(), this));
+                    String fileListPath = localPeer.saveFileList();
+                    BigInteger realHash = Hasher.hashFile(fileListPath);
+
+                    runningTransfers.add(localPeer.getClient().signedUpload(fileListPath,
+                            localPeer.localAddress.getUserID(), realHash, this));
                     fileListUpdated = true;
                 } else {
                     System.out.println("Done.");

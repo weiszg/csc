@@ -47,6 +47,12 @@ public class DhtStore {
         }
     }
 
+    public synchronized DhtFile getFile(BigInteger file) throws IOException {
+        if (!files.containsKey(file))
+            throw new IOException("File not found");
+        else return files.get(file);
+    }
+
     public synchronized FileInputStream readFile(BigInteger file) throws IOException {
         if (!files.containsKey(file))
             throw new IOException("File not found");
@@ -85,7 +91,7 @@ public class DhtStore {
     }
 
     public synchronized void addFile(DhtFile file) {
-        files.put(file.fileHash, file);
+        files.put(file.hash, file);
         addResponsibility(file);
     }
 
@@ -106,8 +112,20 @@ public class DhtStore {
             return files.get(file).size;
     }
 
+    public synchronized BigInteger getRealHash(BigInteger file) throws IOException {
+        if (!files.containsKey(file))
+            throw new IOException("File not found");
+        else
+            return files.get(file).realHash;
+    }
+
     public synchronized boolean containsFile(BigInteger file) {
         return files.containsKey(file);
+    }
+
+    public synchronized boolean hasFile(DhtFile file) {
+        return (files.containsKey(file.hash)
+                && files.get(file.hash).realHash.equals(file.realHash));
     }
 
     public synchronized boolean refreshResponsibility(BigInteger file, DhtPeerAddress owner,
@@ -177,13 +195,26 @@ public class DhtStore {
 }
 
 class DhtFile implements Serializable {
-    BigInteger fileHash;
+    BigInteger hash;
+    BigInteger realHash; // realHash=hash except for signed content
     Long size;
     DhtPeerAddress owner;
     transient Date lastQueried;
 
-    DhtFile(BigInteger fileHash, Long size, DhtPeerAddress owner) {
-        this.fileHash = fileHash;
+    DhtFile(BigInteger hash, Long size, DhtPeerAddress owner) {
+        this.hash = hash;
+        this.realHash = hash;
+        this.size = size;
+        this.owner = owner;
+        this.lastQueried = new Date();
+    }
+
+    DhtFile(BigInteger hash, BigInteger realHash, Long size, DhtPeerAddress owner) {
+        this.hash = hash;
+        if (realHash != null)
+            this.realHash = realHash;
+        else
+            this.realHash = hash;
         this.size = size;
         this.owner = owner;
         this.lastQueried = new Date();

@@ -185,57 +185,62 @@ public class DhtClient {
     public DhtTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
                               FileUploadContinuation continuation) throws IOException {
         FileInputStream fis = localPeer.getDhtStore().readFile(file);
-        DhtTransfer ft = doUpload(target, file, fis, owner, continuation);
+        DhtFile dbFile = localPeer.getDhtStore().getFile(file);
+        DhtFile uploadFile = new DhtFile(dbFile.hash, dbFile.realHash, dbFile.size, owner);
+        DhtTransfer ft = doUpload(target, uploadFile, fis, continuation);
         localPeer.runningTransfers.add(ft);
         return ft;
     }
 
-    public DhtTransfer upload(String name, FileUploadContinuation continuation)
-            throws IOException {
+    public DhtTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         BigInteger fileHash = Hasher.hashFile(name);
-        System.out.println("Hash for " + name + " is " + fileHash.toString()); // todo: remove later when public key auth in place
-        FileInputStream fis = new FileInputStream(name);
+        File file = new File(name);
+        FileInputStream fis = new FileInputStream(file);
 
         DhtTransfer ft = null;
         DhtPeerAddress target = lookup(fileHash);
-        if (fileHash != null)
+        if (fileHash != null) {
             // owner is target
-            ft = doUpload(target, fileHash, fis, target, continuation);
+            DhtFile uploadFile = new DhtFile(fileHash, file.length(), target);
+            ft = doUpload(target, uploadFile, fis, continuation);
+        }
 
         localPeer.runningTransfers.add(ft);
         return ft;
     }
 
-    public DhtTransfer signedUpload(String name, BigInteger fileID,
+    public DhtTransfer signedUpload(String name, BigInteger fileID, BigInteger realHash,
             FileUploadContinuation continuation) throws IOException {
         // used for uploads signed with a private key - they aren't hash checked and can be uploaded
         // to an arbitrary target
-        // todo: make stabiliser and replicator work with this
-        FileInputStream fis = new FileInputStream(name);
+        File file = new File(name);
+        FileInputStream fis = new FileInputStream(file);
 
         DhtTransfer ft = null;
         DhtPeerAddress target = lookup(fileID);
-        if (fileID != null)
+        if (fileID != null) {
             // owner is target
-            ft = doUpload(target, fileID, fis, target, continuation);
+            System.out.println("Signed hash is " + fileID.toString() +
+                    ", corresponding real hash is " + realHash.toString());
+            DhtFile uploadFile = new DhtFile(fileID, realHash, file.length(), target);
+            ft = doUpload(target, uploadFile, fis, continuation);
+        }
 
         localPeer.runningTransfers.add(ft);
         return ft;
     }
 
-    private DhtTransfer doUpload(DhtPeerAddress peer, BigInteger file, FileInputStream fis,
-                                 DhtPeerAddress owner, FileUploadContinuation continuation)
-            throws IOException {
+    private DhtTransfer doUpload(DhtPeerAddress peer, DhtFile file, FileInputStream fis,
+                                 FileUploadContinuation continuation) throws IOException {
         if (debug) System.out.println("client upload");
         DhtComm comm = connect(peer);
         DhtTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
-            ft = new DhtTransfer(localPeer, peer, listener, fis, file, continuation);
+            ft = new DhtTransfer(localPeer, peer, listener, fis, file.hash, continuation);
             ft.start();
 
-            Integer response = comm.download(localPeer.localAddress,
-                    listener.getLocalPort(), file, owner);
+            Integer response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
             if (response.equals(1))
                 System.out.println("Me " + localPeer.localAddress.getPort() +
                         " of range for receiver " + peer.getPort());

@@ -17,8 +17,7 @@ public interface DhtComm extends Remote {
     DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
-    Integer download(DhtPeerAddress source, Integer port, BigInteger file,
-                                     DhtPeerAddress owner) throws IOException;
+    Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException;
     Boolean isAlive(DhtPeerAddress source) throws RemoteException;
     Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException;

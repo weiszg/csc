@@ -106,7 +106,7 @@ public class Stabiliser extends Thread {
         for (DhtPeerAddress peer : failingPeers) {
             List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(peer);
             for (DhtFile file : fosterFiles)
-                localPeer.getDhtStore().refreshResponsibility(file.fileHash,
+                localPeer.getDhtStore().refreshResponsibility(file.hash,
                         localPeer.localAddress, true);
         }
     }
@@ -128,7 +128,7 @@ public class Stabiliser extends Thread {
                     // or if it is between us and the file
                     if (localPeer.getNeighbourState().isPredecessor(p) ||
                             p.isBetween(localPeer.localAddress,
-                                    new DhtPeerAddress(file.fileHash, null, null,
+                                    new DhtPeerAddress(file.hash, null, null,
                                             localPeer.localAddress.getUserID())))
                         askFiles.add(file);
 

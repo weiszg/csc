@@ -82,18 +82,21 @@ public class DhtServer implements DhtComm {
         }
     }
 
+    @Override
     public DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
         if (debug) System.out.println("server lookup");
         acceptConnection(source);
         return localPeer.getNextLocalHop(target);
     }
 
+    @Override
     public NeighbourState getNeighbourState(DhtPeerAddress source) {
         if (debug) System.out.println("server getneighbourstate");
         acceptConnection(source);
         return localPeer.getNeighbourState();
     }
 
+    @Override
     public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
             throws IOException {
         acceptConnection(source);
@@ -107,34 +110,36 @@ public class DhtServer implements DhtComm {
         return size;
     }
 
-    public Integer download(DhtPeerAddress source, Integer port, BigInteger file,
-                            DhtPeerAddress owner) throws IOException {
+    @Override
+    public Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
         // return value: 0 for ACCEPT, 1 for DECLINE and 2 for REDUNDANT
         acceptConnection(source);
-        owner.setRelative(localPeer.localAddress.getUserID());
+        file.owner.setRelative(localPeer.localAddress.getUserID());
         // only accept if owner is within predecessor range
         // or if I am between the current owner and the file, in which case I'll be the next owner
-        if (!owner.equals(localPeer.localAddress) &&
-                !localPeer.localAddress.isBetween(owner,
-                        new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())) &&
-                !localPeer.getNeighbourState().getSuccessors().contains(owner)) {
+        if (!file.owner.equals(localPeer.localAddress) &&
+                !localPeer.localAddress.isBetween(file.owner,
+                        new DhtPeerAddress(file.hash, null, null,
+                                localPeer.localAddress.getUserID())) &&
+                !localPeer.getNeighbourState().getSuccessors().contains(file.owner)) {
             System.err.println("refusing download");
             return 1;
-        } else if (localPeer.getDhtStore().containsFile(file))
+        } else if (localPeer.getDhtStore().hasFile(file))
             return 2;
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
-                file.toString());
-        FileOutputStream fos = localPeer.getDhtStore().writeFile(file);
+                file.hash.toString());
+        FileOutputStream fos = localPeer.getDhtStore().writeFile(file.hash);
 
         Socket socket = new Socket(source.getHost(), port);
         // do not check hash for this download - might be signed content
-        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file, false,
-                new InternalDownloadContinuation(owner));
+        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file.hash, false,
+                new InternalDownloadContinuation(file));
         downloader.start();
         return 0;
     }
 
+    @Override
     public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files) {
         // get a list of files with their owners. Return a list of file IDs associated with
         // bools describing whether they are stored locally. Update owners in the meantime
@@ -144,18 +149,20 @@ public class DhtServer implements DhtComm {
         Map<BigInteger, Boolean> result = new HashMap<>();
         for (DhtFile file : files) {
             file.owner.setRelative(localPeer.localAddress.getUserID());
-            boolean contains = localPeer.getDhtStore().containsFile(file.fileHash);
-            result.put(file.fileHash, contains);
-            localPeer.getDhtStore().refreshResponsibility(file.fileHash, source, false);
+            boolean hasFile = localPeer.getDhtStore().hasFile(file);
+            result.put(file.hash, hasFile);
+            localPeer.getDhtStore().refreshResponsibility(file.hash, source, false);
         }
         return result;
     }
 
+    @Override
     public Boolean isAlive(DhtPeerAddress source) {
         acceptConnection(source);
         return true;
     }
 
+    @Override
     public String query(String input) {
         return localPeer.executeQuery(input);
     }

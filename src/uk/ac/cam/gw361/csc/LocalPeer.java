@@ -164,7 +164,7 @@ public class LocalPeer {
     void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
-             dhtClient.upload(p, file.fileHash, localAddress, null);
+             dhtClient.upload(p, file.hash, localAddress, null);
         }
     }
 
@@ -172,7 +172,7 @@ public class LocalPeer {
         runningTransfers.remove(ft);
     }
 
-    synchronized void saveFileList() {
+    synchronized String saveFileList() {
         try {
             SignedObject so = fileList.getSignedVersion(privateKey);
             ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(fileListPath));
@@ -182,6 +182,7 @@ public class LocalPeer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return fileListPath;
     }
 
     synchronized void setLastQueriedFileList(FileList fileList) {
