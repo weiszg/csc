@@ -206,10 +206,11 @@ public class DhtClient {
         return ft;
     }
 
-    public DhtTransfer upload(String name, BigInteger fileID, FileUploadContinuation continuation)
-            throws IOException {
+    public DhtTransfer signedUpload(String name, BigInteger fileID,
+            FileUploadContinuation continuation) throws IOException {
         // used for uploads signed with a private key - they aren't hash checked and can be uploaded
         // to an arbitrary target
+        // todo: make stabiliser and replicator work with this
         FileInputStream fis = new FileInputStream(name);
 
         DhtTransfer ft = null;

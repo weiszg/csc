@@ -55,14 +55,26 @@ public class LocalPeer {
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
 
-        KeyPair keyPair = FileList.initKeys("./keys/" + userName + "-");
-        privateKey = keyPair.getPrivate();
-        publicKey = keyPair.getPublic();
         fileListPath = "./storage/" + userName + "/" + "FileList";
-        fileList = FileList.loadOrCreate(fileListPath, publicKey);
+        loadKeys();
 
         stabiliser = new Stabiliser(this, stabiliseInterval);
         localAddress.print(System.out, "Started: ");
+    }
+
+    private void loadKeys() {
+        // create directory
+        File myFolder = new File("./keys");
+        if (!myFolder.exists()) {
+            System.out.println("creating directory keys");
+            if (!myFolder.mkdir())
+                System.err.println("creating folder failed");
+        }
+        // load keypair
+        KeyPair keyPair = FileList.initKeys("./keys/" + userName + "-");
+        privateKey = keyPair.getPrivate();
+        publicKey = keyPair.getPublic();
+        fileList = FileList.loadOrCreate(fileListPath, publicKey);
     }
 
     public synchronized void join(String remotePeerIP) {
@@ -149,10 +161,10 @@ public class LocalPeer {
                 continuation);
     }
 
-    void replicate(BigInteger file) throws IOException {
+    void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
-             dhtClient.upload(p, file, localAddress, null);
+             dhtClient.upload(p, file.fileHash, localAddress, null);
         }
     }
 
@@ -205,9 +217,9 @@ public class LocalPeer {
                 publishEntity(input);
                 System.out.println("upload started");
             } else if (input.startsWith("files")) {
-                input = input.substring("dl ".length());
+                input = input.substring("files ".length());
                 printStream.println("getting file list for user " + input);
-                getFileList(input, "./keys/" + userName + "-public.key");
+                getFileList(input, "./keys/" + input + "-public.key");
             } else if (input.startsWith("dl")) {
                 input = input.substring("dl ".length());
                 printStream.println("downloading " + input);

@@ -131,7 +131,7 @@ public class DhtTransfer extends Thread {
         }
 
         if (continuation != null)
-            continuation.notifyFinished(this, totalWritten);
+            continuation.notifyFinished(this);
     }
 
     synchronized void stopWithSuccess() {
@@ -140,7 +140,7 @@ public class DhtTransfer extends Thread {
 
         if (continuation != null)
             try {
-                continuation.notifyFinished(this, localPeer.getDhtStore().getLength(fileHash));
+                continuation.notifyFinished(this);
             } catch (IOException e) {
                 e.printStackTrace();
             }

@@ -13,6 +13,7 @@ import java.util.Map;
  */
 public class FileList implements Serializable {
     private Map<String, BigInteger> files = new HashMap<>();
+    private static final boolean debug = false;
 
     synchronized void put(String fileName, BigInteger hash) {
         files.put(fileName, hash);
@@ -36,8 +37,10 @@ public class FileList implements Serializable {
             if (myobj instanceof SignedObject)
                 return getVerified((SignedObject) myobj, publicKey);
             else return null;
-        } catch (IOException | ClassNotFoundException | HashMismatchException e) {
+        } catch (ClassNotFoundException | HashMismatchException e) {
             e.printStackTrace();
+            return null;
+        } catch (IOException e) {
             return null;
         }
     }
@@ -98,7 +101,6 @@ public class FileList implements Serializable {
             ous.close();
             return new KeyPair(publicKey, privateKey);
         } catch (IOException e) {
-            e.printStackTrace();
             return null;
         }
     }
@@ -120,6 +122,7 @@ public class FileList implements Serializable {
         Signature dsa;
         try {
             dsa = Signature.getInstance("SHA1withDSA", "SUN");
+            if (debug) System.out.println(publicKey.toString());
             if (so.verify(publicKey, dsa)) {
                 Object myobj = so.getObject();
                 if (myobj instanceof FileList)

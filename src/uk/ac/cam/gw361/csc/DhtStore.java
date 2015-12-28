@@ -56,7 +56,8 @@ public class DhtStore {
                         + "/" + file.toString());
                 return fis;
             } catch (FileNotFoundException fnf) {
-                System.err.println("DhtStore broken, file not found");
+                System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
+                        + "/" + file.toString());
                 return null;
             }
         }
@@ -70,7 +71,8 @@ public class DhtStore {
                     + "/" + file.toString());
             return fos;
         } catch (FileNotFoundException fnf) {
-            System.err.println("DhtStore broken, file not found");
+            System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
+                    + "/" + file.toString());
             return null;
         }
     }

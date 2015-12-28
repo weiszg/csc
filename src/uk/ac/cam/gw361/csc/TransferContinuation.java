@@ -11,20 +11,25 @@ import java.util.TreeMap;
 /**
  * Created by gellert on 24/12/2015.
  */
-public interface TransferContinuation {
-    void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException;
+public abstract class TransferContinuation {
+    abstract void notifyFinished(DhtTransfer finishedTransfer) throws IOException;
+
+    void notifyFinished(DhtTransfer finishedTransfer, Long transferSize)
+            throws IOException {
+        notifyFinished(finishedTransfer);
+    }
 }
 
-class InternalUploadContinuation implements  TransferContinuation {
+class InternalUploadContinuation extends  TransferContinuation {
     @Override
-    public void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException {
+    public void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
         // upload complete, refresh responsibility for the file
         finishedTransfer.localPeer.getDhtStore().refreshResponsibility(
                 finishedTransfer.fileHash, finishedTransfer.remotePeer, false);
     }
 }
 
-class InternalDownloadContinuation implements TransferContinuation {
+class InternalDownloadContinuation extends TransferContinuation {
     private DhtPeerAddress owner;
 
     InternalDownloadContinuation(DhtPeerAddress owner) {
@@ -32,25 +37,31 @@ class InternalDownloadContinuation implements TransferContinuation {
     }
 
     @Override
-    public void notifyFinished(DhtTransfer finishedTransfer, Long size) throws IOException {
+    public void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
+        throw new IOException("No transfer length specified for InternalDownloadContinuation");
+    }
+
+    @Override
+    public void notifyFinished(DhtTransfer finishedTransfer, Long transferSize) throws IOException {
         // complete download, add to list of local files
         LocalPeer localPeer = finishedTransfer.localPeer;
         BigInteger fileHash = finishedTransfer.fileHash;
         if (owner != null) {
-            localPeer.getDhtStore().addFile(new DhtFile(fileHash, size, owner));
+            DhtFile downloadedFile = new DhtFile(fileHash, transferSize, owner);
+            localPeer.getDhtStore().addFile(downloadedFile);
             // maybe we are the next owners
             localPeer.getDhtStore().refreshResponsibility(fileHash,
                     localPeer.localAddress, false);
 
             if (owner.equals(localPeer.localAddress)) {
                 // replicate to predecessors
-                finishedTransfer.localPeer.replicate(fileHash);
+                finishedTransfer.localPeer.replicate(downloadedFile);
             }
         }
     }
 }
 
-class FileUploadContinuation implements TransferContinuation {
+class FileUploadContinuation extends TransferContinuation {
     static String transferDir = "./uploads/";
     static int maxConcurrentTransfers = 5;
     int concurrentTransfers = 0;
@@ -104,8 +115,7 @@ class FileUploadContinuation implements TransferContinuation {
     }
 
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
-            throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
         LocalPeer localPeer = finishedTransfer.localPeer;
         runningTransfers.remove(finishedTransfer);
         if (first) {
@@ -115,9 +125,12 @@ class FileUploadContinuation implements TransferContinuation {
             metaHash = finishedTransfer.fileHash;
             System.out.println("Metadata uploaded");
         } else {
-            finishedBlocks++;
-            concurrentTransfers--;
-            System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+            if (concurrentTransfers > 0) {
+                // excludes special uploads such as FileList
+                finishedBlocks++;
+                concurrentTransfers--;
+                System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+            }
 
             // if done update FileList
             if (waitingChunks.isEmpty() && concurrentTransfers==0) {
@@ -125,7 +138,7 @@ class FileUploadContinuation implements TransferContinuation {
                     System.out.println("File upload finished, updating FileList");
                     localPeer.fileList.put(lastName, metaHash);
                     localPeer.saveFileList();
-                    runningTransfers.add(localPeer.getClient().upload(
+                    runningTransfers.add(localPeer.getClient().signedUpload(
                             localPeer.fileListPath, localPeer.localAddress.getUserID(), this));
                     fileListUpdated = true;
                 } else {
@@ -144,7 +157,7 @@ class FileUploadContinuation implements TransferContinuation {
     }
 }
 
-class FileDownloadContinuation implements TransferContinuation {
+class FileDownloadContinuation extends TransferContinuation {
     static String transferDir = "./downloads/";
     static int maxConcurrentTransfers = 5;
     int concurrentTransfers = 0;
@@ -197,8 +210,7 @@ class FileDownloadContinuation implements TransferContinuation {
     }
 
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
-            throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
         LocalPeer localPeer = finishedTransfer.localPeer;
         runningTransfers.remove(finishedTransfer);
         if (first) {
@@ -240,7 +252,7 @@ class FileDownloadContinuation implements TransferContinuation {
     }
 }
 
-class FileListDownloadContinuation implements TransferContinuation {
+class FileListDownloadContinuation extends TransferContinuation {
     static String transferDir = "./downloads/";
     String fileName;
     PublicKey publicKey;
@@ -251,8 +263,7 @@ class FileListDownloadContinuation implements TransferContinuation {
     }
 
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer, Long size)
-            throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
         LocalPeer localPeer = finishedTransfer.localPeer;
 
         FileList fileList = FileList.load(fileName, publicKey);
