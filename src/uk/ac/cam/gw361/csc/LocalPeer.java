@@ -12,8 +12,7 @@ import java.util.*;
  */
 
 //todo: diff download
-//todo: bugfix: responsibility for signed content files not handled correctly and
-//eventually these files get deleted
+//todo: resume failed file up/downloads
 public class LocalPeer {
     final String userName;
     final String fileListPath;

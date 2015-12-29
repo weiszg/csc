@@ -31,7 +31,13 @@ public class Stabiliser extends Thread {
                 Thread.sleep(interval);
             } catch (InterruptedException ie) {
             }
-            stabilise();
+            try {
+                stabilise();
+            } catch (Exception e) {
+                System.err.println("Stabilisation core error at " +
+                        localPeer.localAddress.getPort());
+                e.printStackTrace();
+            }
         }
     }
 
@@ -82,7 +88,7 @@ public class Stabiliser extends Thread {
                         failingPeers.add(candidate);
                         System.err.println("Failing link " + localPeer.localAddress.getHost() + ":" +
                                 localPeer.localAddress.getPort() + " - " + candidate.getHost() + ":" +
-                                candidate.getPort());
+                                candidate.getPort() + ": " + e.toString());
                     }
                 }
             }

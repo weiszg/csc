@@ -97,7 +97,7 @@ public class DhtClient {
             return ret;
         } catch (Exception e) {
             if (debug) System.err.println("Client exception: " + e.toString());
-            throw new ConnectionFailedException();
+            throw new ConnectionFailedException(e.toString());
         }
     }
 

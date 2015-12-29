@@ -222,7 +222,7 @@ class SimulationCommandReader extends Thread {
                     int connectPort = Integer.parseInt(splitStr[0]);
                     System.out.println(queryPort(connectPort, splitStr[1]));
                 } else System.out.println("Unrecognised command: " + readStr);
-            } catch (NumberFormatException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
