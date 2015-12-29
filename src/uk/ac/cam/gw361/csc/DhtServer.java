@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
@@ -74,9 +75,9 @@ public class DhtServer implements DhtComm {
         try {
             source.setRelative(localPeer.localAddress.getUserID());
             String clientHost = RemoteServer.getClientHost();
-            localPeer.getNeighbourState().addNeighbour(
-                    new DhtPeerAddress(source.getUserID(), clientHost, source.getPort(),
-                            localPeer.localAddress.getUserID()));
+            // set host of source
+            source.setHost(clientHost);
+            localPeer.getNeighbourState().addNeighbour(source);
         } catch (ServerNotActiveException e) {
             // this is fine
         }
@@ -131,7 +132,8 @@ public class DhtServer implements DhtComm {
                 file.hash.toString());
         FileOutputStream fos = localPeer.getDhtStore().writeFile(file.hash);
 
-        Socket socket = new Socket(source.getHost(), port);
+        Socket socket = new Socket();
+        socket.connect(new InetSocketAddress(source.getHost(), port), 900);
         // do not check hash for this download - might be signed content
         Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file.hash, false,
                 new InternalDownloadContinuation(file));

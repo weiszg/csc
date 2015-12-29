@@ -20,9 +20,10 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
         this.relativeSort = relativeSort;
     }
 
-    public void setRelative (BigInteger relative) {
+    void setRelative (BigInteger relative) {
         this.relativeSort = relative;
     }
+    void setHost(String host) { this.host = host; }
 
     public BigInteger getUserID() { return userID; }
     public Integer getPort() { return port; }

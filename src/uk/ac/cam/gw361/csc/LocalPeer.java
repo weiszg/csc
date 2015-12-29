@@ -241,7 +241,7 @@ public class LocalPeer {
                 System.out.println(getClient().query(toConnect, splitStr[1]));
             } else System.out.println("Unrecognised command: " + input);
         } catch (IOException e) {
-            printStream.println(e.toString());
+            e.printStackTrace();
         }
         printStream.flush();
         return baos.toString();
