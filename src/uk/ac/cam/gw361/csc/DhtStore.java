@@ -14,7 +14,7 @@ public class DhtStore {
     // files and their properties stored locally
     private HashMap<BigInteger, DhtFile> files = new HashMap<>();
     // per-owner replicas we store locally
-    private HashMap<DhtPeerAddress, HashSet<DhtFile>> responsibilities = new HashMap<>();
+    private HashMap<DhtPeerAddress, HashSet<BigInteger>> responsibilities = new HashMap<>();
     // private folder used for storage
     private File myFolder;
 
@@ -97,10 +97,10 @@ public class DhtStore {
 
     private void addResponsibility(DhtFile file) {
         if (responsibilities.containsKey(file.owner))
-            responsibilities.get(file.owner).add(file);
+            responsibilities.get(file.owner).add(file.hash);
         else {
-            HashSet<DhtFile> ll = new HashSet<>();
-            ll.add(file);
+            HashSet<BigInteger> ll = new HashSet<>();
+            ll.add(file.hash);
             responsibilities.put(file.owner, ll);
         }
     }
@@ -141,8 +141,8 @@ public class DhtStore {
                     new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
 
                 if (responsibilities.containsKey(oldFile.owner)) {
-                    Set<DhtFile> respFiles = responsibilities.get(oldFile.owner);
-                    respFiles.remove(oldFile);
+                    Set<BigInteger> respFiles = responsibilities.get(oldFile.owner);
+                    respFiles.remove(oldFile.hash);
                     if (respFiles.isEmpty())
                         responsibilities.remove(oldFile.owner);
                 }
@@ -173,12 +173,16 @@ public class DhtStore {
     }
 
     public synchronized List<DhtFile> getResponsibilitiesFor(DhtPeerAddress peer) {
-        List<DhtFile> files;
+        List<BigInteger> fileHashes;
         if (responsibilities.containsKey(peer))
-            files = new LinkedList<>(responsibilities.get(peer));
+            fileHashes = new LinkedList<>(responsibilities.get(peer));
         else
-            files = new LinkedList<>();
-        return files;
+            fileHashes = new LinkedList<>();
+        List<DhtFile> respFiles = new LinkedList<>();
+        for (BigInteger hash : fileHashes)
+            respFiles.add(files.get(hash));
+
+        return respFiles;
     }
 
     public synchronized void print(PrintStream out, String beginning) {

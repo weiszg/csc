@@ -116,7 +116,7 @@ public class DhtClient {
             nextHop = comm.nextHop(localPeer.localAddress, target);
             if (nextHop.getHost().equals("localhost"))
                 nextHop = new DhtPeerAddress(nextHop.getUserID(),
-                        nextHop.getHost(), nextHop.getPort(), localPeer.localAddress.getUserID());
+                        prevHop.getHost(), nextHop.getPort(), localPeer.localAddress.getUserID());
         } while (!nextHop.equals(prevHop));
         return nextHop;
     }
@@ -244,8 +244,10 @@ public class DhtClient {
             if (response.equals(1))
                 System.out.println("Me " + localPeer.localAddress.getPort() +
                         " of range for receiver " + peer.getPort());
-            else if (response.equals(2))
+            else if (response.equals(2)) {
+                System.out.println("redundant: " + file.hash.toString() + " " + file.realHash.toString());
                 ft.stopWithSuccess();
+            }
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;

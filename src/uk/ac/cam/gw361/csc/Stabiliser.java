@@ -123,7 +123,7 @@ public class Stabiliser extends Thread {
             try {
                 List<DhtFile> askFiles = new LinkedList<>();
                 // calculate which files to enquire about
-                for (DhtFile file : myFiles)
+                for (DhtFile file : myFiles) {
                     // we are only interested in replicating if peer is a predecessor
                     // or if it is between us and the file
                     if (localPeer.getNeighbourState().isPredecessor(p) ||
@@ -131,6 +131,7 @@ public class Stabiliser extends Thread {
                                     new DhtPeerAddress(file.hash, null, null,
                                             localPeer.localAddress.getUserID())))
                         askFiles.add(file);
+                }
 
                 // ask which files neighbour has
                 Map<BigInteger, Boolean> stored = localPeer.getClient().storingFiles(p, askFiles);

@@ -2,6 +2,8 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.security.SignedObject;
 import java.util.HashSet;
@@ -95,10 +97,8 @@ class FileUploadContinuation extends TransferContinuation {
         this.meta = meta;
         waitingChunks = meta.getChunks();
 
-        lastName = file;
-        if (file.contains("/"))
-            lastName = file.substring(file.lastIndexOf("/"));
-        fileName = FileUploadContinuation.transferDir + lastName;
+        Path p = Paths.get(file);
+        lastName = p.getFileName().toString();
 
         System.out.println("Copying file to upload directory");
         splitFile(file);

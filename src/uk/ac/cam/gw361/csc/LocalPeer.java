@@ -2,12 +2,18 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.*;
 import java.util.*;
 
 /**
  * Created by gellert on 24/10/2015.
  */
+
+//todo: diff download
+//todo: bugfix: responsibility for signed content files not handled correctly and
+//eventually these files get deleted
 public class LocalPeer {
     final String userName;
     final String fileListPath;
@@ -145,9 +151,8 @@ public class LocalPeer {
 
     public DhtTransfer publishFile(String fileName) throws IOException {
         FileUploadContinuation.createDir();
-        String lastName = fileName;
-        if (fileName.contains("/"))
-            lastName = fileName.substring(fileName.lastIndexOf("/"));
+        Path p = Paths.get(fileName);
+        String lastName = p.getFileName().toString();
         FileMetadata meta = new FileMetadata(fileName, lastName);
 
         String metaLocation = FileUploadContinuation.transferDir + lastName + ".metadata";

@@ -151,7 +151,7 @@ public class DhtTransfer extends Thread {
     public void run() {
         try {
             if (socket == null) {
-                ssocket.setSoTimeout(1000);
+                ssocket.setSoTimeout(2000);
                 socket = ssocket.accept();
                 ssocket.close();
             }

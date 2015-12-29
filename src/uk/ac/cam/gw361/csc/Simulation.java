@@ -6,27 +6,50 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Scanner;
 
 public class Simulation {
+    static LinkedList<Integer> numberPool = new LinkedList<>();
+    static LinkedList<Integer> runningPool = new LinkedList<>();
+    static Boolean isRunning = true;
+    static Process[] running = new Process[100];
+    static int alive = 0;
+    static int startPort = 8000;
+
     public static void main(String[] args) {
         String seed;
+        String path = "/Users/gellert/src/csc/out/production/csc/";
+        boolean nodel = false;
+        String init = null;
         Scanner scanner = new Scanner(System.in);
         System.out.println("seed:");
         seed = scanner.next();
 
-        if (args.length == 0 || !args[0].equals("nodel")) {
+        for (String arg : args) {
+            if (arg.equals("nodel"))
+                nodel = true;
+            if (arg.startsWith("path="))
+                path = arg.substring("path=".length());
+            if (arg.startsWith("init="))
+                init = arg.substring("init=".length());
+            if (arg.startsWith("startPort="))
+                startPort = Integer.parseInt(arg.substring("startPort=".length()));
+        }
+
+        if (!nodel) {
             // clean up
-            File dir = new File("/Users/gellert/src/csc/out/production/csc/storage");
+            File dir = new File(path + "storage");
             deleteFile(dir);
         }
 
         Thread commandReader = new SimulationCommandReader();
         commandReader.start();
 
-        startSimulation(seed);
+        startSimulation(seed, path, init);
     }
 
     static void deleteFile(File f) {
@@ -37,21 +60,17 @@ public class Simulation {
         f.delete();
     }
 
-    static LinkedList<Integer> numberPool = new LinkedList<>();
-    static LinkedList<Integer> runningPool = new LinkedList<>();
-    static Boolean isRunning = true;
-    static Process[] running = new Process[100];
-    static int alive = 0;
-    static final int startPort = 8000;
-
-    private static void startSimulation(String seed) {
+    private static void startSimulation(String seed, String path, String init) {
         int min = 1;
         int max = 100;
         double scale = 500000;
 
         Random random = new Random(Long.parseLong(seed));
 
-        running[0] = (startOne(0, 0));
+        if (init != null)
+            running[0] = (startOne(0, init, path));
+        else
+            running[0] = (startOne(0, 0, path));
 
         for (int i=1; i<max; i++)
             numberPool.add(i);
@@ -101,7 +120,7 @@ public class Simulation {
                         runningPool.add(port);
 
                         System.out.println("Starting " + port + " alive: " + alive);
-                        running[port] = (startOne(port, 0));
+                        running[port] = (startOne(port, 0, path));
                     }
                     if (nextDeath == 0) {
                         Double r3 = random.nextDouble() * runningPool.size();
@@ -119,14 +138,30 @@ public class Simulation {
 
     }
 
-    static Process startOne(Integer i, Integer connectTo) {
-        Process ret = null;
-        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
-                i + ":" + (startPort + i), "localhost:" + (startPort+connectTo));
+    static Process startOne(Integer i, Integer connectTo, String path) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
+                    (startPort + i) + ":" + (startPort + i),
+                    InetAddress.getLocalHost().getHostAddress() + ":"
+                    + (startPort + connectTo));
+            return doStart(pb, path);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
+    static Process startOne(Integer i, String connectTo, String path) {
+        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
+                (startPort + i) + ":" + (startPort + i), connectTo);
+        return doStart(pb, path);
+    }
+
+    static Process doStart(ProcessBuilder pb, String path) {
+        Process ret = null;
         //pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb.directory(new File("/Users/gellert/src/csc/out/production/csc"));
+        pb.directory(new File(path));
         try {
             ret = pb.start();
         } catch ( IOException e ) {
