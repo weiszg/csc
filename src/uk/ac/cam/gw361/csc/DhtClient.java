@@ -73,7 +73,11 @@ public class DhtClient {
         if (server.getUserID() != null && connections.containsKey(server)) {
             DhtComm ret = connections.get(server);
             try {
-                ret.isAlive(localPeer.localAddress);
+                if (server.getUserID() != null)
+                    if (!ret.checkUserID(localPeer.localAddress, server.getUserID()))
+                        throw new RemoteException();
+                else
+                    ret.isAlive(localPeer.localAddress);
                 return ret;
             } catch (RemoteException e) {
                 connections.remove(server);
@@ -83,6 +87,9 @@ public class DhtClient {
         try {
             Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
             DhtComm ret = (DhtComm) registry.lookup("DhtComm");
+            if (server.getUserID() != null
+                    && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
+                throw new ConnectionFailedException("UserID mismatch");
 
             //cache
             if (server.getUserID() != null)
@@ -263,5 +270,9 @@ public class DhtClient {
 }
 
 class ConnectionFailedException extends IOException {
-
+    String reason;
+    ConnectionFailedException() {}
+    ConnectionFailedException(String reason) {
+        this.reason = reason;
+    }
 }

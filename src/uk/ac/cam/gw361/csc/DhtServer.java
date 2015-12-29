@@ -163,6 +163,12 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
+    public Boolean checkUserID(DhtPeerAddress source, BigInteger userID) {
+        acceptConnection(source);
+        return userID.equals(localPeer.localAddress.getUserID());
+    }
+
+    @Override
     public String query(String input) {
         return localPeer.executeQuery(input);
     }

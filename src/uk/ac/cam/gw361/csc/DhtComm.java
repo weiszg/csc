@@ -19,6 +19,7 @@ public interface DhtComm extends Remote {
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
     Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException;
     Boolean isAlive(DhtPeerAddress source) throws RemoteException;
+    Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws RemoteException;
     Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException;
     String query(String input) throws RemoteException; // for debug purposes
