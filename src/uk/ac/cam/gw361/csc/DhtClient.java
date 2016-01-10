@@ -2,10 +2,13 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.RMIClientSocketFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +88,11 @@ public class DhtClient {
         }
 
         try {
-            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
+            // get remote registry
+            TimedRMIClientSocketFactory csf = new TimedRMIClientSocketFactory(1000);
+            csf.createSocket(server.getHost(), server.getPort());
+            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort(), csf);
+
             DhtComm ret = (DhtComm) registry.lookup("DhtComm");
             if (server.getUserID() != null
                     && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
@@ -274,5 +281,20 @@ class ConnectionFailedException extends IOException {
     ConnectionFailedException() {}
     ConnectionFailedException(String reason) {
         this.reason = reason;
+    }
+}
+
+class TimedRMIClientSocketFactory implements RMIClientSocketFactory, Serializable {
+    private int timeout;
+
+    public TimedRMIClientSocketFactory(int timeout)
+    {
+        this.timeout = timeout;
+    }
+
+    public Socket createSocket(String host, int port) throws IOException {
+        Socket s = new Socket();
+        s.connect(new InetSocketAddress(host, port), timeout);
+        return s;
     }
 }

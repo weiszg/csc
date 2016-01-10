@@ -13,6 +13,7 @@ public class Stabiliser extends Thread {
     private boolean debug = false;
     private long interval;
     private boolean running = true;
+    private String bootstrapPeer = null;
     
     public Stabiliser(LocalPeer localPeer, Long interval) {
         this.localPeer = localPeer;
@@ -41,14 +42,32 @@ public class Stabiliser extends Thread {
         }
     }
 
+    void setJoin(String remotePeerIP) {
+        this.bootstrapPeer = remotePeerIP;
+    }
+
+    void bootstrap() {
+        if (bootstrapPeer==null) return;
+        try {
+            localPeer.getClient().bootstrap(bootstrapPeer);
+            System.out.println(localPeer.localAddress.getPort()
+                    + ": connected to DHT pool");
+        } catch (IOException ioe) {
+            System.err.println(localPeer.localAddress.getPort()
+                    +  ": failed to connect to DHT pool");
+        }
+    }
+
     public void stabilise() {
         synchronized (this) {
             if (!stabilising && running) {
+                stabilising = true;
                 doStabilise();
+                stabilising = false;
                 return;
             }
         }
-        while (true && running) {
+        while (running) {
             synchronized (this) {
                 if (!stabilising)
                     return;
@@ -61,15 +80,18 @@ public class Stabiliser extends Thread {
 
     private void doStabilise() {
         // todo: time limits for remote calls and failure recognition
-        synchronized (this) {
-            stabilising = true;
-        }
 
         if (debug) System.out.println("stabilising... " + localPeer.localAddress.getPort());
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
         Set<DhtPeerAddress> failingPeers = new HashSet<>();
+
+        if (candidates.size() == 0) {
+            // disconnected, try reconnecting
+            bootstrap();
+            return;
+        }
 
         while (!candidates.isEmpty()) {
             Set<DhtPeerAddress> newCandidates = new HashSet<>();
@@ -101,9 +123,6 @@ public class Stabiliser extends Thread {
         localPeer.getDhtStore().vacuum();
 
         if (debug) System.out.println("stabilised");
-        synchronized (this) {
-            stabilising = false;
-        }
     }
 
     private void migrateResponsibilities(Set<DhtPeerAddress> failingPeers) {

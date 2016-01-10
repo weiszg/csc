@@ -15,7 +15,8 @@ import java.util.Scanner;
 public class Simulation {
     static LinkedList<Integer> numberPool = new LinkedList<>();
     static LinkedList<Integer> runningPool = new LinkedList<>();
-    static Boolean isRunning = true;
+    static final Boolean lock = false;
+    static boolean isRunning = true;
     static Process[] running = new Process[100];
     static int alive = 0;
     static int startPort = 8000;
@@ -108,7 +109,7 @@ public class Simulation {
             if (nextBirth >= 0 && alive < max)
                 nextBirth *= (max - alive);
 
-            synchronized (isRunning) {
+            synchronized (lock) {
                 if (!isRunning)
                     try { Thread.sleep(1000); } catch (InterruptedException e) { }
                 else {
@@ -191,17 +192,17 @@ class SimulationCommandReader extends Thread {
             String readStr = scanner.nextLine();
             try {
                 if (readStr.equals("end")) {
-                    synchronized (Simulation.isRunning) {
+                    synchronized (Simulation.lock) {
                         Simulation.isRunning = false;
                     }
                     for (Process p : Simulation.running)
                         Simulation.endProcess(p);
                 } else if (readStr.equals("suspend")) {
-                    synchronized (Simulation.isRunning) {
+                    synchronized (Simulation.lock) {
                         Simulation.isRunning = false;
                     }
                 } else if (readStr.equals("continue")) {
-                    synchronized (Simulation.isRunning) {
+                    synchronized (Simulation.lock) {
                         Simulation.isRunning = true;
                     }
                 } else if (readStr.startsWith("kill ")) {
@@ -210,7 +211,7 @@ class SimulationCommandReader extends Thread {
                     Simulation.endProcess(index);
                 } else if (readStr.startsWith("all ")) {
                     readStr = readStr.substring("all ".length());
-                    synchronized (Simulation.isRunning) {
+                    synchronized (Simulation.lock) {
                         for (int index : Simulation.runningPool) {
                             int connectPort = Simulation.startPort + index;
                             System.out.println(connectPort);

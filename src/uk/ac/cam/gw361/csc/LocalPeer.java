@@ -83,13 +83,9 @@ public class LocalPeer {
     }
 
     public synchronized void join(String remotePeerIP) {
-        try {
-            dhtClient.bootstrap(remotePeerIP);
-            System.out.println("Connected to DHT pool");
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-            System.err.println("Failed to connect to DHT pool");
-        }
+        // set join information of the Stabiliser
+        stabiliser.setJoin(remotePeerIP);
+        stabiliser.bootstrap();
     }
 
     public DhtPeerAddress getNextLocalHop(BigInteger target) {
