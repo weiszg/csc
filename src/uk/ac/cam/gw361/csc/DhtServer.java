@@ -94,7 +94,9 @@ public class DhtServer implements DhtComm {
     public NeighbourState getNeighbourState(DhtPeerAddress source) {
         if (debug) System.out.println("server getneighbourstate");
         acceptConnection(source);
-        return localPeer.getNeighbourState();
+        if (localPeer.isStable())
+            return localPeer.getNeighbourState();
+        else return null;
     }
 
     @Override

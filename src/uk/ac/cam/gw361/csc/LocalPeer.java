@@ -67,6 +67,8 @@ public class LocalPeer {
         localAddress.print(System.out, "Started: ");
     }
 
+    boolean isStable() { return stabiliser.isStable(); }
+
     private void loadKeys() {
         // create directory
         File myFolder = new File("./keys");

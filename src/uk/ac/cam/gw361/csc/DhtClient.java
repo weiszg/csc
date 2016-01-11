@@ -122,6 +122,9 @@ public class DhtClient {
         DhtComm comm = connect(peer);
         try {
             result = comm.getNeighbourState(localPeer.localAddress);
+            if (result == null)
+                throw new PeerNotStableException();
+
             result.setLocalAddress(localPeer.localAddress);
             return result;
         } catch (RemoteException e) {
@@ -262,6 +265,9 @@ class ConnectionFailedException extends IOException {
     ConnectionFailedException(String reason) {
         this.reason = reason;
     }
+}
+
+class PeerNotStableException extends RemoteException {
 }
 
 class TimedRMISocketFactory extends RMISocketFactory {

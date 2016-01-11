@@ -14,7 +14,12 @@ public class Stabiliser extends Thread {
     private long interval;
     private boolean running = true;
     private String bootstrapPeer = null;
-    
+    private long lastStabilised = System.nanoTime() / 1000000;
+
+    boolean isStable() {
+        return (System.nanoTime() / 1000000 - lastStabilised <= interval * 2);
+    }
+
     public Stabiliser(LocalPeer localPeer, Long interval) {
         this.localPeer = localPeer;
         this.interval = interval;
@@ -120,6 +125,7 @@ public class Stabiliser extends Thread {
         }
 
         localPeer.setNeighbourState(newState);
+        lastStabilised = System.nanoTime() / 1000000;
         if (debug) System.out.println("Set new state");
         migrateResponsibilities(failingPeers);
         if (debug) System.out.println("Migrated responsibilities");
