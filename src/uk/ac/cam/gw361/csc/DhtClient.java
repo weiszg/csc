@@ -9,6 +9,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMIClientSocketFactory;
+import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,37 +36,19 @@ public class DhtClient {
         DhtPeerAddress pred = doLookup(new DhtPeerAddress(null, host, port,
                         localPeer.localAddress.getUserID()), localPeer.localAddress.getUserID());
         localPeer.getNeighbourState().addNeighbour(pred);
-        localPeer.stabilise();
     }
 
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         if (server.equals(localPeer.localAddress)) return localPeer.getServer();
+        Profiler profiler;
+        if (debug) profiler = new Profiler("connect-" + localPeer.localAddress.getPort(), 3000);
         DhtComm comm;
         try {
             comm = doConnect(server);
-        } catch (ConnectionFailedException e1) {
-            if (debug) System.err.println("Connection failed 1, retrying");
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ie) {
-            }
-            try {
-                comm = doConnect(server);
-            } catch (ConnectionFailedException e2) {
-                if (debug) System.err.println("Connection failed 2, retrying");
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ie) {
-                }
-                try {
-                    comm = doConnect(server);
-                } catch (ConnectionFailedException e3) {
-                    if (debug) System.err.println("Giving up, try later");
-                    throw e3;
-                }
-            }
+            return comm;
+        } finally {
+            if (debug) profiler.end();
         }
-        return comm;
     }
 
     private DhtComm doConnect(DhtPeerAddress server)
@@ -80,7 +63,8 @@ public class DhtClient {
                     if (!ret.checkUserID(localPeer.localAddress, server.getUserID()))
                         throw new RemoteException();
                 else
-                    ret.isAlive(localPeer.localAddress);
+                    if (!ret.isAlive(localPeer.localAddress))
+                        throw new RemoteException();
                 return ret;
             } catch (RemoteException e) {
                 connections.remove(server);
@@ -88,11 +72,7 @@ public class DhtClient {
         }
 
         try {
-            // get remote registry
-            TimedRMIClientSocketFactory csf = new TimedRMIClientSocketFactory(1000);
-            csf.createSocket(server.getHost(), server.getPort());
-            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort(), csf);
-
+            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
             DhtComm ret = (DhtComm) registry.lookup("DhtComm");
             if (server.getUserID() != null
                     && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
@@ -284,17 +264,20 @@ class ConnectionFailedException extends IOException {
     }
 }
 
-class TimedRMIClientSocketFactory implements RMIClientSocketFactory, Serializable {
-    private int timeout;
-
-    public TimedRMIClientSocketFactory(int timeout)
+class TimedRMISocketFactory extends RMISocketFactory {
+    int timeout = 1000;
+    public Socket createSocket(String host, int port) throws IOException
     {
-        this.timeout = timeout;
+        Socket socket = new Socket();
+        socket.setSoTimeout(timeout);
+        socket.setSoLinger(true, timeout) ;
+        socket.connect( new InetSocketAddress(host, port), timeout);
+        return socket;
     }
 
-    public Socket createSocket(String host, int port) throws IOException {
-        Socket s = new Socket();
-        s.connect(new InetSocketAddress(host, port), timeout);
-        return s;
+    public ServerSocket createServerSocket(int port)
+            throws IOException
+    {
+        return new ServerSocket(port);
     }
 }

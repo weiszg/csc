@@ -108,7 +108,7 @@ public class DhtTransfer extends Thread {
             bufferedOutputStream.flush();
         }
 
-        System.out.println("Download complete: " + socket.getPort()
+        System.out.println("Download complete: " + socket.getLocalPort()
                 + " - " + socket.getPort());
 
         if (continuation != null)

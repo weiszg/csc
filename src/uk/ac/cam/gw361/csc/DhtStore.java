@@ -85,7 +85,13 @@ public class DhtStore {
 
     public synchronized void removeFile(BigInteger file) {
         System.out.println("Removing file " + file.toString());
-        files.remove(file);
+        if (!files.containsKey(file))
+            System.out.println("File didn't even exist " + file.toString());
+        else {
+            DhtFile dhtFile = files.get(file);
+            removeResponsibility(dhtFile);
+            files.remove(file);
+        }
         File toRemove = new File(myFolder.getPath() + "/" + file.toString());
         toRemove.delete();
     }
@@ -102,6 +108,15 @@ public class DhtStore {
             HashSet<BigInteger> ll = new HashSet<>();
             ll.add(file.hash);
             responsibilities.put(file.owner, ll);
+        }
+    }
+
+    private void removeResponsibility(DhtFile file) {
+        if (responsibilities.containsKey(file.owner)) {
+            Set<BigInteger> respFiles = responsibilities.get(file.owner);
+            respFiles.remove(file.hash);
+            if (respFiles.isEmpty())
+                responsibilities.remove(file.owner);
         }
     }
 
@@ -139,13 +154,8 @@ public class DhtStore {
             oldFile.lastQueried = new Date();
             if (!oldFile.owner.equals(owner) && (force || owner.isBetween(oldFile.owner,
                     new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
-
-                if (responsibilities.containsKey(oldFile.owner)) {
-                    Set<BigInteger> respFiles = responsibilities.get(oldFile.owner);
-                    respFiles.remove(oldFile.hash);
-                    if (respFiles.isEmpty())
-                        responsibilities.remove(oldFile.owner);
-                }
+                // remove old responsibility association
+                removeResponsibility(oldFile);
                 oldFile.owner = owner;
                 addResponsibility(oldFile);
                 return true;
@@ -179,8 +189,10 @@ public class DhtStore {
         else
             fileHashes = new LinkedList<>();
         List<DhtFile> respFiles = new LinkedList<>();
+
         for (BigInteger hash : fileHashes)
-            respFiles.add(files.get(hash));
+            if (files.containsKey(hash))
+                respFiles.add(files.get(hash));
 
         return respFiles;
     }

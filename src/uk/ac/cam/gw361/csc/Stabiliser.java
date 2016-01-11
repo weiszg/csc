@@ -10,7 +10,7 @@ import java.util.*;
 public class Stabiliser extends Thread {
     private Boolean stabilising = false;
     private LocalPeer localPeer;
-    private boolean debug = false;
+    private boolean debug = true;
     private long interval;
     private boolean running = true;
     private String bootstrapPeer = null;
@@ -46,7 +46,7 @@ public class Stabiliser extends Thread {
         this.bootstrapPeer = remotePeerIP;
     }
 
-    void bootstrap() {
+    private void bootstrap() {
         if (bootstrapPeer==null) return;
         try {
             localPeer.getClient().bootstrap(bootstrapPeer);
@@ -90,7 +90,6 @@ public class Stabiliser extends Thread {
         if (candidates.size() == 0) {
             // disconnected, try reconnecting
             bootstrap();
-            return;
         }
 
         while (!candidates.isEmpty()) {
@@ -105,12 +104,15 @@ public class Stabiliser extends Thread {
                                 localPeer.getClient().getNeighbourState(candidate);
                         newCandidates.addAll(remoteState.getNeighbours());
                         newState.addNeighbour(candidate);
+                        if (debug) candidate.print(System.out, "Candidate responded: ");
                     } catch (IOException e) {
                         // candidate is failing, migrate responsibilities
                         failingPeers.add(candidate);
-                        System.err.println("Failing link " + localPeer.localAddress.getHost() + ":" +
+                        String msgText = "Failing link " + localPeer.localAddress.getHost() + ":" +
                                 localPeer.localAddress.getPort() + " - " + candidate.getHost() + ":" +
-                                candidate.getPort() + ": " + e.toString());
+                                candidate.getPort() + ": " + e.toString();
+                        System.err.println(msgText);
+                        if (debug) System.out.println(msgText);
                     }
                 }
             }
@@ -118,9 +120,13 @@ public class Stabiliser extends Thread {
         }
 
         localPeer.setNeighbourState(newState);
+        if (debug) System.out.println("Set new state");
         migrateResponsibilities(failingPeers);
+        if (debug) System.out.println("Migrated responsibilities");
         stabiliseReplicas();
+        if (debug) System.out.println("Stabilised replicas");
         localPeer.getDhtStore().vacuum();
+        if (debug) System.out.println("Vacuumed");
 
         if (debug) System.out.println("stabilised");
     }
@@ -130,7 +136,10 @@ public class Stabiliser extends Thread {
         // stabiliseReplicas will communicate with successors to establish who the real owner is
         for (DhtPeerAddress peer : failingPeers) {
             List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(peer);
+
             for (DhtFile file : fosterFiles)
+            // assume we are responsible for all foster files
+            // if this is not the case, stabilisation will take care
                 localPeer.getDhtStore().refreshResponsibility(file.hash,
                         localPeer.localAddress, true);
         }
@@ -178,7 +187,7 @@ public class Stabiliser extends Thread {
                 }
             } catch (IOException e) {
                 // if a neighbour is not responding, the next synchronisation loop will take care
-                if (debug) e.printStackTrace();
+                if (debug) e.printStackTrace(System.out);
             }
         }
 
@@ -194,7 +203,7 @@ public class Stabiliser extends Thread {
                     } catch (IOException e) {
                         // no replication to failing link, the link will be deleted when
                         // we synchronize next
-                        e.printStackTrace();
+                        e.printStackTrace(System.out);
                     }
                 }
         }

@@ -1,5 +1,7 @@
 package uk.ac.cam.gw361.csc;
 
+import java.io.IOException;
+import java.rmi.server.RMISocketFactory;
 import java.util.Scanner;
 
 /**
@@ -10,6 +12,12 @@ public class Main {
         System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
+        try {
+            RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
         String userName = (args.length < 1) ? null : args[0];
         String host = (args.length < 2) ? null : args[1];

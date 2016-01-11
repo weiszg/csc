@@ -22,6 +22,19 @@ public class Simulation {
     static int startPort = 8000;
 
     public static void main(String[] args) {
+        // set timeouts
+        System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
+
+        // create output logs directory
+        File myFolder = new File("./log");
+        if (!myFolder.exists()) {
+            System.out.println("creating directory log");
+            if (!myFolder.mkdir())
+                System.err.println("creating folder failed");
+        }
+
         String seed;
         String path = "/Users/gellert/src/csc/out/production/csc/";
         boolean nodel = false;
@@ -145,6 +158,7 @@ public class Simulation {
                     (startPort + i) + ":" + (startPort + i),
                     InetAddress.getLocalHost().getHostAddress() + ":"
                     + (startPort + connectTo));
+            pb.redirectOutput(new File("./log/" + i + ".out"));
             return doStart(pb, path);
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -155,6 +169,7 @@ public class Simulation {
     static Process startOne(Integer i, String connectTo, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
                 (startPort + i) + ":" + (startPort + i), connectTo);
+        pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
 

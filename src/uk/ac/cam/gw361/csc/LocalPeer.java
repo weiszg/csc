@@ -85,7 +85,7 @@ public class LocalPeer {
     public synchronized void join(String remotePeerIP) {
         // set join information of the Stabiliser
         stabiliser.setJoin(remotePeerIP);
-        stabiliser.bootstrap();
+        stabilise();
     }
 
     public DhtPeerAddress getNextLocalHop(BigInteger target) {
