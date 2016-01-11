@@ -95,6 +95,7 @@ public class Stabiliser extends Thread {
         if (candidates.size() == 0) {
             // disconnected, try reconnecting
             bootstrap();
+            candidates = localPeer.getNeighbourState().getNeighbours();
         }
 
         while (!candidates.isEmpty()) {
