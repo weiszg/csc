@@ -52,6 +52,10 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
         return userID.hashCode();
     }
 
+    public String getConnectAddress() {
+        return host + ":" + port;
+    }
+
     public boolean isBetween (DhtPeerAddress a, DhtPeerAddress b) {
         //returns true if this address is on the arc from a to b on the ring
         if (a.compareTo(b) <= 0)

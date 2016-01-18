@@ -14,20 +14,52 @@ import java.util.TreeMap;
  * Created by gellert on 24/12/2015.
  */
 public abstract class TransferContinuation {
-    abstract void notifyFinished(DhtTransfer finishedTransfer) throws IOException;
+    abstract void notifyFinished(DhtTransfer finishedTransfer);
+    
+    // indicates how many times to retry a transfer before giving up
+    int maxRetries = 3;
+    // how much to wait between retries
+    int waitRetry = 3000;
+    
+    // it is always the server's responsibility to handle failures
+    // the standard reaction to client-mode failures is to retry
+    DhtTransfer notifyFailed(DhtTransfer transfer) {
+        // if we are in server-mode rather than client-mode, eg. we are asked to upload something
+        // then there's no associated TransferTask in the originalTask
+        DhtTransfer ret = null;
+        if (transfer.originalTask != null && transfer.originalTask.retries < maxRetries) {
+            System.out.println("Retrying transfer " + transfer.fileHash.toString() + " in " +
+                    waitRetry / 1000 + "s");
+            try { Thread.sleep(waitRetry); } catch (InterruptedException e) { }
+            try { ret = transfer.originalTask.execute(); }
+            catch (IOException e) {
+                System.err.println("Giving up " + transfer.fileHash.toString()
+                        + " - " + e.toString());
+            }
+        } else {
+            System.err.println("Giving up " + transfer.fileHash.toString());
+        }
+        return ret;
+    }
 
-    void notifyFinished(DhtTransfer finishedTransfer, Long transferSize)
-            throws IOException {
+    void notifyFinished(DhtTransfer finishedTransfer, Long transferSize) {
         notifyFinished(finishedTransfer);
     }
 }
 
-class InternalUploadContinuation extends  TransferContinuation {
+class InternalUploadContinuation extends TransferContinuation {
     @Override
-    public void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
+    public void notifyFinished(DhtTransfer finishedTransfer) {
         // upload complete, refresh responsibility for the file
         finishedTransfer.localPeer.getDhtStore().refreshResponsibility(
                 finishedTransfer.fileHash, finishedTransfer.remotePeer, false);
+    }
+
+    @Override
+    public DhtTransfer notifyFailed(DhtTransfer dhtTransfer) {
+        // this is fine, we're either the client for the uploads
+        // or if we are the server, stabiliser takes care of retries
+        return null;
     }
 }
 
@@ -41,12 +73,12 @@ class InternalDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
-        throw new IOException("No transfer length specified for InternalDownloadContinuation");
+    public void notifyFinished(DhtTransfer finishedTransfer) {
+        System.err.println("No transfer length specified for InternalDownloadContinuation");
     }
 
     @Override
-    public void notifyFinished(DhtTransfer finishedTransfer, Long transferSize) throws IOException {
+    public void notifyFinished(DhtTransfer finishedTransfer, Long transferSize) {
         // complete download, add to list of local files
         LocalPeer localPeer = finishedTransfer.localPeer;
         BigInteger fileHash = finishedTransfer.fileHash;
@@ -64,9 +96,16 @@ class InternalDownloadContinuation extends TransferContinuation {
 
             if (owner.equals(localPeer.localAddress)) {
                 // replicate to predecessors
-                finishedTransfer.localPeer.replicate(downloadedFile);
+                // todo: decide if really needed - stabiliser would handle replication
+                //finishedTransfer.localPeer.replicate(downloadedFile);
             }
         }
+    }
+
+    @Override
+    public DhtTransfer notifyFailed(DhtTransfer dhtTransfer) {
+        // this is fine, we're always in server mode
+        return null;
     }
 }
 
@@ -76,7 +115,6 @@ class FileUploadContinuation extends TransferContinuation {
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
-    private String fileName;
     private String lastName;
     private boolean fileListUpdated = false;
     private BigInteger metaHash;
@@ -112,7 +150,7 @@ class FileUploadContinuation extends TransferContinuation {
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
             int bytesRead = 0; // bytesRead should always be blockSize for internal blocks
             while ((bytesRead = bis.read(buffer)) > 0) {
-                File newFile = new File(fileName + "." + index++);
+                File newFile = new File(transferDir + lastName + "." + index++);
                 try (BufferedOutputStream bos = new BufferedOutputStream(
                         new FileOutputStream(newFile))) {
                     bos.write(buffer, 0, bytesRead);
@@ -121,8 +159,13 @@ class FileUploadContinuation extends TransferContinuation {
         }
     }
 
+    private void removeFile(String file) {
+        File f = new File(file);
+        f.delete();
+    }
+
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) {
         LocalPeer localPeer = finishedTransfer.localPeer;
         runningTransfers.remove(finishedTransfer);
         if (first) {
@@ -145,12 +188,20 @@ class FileUploadContinuation extends TransferContinuation {
                     System.out.println("File upload finished, updating FileList");
                     localPeer.fileList.put(lastName, metaHash);
                     String fileListPath = localPeer.saveFileList();
-                    BigInteger realHash = Hasher.hashFile(fileListPath);
-
-                    runningTransfers.add(localPeer.getClient().signedUpload(fileListPath,
-                            localPeer.localAddress.getUserID(), realHash, this));
-                    fileListUpdated = true;
+                    try {
+                        BigInteger realHash = Hasher.hashFile(fileListPath);
+                        runningTransfers.add(localPeer.getTransferManager().signedUpload(
+                                fileListPath, localPeer.localAddress.getUserID(), realHash, this));
+                        fileListUpdated = true;
+                    } catch (IOException e) {
+                        System.err.println("File list file hashing problem:" + e.toString());
+                    }
                 } else {
+                    System.out.println("Cleaning up");
+                    removeFile(transferDir + lastName + ".meta");
+                    for (int i=0; i<meta.blocks; i++)
+                        removeFile(transferDir + lastName + "." + i);
+
                     System.out.println("Done.");
                 }
             }
@@ -161,8 +212,23 @@ class FileUploadContinuation extends TransferContinuation {
             waitingChunks.remove(waitingChunks.firstKey());
 
             concurrentTransfers++;
-            runningTransfers.add(localPeer.getClient().upload(fileName + "." + nextIndex, this));
+            try {
+                runningTransfers.add(localPeer.getTransferManager().upload(
+                        transferDir + lastName + "." + nextIndex, this));
+            } catch (IOException e) {
+                System.err.println("File upload failed");
+            }
         }
+    }
+
+    @Override
+    public DhtTransfer notifyFailed(DhtTransfer transfer) {
+        runningTransfers.remove(transfer);
+        System.out.println("File chunk upload failed");
+        DhtTransfer newTransfer = super.notifyFailed(transfer);
+        if (newTransfer != null)
+            runningTransfers.add(newTransfer);
+        return newTransfer;
     }
 }
 
@@ -219,25 +285,22 @@ class FileDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) {
         LocalPeer localPeer = finishedTransfer.localPeer;
         runningTransfers.remove(finishedTransfer);
         if (first) {
             // metadata download has finished, process metadata and start file blocks
             first = false;
-            FileInputStream fis = new FileInputStream(transferDir + fileName + ".meta");
-            ObjectInputStream ois = new ObjectInputStream(fis);
-            try {
+            try (ObjectInputStream ois = new ObjectInputStream(
+                    new FileInputStream(transferDir + fileName + ".meta"))) {
                 meta = (FileMetadata) ois.readObject();
                 waitingChunks = meta.getChunks();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace(); // invalid file or differing versions
-                throw new IOException("Metadata download raised ClassNotFoundException");
+                System.out.println("Metadata collected");
+                // delete metadata
+                new File(transferDir + fileName + ".meta").delete();
+            } catch (ClassNotFoundException | IOException e) {
+                System.out.println("Error processing metadata: " + e.toString());
             }
-            System.out.println("Metadata collected");
-
-            // delete metadata
-            new File(transferDir + fileName + ".meta").delete();
         } else {
             finishedBlocks++;
             concurrentTransfers--;
@@ -245,8 +308,12 @@ class FileDownloadContinuation extends TransferContinuation {
 
             // if done merge downloaded chunks
             if (waitingChunks.isEmpty() && concurrentTransfers==0) {
-                mergeFile();
-                System.out.println("Merging succesful, download complete");
+                try {
+                    mergeFile();
+                    System.out.println("Merging succesful, download complete");
+                } catch (IOException e) {
+                    System.err.println("Merging failed: " + e.toString());
+                }
             }
         }
 
@@ -255,9 +322,25 @@ class FileDownloadContinuation extends TransferContinuation {
             BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
 
             concurrentTransfers++;
-            runningTransfers.add(localPeer.getClient().download(FileDownloadContinuation.transferDir
-                    + fileName + "." + nextIndex, nextTransfer, true, this));
+            try {
+                runningTransfers.add(localPeer.getTransferManager().download(
+                        FileDownloadContinuation.transferDir
+                                + fileName + "." + nextIndex, nextTransfer, true, this));
+            } catch (IOException e) {
+                System.err.println("File download failed");
+                e.printStackTrace();
+            }
         }
+    }
+
+    @Override
+    public DhtTransfer notifyFailed(DhtTransfer transfer) {
+        runningTransfers.remove(transfer);
+        System.out.println("File chunk download failed");
+        DhtTransfer newTransfer = super.notifyFailed(transfer);
+        if (newTransfer != null)
+            runningTransfers.add(newTransfer);
+        return newTransfer;
     }
 }
 
@@ -272,7 +355,7 @@ class FileListDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) throws IOException {
+    public synchronized  void notifyFinished(DhtTransfer finishedTransfer) {
         LocalPeer localPeer = finishedTransfer.localPeer;
 
         FileList fileList = FileList.load(fileName, publicKey);
@@ -281,5 +364,11 @@ class FileListDownloadContinuation extends TransferContinuation {
         } else {
             localPeer.setLastQueriedFileList(fileList);
         }
+    }
+
+    @Override
+    public DhtTransfer notifyFailed(DhtTransfer transfer) {
+        System.out.println("File list download failed");
+        return super.notifyFailed(transfer);
     }
 }

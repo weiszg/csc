@@ -6,9 +6,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * Created by gellert on 10/11/2015.
@@ -22,9 +19,11 @@ public class DhtTransfer extends Thread {
     BigInteger fileHash;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
-    boolean stoppedWithSuccess = false;
-    boolean hashCheck = true; // used to disregard hash checks for signed content downloads
-    byte[] data = new byte[8192];
+    boolean stopped = false;
+    boolean hashCheck = true; // to disregard hash checks for signed content downloads
+
+    protected TransferTask originalTask;
+    void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
 
     public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
                        FileOutputStream fileOutputStream, BigInteger fileHash,
@@ -77,6 +76,7 @@ public class DhtTransfer extends Thread {
     }
 
     private void download() throws IOException {
+        byte[] data = new byte[8192];
         long totalRead = 0;
 
         MessageDigest digest;
@@ -110,13 +110,13 @@ public class DhtTransfer extends Thread {
 
         System.out.println("Download complete: " + socket.getLocalPort()
                 + " - " + socket.getPort());
-
-        if (continuation != null)
-            continuation.notifyFinished(this, totalRead);
+        stopTransfer(true, totalRead);
     }
 
     private void upload() throws IOException {
+        byte[] data = new byte[8192];
         long totalWritten = 0;
+
         try (BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream)) {
             try (OutputStream outputStream = socket.getOutputStream()) {
                 System.out.println("Starting upload: " + socket.getLocalPort()
@@ -130,22 +130,30 @@ public class DhtTransfer extends Thread {
             }
         }
 
-        if (continuation != null)
-            continuation.notifyFinished(this);
+        stopTransfer(true);
     }
 
-    synchronized void stopWithSuccess() {
-        System.out.println("Stopping transfer because it's redundant");
-        stoppedWithSuccess = true;
+    synchronized void stopTransfer(boolean success) {
+        stopTransfer(success, null);
+    }
 
-        if (continuation != null)
-            try {
-                continuation.notifyFinished(this);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-        localPeer.notifyTransferCompleted(this, true);
+    synchronized void stopTransfer(boolean success, Long transferSize) {
+        // called internally when the transfer has naturally finished
+        // or externally to stop transfer either because the target we upload to has the
+        // file already (success) or we are out of range (failure)
+        if (!stopped) {
+            stopped = true;
+            if (continuation != null)
+                if (success) {
+                    if (transferSize == null)
+                        continuation.notifyFinished(this);
+                    else
+                        continuation.notifyFinished(this, transferSize);
+                } else {
+                    continuation.notifyFailed(this);
+                }
+            localPeer.notifyTransferCompleted(this, success);
+        }
     }
 
     public void run() {
@@ -161,17 +169,10 @@ public class DhtTransfer extends Thread {
             else if (fileOutputStream != null)
                 download();
 
-            synchronized (this) {
-                if (!stoppedWithSuccess)
-                    localPeer.notifyTransferCompleted(this, true);
-            }
         } catch (IOException ioe) {
-            synchronized (this) {
-                if (!stoppedWithSuccess) {
-                    System.out.println(ioe.toString());
-                    localPeer.notifyTransferCompleted(this, false);
-                }
-            }
+            if (!stopped)
+                System.out.println("Transfer failed due to: " + ioe.toString());
+            stopTransfer(false);
         }
         finally {
             try { if (fileInputStream != null) fileInputStream.close(); }
@@ -185,4 +186,3 @@ public class DhtTransfer extends Thread {
         }
     }
 }
-

@@ -96,9 +96,9 @@ public class NeighbourState implements Serializable {
             if (debug) {
                 System.out.print("successors: ");
                 for (DhtPeerAddress p : successors)
-                    System.out.print(p.getPort() + " ");
+                    System.out.print(p.getConnectAddress() + " ");
                 System.out.println(" - " + successors.first().relativeSort +
-                        " --- " + item.getPort());
+                        " --- " + item.getConnectAddress());
             }
         }
 
@@ -115,9 +115,9 @@ public class NeighbourState implements Serializable {
             if (debug) {
                 System.out.print("predecessors: ");
                 for (DhtPeerAddress p : predecessors)
-                    System.out.print(p.getPort() + " ");
+                    System.out.print(p.getConnectAddress() + " ");
                 System.out.println(" - " + predecessors.first().relativeSort +
-                        " --- " + item.getPort());
+                        " --- " + item.getConnectAddress());
             }
         }
     }

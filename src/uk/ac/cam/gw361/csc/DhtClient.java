@@ -41,7 +41,9 @@ public class DhtClient {
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         if (server.equals(localPeer.localAddress)) return localPeer.getServer();
         Profiler profiler;
-        if (debug) profiler = new Profiler("connect-" + localPeer.localAddress.getPort(), 3000);
+        if (debug)
+            profiler = new Profiler("connect-" + localPeer.localAddress.getConnectAddress(), 3000);
+
         DhtComm comm;
         try {
             comm = doConnect(server);
@@ -55,17 +57,22 @@ public class DhtClient {
             throws ConnectionFailedException {
         if (debug) server.print(System.out, "client connect: ");
 
-        // cache lookup
-        if (server.getUserID() != null && connections.containsKey(server)) {
-            DhtComm ret = connections.get(server);
+        // cache lookup has to be synchronised
+        DhtComm cached = null;
+        synchronized (connections) {
+            if (server.getUserID() != null && connections.containsKey(server))
+                cached = connections.get(server);
+        }
+
+        if (cached != null) {
             try {
                 if (server.getUserID() != null)
-                    if (!ret.checkUserID(localPeer.localAddress, server.getUserID()))
+                    if (!cached.checkUserID(localPeer.localAddress, server.getUserID()))
                         throw new RemoteException();
                 else
-                    if (!ret.isAlive(localPeer.localAddress))
+                    if (!cached.isAlive(localPeer.localAddress))
                         throw new RemoteException();
-                return ret;
+                return cached;
             } catch (RemoteException e) {
                 connections.remove(server);
             }
@@ -78,9 +85,11 @@ public class DhtClient {
                     && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
                 throw new ConnectionFailedException("UserID mismatch");
 
-            //cache
-            if (server.getUserID() != null)
-                connections.put(server, ret);
+            // cache the connection synchronously
+            synchronized (this) {
+                if (server.getUserID() != null)
+                    connections.put(server, ret);
+            }
             return ret;
         } catch (Exception e) {
             if (debug) System.err.println("Client exception: " + e.toString());
@@ -88,7 +97,7 @@ public class DhtClient {
         }
     }
 
-    public DhtPeerAddress lookup(BigInteger target)
+    public DhtPeerAddress lookup(final BigInteger target)
             throws IOException {
         // navigate to the highest peer lower than the target
         if (debug) System.out.println("client lookup");
@@ -108,9 +117,9 @@ public class DhtClient {
             prevHop = nextHop;
             DhtComm comm = connect(prevHop);
             nextHop = comm.nextHop(localPeer.localAddress, target);
+            nextHop.setRelative(localPeer.localAddress.getUserID());
             if (nextHop.getHost().equals("localhost"))
-                nextHop = new DhtPeerAddress(nextHop.getUserID(),
-                        prevHop.getHost(), nextHop.getPort(), localPeer.localAddress.getUserID());
+                nextHop.setHost(prevHop.getHost());
         } while (!nextHop.equals(prevHop));
         return nextHop;
     }
@@ -179,8 +188,8 @@ public class DhtClient {
         return ft;
     }
 
-    public DhtTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
-                              FileUploadContinuation continuation) throws IOException {
+    DhtTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
+                              TransferContinuation continuation) throws IOException {
         FileInputStream fis = localPeer.getDhtStore().readFile(file);
         DhtFile dbFile = localPeer.getDhtStore().getFile(file);
         DhtFile uploadFile = new DhtFile(dbFile.hash, dbFile.realHash, dbFile.size, owner);
@@ -189,7 +198,7 @@ public class DhtClient {
         return ft;
     }
 
-    public DhtTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    DhtTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         BigInteger fileHash = Hasher.hashFile(name);
         File file = new File(name);
         FileInputStream fis = new FileInputStream(file);
@@ -223,12 +232,11 @@ public class DhtClient {
             ft = doUpload(target, uploadFile, fis, continuation);
         }
 
-        localPeer.runningTransfers.add(ft);
         return ft;
     }
 
     private DhtTransfer doUpload(DhtPeerAddress peer, DhtFile file, FileInputStream fis,
-                                 FileUploadContinuation continuation) throws IOException {
+                                 TransferContinuation continuation) throws IOException {
         if (debug) System.out.println("client upload");
         DhtComm comm = connect(peer);
         DhtTransfer ft;
@@ -238,13 +246,15 @@ public class DhtClient {
             ft.start();
 
             Integer response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
-            if (response.equals(1))
-                System.out.println("Me " + localPeer.localAddress.getPort() +
-                        " of range for receiver " + peer.getPort());
-            else if (response.equals(2)) {
+            if (response.equals(1)) {
+                System.out.println("Out of range for receiver " + peer.getConnectAddress());
+                ft.stopTransfer(false);
+            } else if (response.equals(2)) {
                 System.out.println("redundant: " + file.hash.toString() + " " + file.realHash.toString());
-                ft.stopWithSuccess();
-            }
+                ft.stopTransfer(true);
+            } else
+                // the transfer is on
+                localPeer.runningTransfers.add(ft);
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;

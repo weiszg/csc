@@ -125,7 +125,8 @@ public class DhtServer implements DhtComm {
                         new DhtPeerAddress(file.hash, null, null,
                                 localPeer.localAddress.getUserID())) &&
                 !localPeer.getNeighbourState().getSuccessors().contains(file.owner)) {
-            System.err.println("refusing download");
+            System.out.println("Refusing download from " + source.getConnectAddress()
+                    + " with owner " + file.owner.getConnectAddress());
             return 1;
         } else if (localPeer.getDhtStore().hasFile(file))
             return 2;
@@ -135,6 +136,7 @@ public class DhtServer implements DhtComm {
         FileOutputStream fos = localPeer.getDhtStore().writeFile(file.hash);
 
         Socket socket = new Socket();
+        socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
         // do not check hash for this download - might be signed content
         Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file.hash, false,

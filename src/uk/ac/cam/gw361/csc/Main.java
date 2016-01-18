@@ -48,7 +48,7 @@ public class Main {
             String un = userName.split(":")[0];
             extraPeer[i-1] = new LocalPeer(un + "-" + i + ":" + (8000 + i), 5000);
             if (host != null) {
-                extraPeer[i-1].join("localhost:" + localPeer.localAddress.getPort());
+                extraPeer[i-1].join(localPeer.localAddress.getConnectAddress());
             }
         }
 

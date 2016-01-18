@@ -25,6 +25,9 @@ public class LocalPeer {
     public DhtServer getServer() { return dhtServer; }
     private DhtStore dhtStore;
     public DhtStore getDhtStore() { return dhtStore; }
+    private TransferManager transferManager;
+    public TransferManager getTransferManager() { return transferManager; }
+
 
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
@@ -59,6 +62,7 @@ public class LocalPeer {
         dhtClient = new DhtClient(this);
         dhtServer = new DhtServer(this, port);
         dhtServer.startServer();
+        transferManager = new TransferManager(this);
 
         fileListPath = "./storage/" + userName + "/" + "FileList";
         loadKeys();
@@ -103,12 +107,12 @@ public class LocalPeer {
     }
 
     public DhtTransfer getEntity(BigInteger file) throws IOException {
-        return dhtClient.download(FileDownloadContinuation.transferDir + file.toString(),
+        return transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
                 file, true, null);
     }
 
     public DhtTransfer publishEntity(String file) throws IOException {
-        return dhtClient.upload(file, null);
+        return transferManager.upload(file, null);
     }
 
     public DhtTransfer getFileList(String user, String publicKeyLoc) throws IOException {
@@ -123,7 +127,7 @@ public class LocalPeer {
             publicKey = (PublicKey) myobj;
             FileDownloadContinuation.createDir();
             String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
-            return dhtClient.download(fileName, ID, false,
+            return transferManager.download(fileName, ID, false,
                     new FileListDownloadContinuation(fileName, publicKey));
         } catch (ClassNotFoundException e) {
             System.err.println(e.toString());
@@ -142,7 +146,7 @@ public class LocalPeer {
 
     public DhtTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
-        return dhtClient.download(FileDownloadContinuation.transferDir + fileName + ".meta",
+        return transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
                 fileMeta, true, new FileDownloadContinuation(fileName));
     }
 
@@ -152,21 +156,21 @@ public class LocalPeer {
         String lastName = p.getFileName().toString();
         FileMetadata meta = new FileMetadata(fileName, lastName);
 
-        String metaLocation = FileUploadContinuation.transferDir + lastName + ".metadata";
+        String metaLocation = FileUploadContinuation.transferDir + lastName + ".meta";
 
         try (ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(metaLocation))) {
             ous.writeObject(meta);
         }
 
         FileUploadContinuation continuation = new FileUploadContinuation(fileName, meta);
-        return dhtClient.upload(FileUploadContinuation.transferDir + lastName + ".metadata",
+        return transferManager.upload(FileUploadContinuation.transferDir + lastName + ".meta",
                 continuation);
     }
 
     void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
-             dhtClient.upload(p, file.hash, localAddress, null);
+             transferManager.upload(p, file.hash, localAddress, new InternalUploadContinuation());
         }
     }
 
@@ -230,7 +234,6 @@ public class LocalPeer {
             } else if (input.startsWith("ul")) {
                 input = input.substring("ul ".length());
                 publishFile(input);
-                System.out.println("upload started");
             } else if (input.contains(" ")) {
                 String[] splitStr = input.split(" ", 2);
                 int connectPort = Integer.parseInt(splitStr[0]);

@@ -10,7 +10,7 @@ import java.util.*;
 public class Stabiliser extends Thread {
     private Boolean stabilising = false;
     private LocalPeer localPeer;
-    private boolean debug = true;
+    private boolean debug = false;
     private long interval;
     private boolean running = true;
     private String bootstrapPeer = null;
@@ -41,7 +41,7 @@ public class Stabiliser extends Thread {
                 stabilise();
             } catch (Exception e) {
                 System.err.println("Stabilisation core error at " +
-                        localPeer.localAddress.getPort());
+                        localPeer.localAddress.getConnectAddress());
                 e.printStackTrace();
             }
         }
@@ -55,10 +55,10 @@ public class Stabiliser extends Thread {
         if (bootstrapPeer==null) return;
         try {
             localPeer.getClient().bootstrap(bootstrapPeer);
-            System.out.println(localPeer.localAddress.getPort()
+            System.out.println(localPeer.localAddress.getConnectAddress()
                     + ": connected to DHT pool");
         } catch (IOException ioe) {
-            System.err.println(localPeer.localAddress.getPort()
+            System.err.println(localPeer.localAddress.getConnectAddress()
                     +  ": failed to connect to DHT pool");
         }
     }
@@ -86,7 +86,7 @@ public class Stabiliser extends Thread {
     private void doStabilise() {
         // todo: time limits for remote calls and failure recognition
 
-        if (debug) System.out.println("stabilising... " + localPeer.localAddress.getPort());
+        if (debug) System.out.println("stabilising... " + localPeer.localAddress.getConnectAddress());
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
@@ -114,11 +114,12 @@ public class Stabiliser extends Thread {
                     } catch (IOException e) {
                         // candidate is failing, migrate responsibilities
                         failingPeers.add(candidate);
-                        String msgText = "Failing link " + localPeer.localAddress.getHost() + ":" +
-                                localPeer.localAddress.getPort() + " - " + candidate.getHost() + ":" +
-                                candidate.getPort() + ": " + e.toString();
-                        System.err.println(msgText);
-                        if (debug) System.out.println(msgText);
+                        String msgText = "Failing link " +
+                                localPeer.localAddress.getConnectAddress() + " - " +
+                                candidate.getConnectAddress() + ": " + e.toString();
+                        System.out.println(msgText);
+                        if (debug)
+                            System.err.println(msgText);
                     }
                 }
             }
@@ -203,14 +204,15 @@ public class Stabiliser extends Thread {
             if (!doNotTransfer.contains(file))
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
-                        DhtTransfer ft = localPeer.getClient().upload(remotePeer, file,
-                                localPeer.localAddress, null);
+                        DhtTransfer ft = localPeer.getTransferManager().uploadNoRetry(
+                            remotePeer, file, localPeer.localAddress, new InternalUploadContinuation());
                         localPeer.addRunningTransfer(ft);
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {
                         // no replication to failing link, the link will be deleted when
                         // we synchronize next
-                        e.printStackTrace(System.out);
+                        System.out.println("Failed auto-transferring " + file.toString() +
+                                           " to " + remotePeer.getConnectAddress());
                     }
                 }
         }
