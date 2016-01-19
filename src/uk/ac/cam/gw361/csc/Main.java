@@ -37,7 +37,7 @@ public class Main {
         if (ct != null)
             count = Integer.parseInt(ct);
 
-        LocalPeer localPeer = new LocalPeer(userName, 5000);
+        LocalPeer localPeer = PeerManager.spawnPeer(userName, 5000);
         if (host != null) {
             localPeer.join(host);
         }
@@ -46,7 +46,7 @@ public class Main {
         for (int i=1; i<count; i++) {
             //try { Thread.sleep(1000); } catch (InterruptedException ie) {}
             String un = userName.split(":")[0];
-            extraPeer[i-1] = new LocalPeer(un + "-" + i + ":" + (8000 + i), 5000);
+            extraPeer[i-1] = PeerManager.spawnPeer(un + "-" + i + ":" + (8000 + i), 5000);
             if (host != null) {
                 extraPeer[i-1].join(localPeer.localAddress.getConnectAddress());
             }
@@ -58,12 +58,12 @@ public class Main {
     }
 
     public static void debug1() {
-        LocalPeer p1 = new LocalPeer("1:8001", 1000);
-        LocalPeer p2 = new LocalPeer("2:8002", 1000);
+        LocalPeer p1 = PeerManager.spawnPeer("1:8001", 1000);
+        LocalPeer p2 = PeerManager.spawnPeer("2:8002", 1000);
         p2.join("localhost:8001");
         try { Thread.sleep(100); } catch (InterruptedException e) { }
         p2.disconnect();
-        p2 = new LocalPeer("2:8002", 1000);
+        p2 = PeerManager.spawnPeer("2:8002", 1000);
         p2.join("localhost:8001");
 
         System.out.println("done");

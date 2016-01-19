@@ -29,8 +29,8 @@ public class DhtHandoffTest {
         List<LocalPeer> peers = new ArrayList<>();
 
         for (int i = 0; i < peerCount; i++) {
-            LocalPeer newPeer = new LocalPeer(Integer.toString(i) + ":" +
-                    Integer.toString(startPort+i), 1000);
+            LocalPeer newPeer = PeerManager.spawnPeer(Integer.toString(i) + ":" +
+                    Integer.toString(startPort + i), 1000);
             if (i>0) newPeer.join("localhost:" + startPort);
             try {
                 newPeer.publishEntity("test" + i + ".txt");

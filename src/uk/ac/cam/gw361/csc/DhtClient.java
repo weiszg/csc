@@ -11,6 +11,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,10 @@ public class DhtClient {
 
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         if (server.equals(localPeer.localAddress)) return localPeer.getServer();
+        if (PeerManager.allowLocalConnect &&
+                server.getUserID() != null && PeerManager.hasPeer(server))
+            return PeerManager.getServer(server);
+
         Profiler profiler;
         if (debug)
             profiler = new Profiler("connect-" + localPeer.localAddress.getConnectAddress(), 3000);

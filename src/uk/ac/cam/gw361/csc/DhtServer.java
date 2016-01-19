@@ -2,8 +2,10 @@ package uk.ac.cam.gw361.csc;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
@@ -73,12 +75,20 @@ public class DhtServer implements DhtComm {
 
     private void acceptConnection(DhtPeerAddress source) {
         try {
-            source.setRelative(localPeer.localAddress.getUserID());
-            String clientHost = RemoteServer.getClientHost();
-            // set host of source
-            source.setHost(clientHost);
-            localPeer.getNeighbourState().addNeighbour(source);
-        } catch (ServerNotActiveException e) {
+            if (PeerManager.allowLocalConnect && PeerManager.hasPeer(source)) {
+                // locally connected
+                String host = InetAddress.getLocalHost().getHostAddress();
+                DhtPeerAddress newSource = new DhtPeerAddress(source.getUserID(), host,
+                        source.getPort(), localPeer.localAddress.getUserID());
+                localPeer.getNeighbourState().addNeighbour(newSource);
+            } else {
+                source.setRelative(localPeer.localAddress.getUserID());
+                String clientHost = RemoteServer.getClientHost();
+                // set host of source
+                source.setHost(clientHost);
+                localPeer.getNeighbourState().addNeighbour(source);
+            }
+        } catch (ServerNotActiveException  | UnknownHostException e) {
             // this is fine
         }
     }
@@ -106,7 +116,9 @@ public class DhtServer implements DhtComm {
         Long size = localPeer.getDhtStore().getLength(file);
         FileInputStream fis = localPeer.getDhtStore().readFile(file);
 
-        Socket socket = new Socket(source.getHost(), port);
+        Socket socket = new Socket();
+        socket.setSoTimeout(1000);
+        socket.connect(new InetSocketAddress(source.getHost(), port), 900);
         Thread uploader = new DhtTransfer(localPeer, source, socket, fis, file,
                 new InternalUploadContinuation());
         uploader.start();

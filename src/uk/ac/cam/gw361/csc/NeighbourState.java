@@ -17,6 +17,18 @@ public class NeighbourState implements Serializable {
     private TreeSet<DhtPeerAddress> successors = new TreeSet<>();
     private TreeSet<DhtPeerAddress> predecessors = new TreeSet<>();
 
+    NeighbourState() {
+    }
+
+    NeighbourState(NeighbourState toCopy) {
+        // copy constructor
+        for (DhtPeerAddress peer : toCopy.successors)
+            successors.add(new DhtPeerAddress(peer));
+
+        for (DhtPeerAddress peer : toCopy.predecessors)
+            predecessors.add(new DhtPeerAddress(peer));
+    }
+
     synchronized void setLocalAddress(DhtPeerAddress localAddress) {
         this.localAddress = localAddress;
     }

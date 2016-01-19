@@ -20,6 +20,14 @@ public class DhtPeerAddress implements Comparable<DhtPeerAddress>, Serializable 
         this.relativeSort = relativeSort;
     }
 
+    public DhtPeerAddress(DhtPeerAddress toCopy) {
+        // copy constructor
+        this.userID = toCopy.userID;
+        this.port = toCopy.port;
+        this.host = toCopy.host;
+        this.relativeSort = toCopy.relativeSort;
+    }
+
     void setRelative (BigInteger relative) {
         this.relativeSort = relative;
     }

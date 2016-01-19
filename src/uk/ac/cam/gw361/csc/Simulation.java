@@ -200,7 +200,7 @@ public class Simulation {
 
 class SimulationCommandReader extends Thread {
     // create LocalPeer and DhtClient only for running queries
-    DhtClient client = new DhtClient(new LocalPeer("simulator:9999", 1000000));
+    DhtClient client = new DhtClient(PeerManager.spawnPeer("simulator:9999", 1000000));
     public void run() {
         Scanner scanner = new Scanner(System.in);
         while (true) {

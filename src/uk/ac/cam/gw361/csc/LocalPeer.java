@@ -199,6 +199,7 @@ public class LocalPeer {
     }
 
     void disconnect() {
+        PeerManager.removePeer(localAddress);
         dhtServer.stopServer();
         stabiliser.disconnect();
     }

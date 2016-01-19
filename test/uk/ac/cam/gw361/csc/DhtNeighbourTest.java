@@ -15,24 +15,20 @@ public class DhtNeighbourTest {
     @Test
     public void testNeighbours() {
         NeighbourState.k = 5;
-        int peerCount = 50;
+        int peerCount = 5;
         int startPort = 11000;
         int k = NeighbourState.k;
 
-        List<LocalPeer> peers = new ArrayList<>();
         TreeSet<DhtPeerAddress> addresses = new TreeSet<>();
-        Map<DhtPeerAddress, LocalPeer> peerLookup = new HashMap<>();
 
         for (int i = 0; i < peerCount; i++) {
-            LocalPeer newPeer = new LocalPeer(Integer.toString(i) + ":" +
-                    Integer.toString(startPort+i), 100000);
+            LocalPeer newPeer = PeerManager.spawnPeer(Integer.toString(i) + ":" +
+                    Integer.toString(startPort + i), 100000);
             if (i>0) newPeer.join("localhost:" + startPort);
-            peers.add(newPeer);
             addresses.add(new DhtPeerAddress(newPeer.localAddress.getUserID(),
                                              newPeer.localAddress.getHost(),
                                              newPeer.localAddress.getPort(),
                                              BigInteger.ZERO));
-            peerLookup.put(newPeer.localAddress, newPeer);
         }
         List<DhtPeerAddress> sortedAddresses = new ArrayList<>(addresses);
 
@@ -44,7 +40,7 @@ public class DhtNeighbourTest {
 
         for (int i = 0; i < peerCount; i++) {
             DhtPeerAddress checkedAddress = sortedAddresses.get(i);
-            LocalPeer checkedPeer = peerLookup.get(checkedAddress);
+            LocalPeer checkedPeer = PeerManager.getPeer(checkedAddress);
             ArrayList<DhtPeerAddress> actualPredecessors =
                     checkedPeer.getNeighbourState().getPredecessors();
             ArrayList<DhtPeerAddress> actualSuccessors =
