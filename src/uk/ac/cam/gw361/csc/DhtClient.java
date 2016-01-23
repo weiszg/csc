@@ -174,14 +174,16 @@ public class DhtClient {
                                       TransferContinuation continuation)
             throws IOException {
         if (debug) System.out.println("client download");
+        // we're only interested in the data itself for client-initiated downloads
+        // hence even for signed files a simple DhtFile is fine
         DhtFile downloadFile = new DhtFile(fileHash, null, null);
         DhtComm comm = connect(peer);
         DirectTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
-            FileOutputStream fos = new FileOutputStream(fileName);
             // the owner doesn't matter, the destination of the download could be a different folder
-            ft = new DirectTransfer(localPeer, peer, listener, fos, downloadFile, continuation);
+            ft = new DirectTransfer(localPeer, peer, listener, fileName, true,
+                    downloadFile, continuation);
             ft.start();
             Long size = comm.upload(localPeer.localAddress, listener.getLocalPort(), fileHash);
             if (size == null)
@@ -195,10 +197,13 @@ public class DhtClient {
 
     DirectTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
                               TransferContinuation continuation) throws IOException {
-        FileInputStream fis = localPeer.getDhtStore().readFile(file);
+        if (!localPeer.getDhtStore().containsFile(file))
+            throw new IOException("File not found");
+        String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
+
         DhtFile dbFile = localPeer.getDhtStore().getFile(file);
         DhtFile uploadFile = new DhtFile(dbFile.hash, dbFile.size, owner);
-        DirectTransfer ft = doUpload(target, uploadFile, fis, continuation);
+        DirectTransfer ft = doUpload(target, uploadFile, fileName, continuation);
         localPeer.runningTransfers.add(ft);
         return ft;
     }
@@ -206,48 +211,50 @@ public class DhtClient {
     DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         BigInteger fileHash = Hasher.hashFile(name);
         File file = new File(name);
-        FileInputStream fis = new FileInputStream(file);
+        if (!file.exists())
+            throw new IOException("File not found for upload");
 
         DirectTransfer ft = null;
         DhtPeerAddress target = lookup(fileHash);
         if (fileHash != null) {
             // owner is target
             DhtFile uploadFile = new DhtFile(fileHash, file.length(), target);
-            ft = doUpload(target, uploadFile, fis, continuation);
+            ft = doUpload(target, uploadFile, name, continuation);
         }
 
         localPeer.runningTransfers.add(ft);
         return ft;
     }
 
-    public DirectTransfer signedUpload(String name, BigInteger fileID, BigInteger realHash,
+    public DirectTransfer signedUpload(String name, BigInteger fileID, long timestamp,
             FileUploadContinuation continuation) throws IOException {
         // used for uploads signed with a private key - they aren't hash checked and can be uploaded
         // to an arbitrary target
         File file = new File(name);
-        FileInputStream fis = new FileInputStream(file);
+        if (!file.exists())
+            throw new IOException("File not found for signedUpload");
 
         DirectTransfer ft = null;
         DhtPeerAddress target = lookup(fileID);
         if (fileID != null) {
             // owner is target
             System.out.println("Signed hash is " + fileID.toString() +
-                    ", corresponding real hash is " + realHash.toString());
-            DhtFile uploadFile = new SignedFile(fileID, realHash, file.length(), target);
-            ft = doUpload(target, uploadFile, fis, continuation);
+                    ", corresponding timestamp is " + timestamp);
+            DhtFile uploadFile = new SignedFile(fileID, file.length(), target, timestamp);
+            ft = doUpload(target, uploadFile, name, continuation);
         }
 
         return ft;
     }
 
-    private DirectTransfer doUpload(DhtPeerAddress peer, DhtFile file, FileInputStream fis,
+    private DirectTransfer doUpload(DhtPeerAddress peer, DhtFile file, String fileName,
                                  TransferContinuation continuation) throws IOException {
         if (debug) System.out.println("client upload");
         DhtComm comm = connect(peer);
         DirectTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
-            ft = new DirectTransfer(localPeer, peer, listener, fis, file, continuation);
+            ft = new DirectTransfer(localPeer, peer, listener, fileName, false, file, continuation);
             ft.start();
 
             Integer response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);

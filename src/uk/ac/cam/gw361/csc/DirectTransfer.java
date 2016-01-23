@@ -4,6 +4,7 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -13,13 +14,13 @@ import java.security.NoSuchAlgorithmException;
 public class DirectTransfer extends Thread {
     Socket socket = null;
     ServerSocket ssocket = null;
-    FileOutputStream fileOutputStream = null;
-    FileInputStream fileInputStream = null;
+    String targetName;
     TransferContinuation continuation = null;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
     boolean stopped = false;
     DhtFile transferFile;
+    boolean isDownload;
 
     protected TransferTask originalTask;
     void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
@@ -29,50 +30,28 @@ public class DirectTransfer extends Thread {
     // timestamp
 
     public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                          FileOutputStream fileOutputStream, DhtFile transferFile,
+                          String targetName, boolean isDownload, DhtFile transferFile,
                           TransferContinuation continuation) {
-        // download file, server mode
+        // server mode
         this.remotePeer = remotePeer;
         this.localPeer = localPeer;
         this.ssocket = socket;
-        this.fileOutputStream = fileOutputStream;
         this.transferFile = transferFile;
+        this.targetName = targetName;
+        this.isDownload = isDownload;
         this.continuation = continuation;
     }
 
     public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                          FileOutputStream fileOutputStream, DhtFile transferFile,
+                          String targetName, boolean isDownload, DhtFile transferFile,
                           TransferContinuation continuation) {
-        // download file, client mode
+        // client mode
         this.remotePeer = remotePeer;
         this.localPeer = localPeer;
         this.socket = socket;
-        this.fileOutputStream = fileOutputStream;
         this.transferFile = transferFile;
-        this.continuation = continuation;
-    }
-
-    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                          FileInputStream fileInputStream, DhtFile transferFile,
-                          TransferContinuation continuation) {
-        // upload mode, server mode
-        this.remotePeer = remotePeer;
-        this.localPeer = localPeer;
-        this.ssocket = socket;
-        this.fileInputStream = fileInputStream;
-        this.transferFile = transferFile;
-        this.continuation = continuation;
-    }
-
-    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                          FileInputStream fileInputStream, DhtFile transferFile,
-                          TransferContinuation continuation) {
-        // upload file, client mode
-        this.remotePeer = remotePeer;
-        this.localPeer = localPeer;
-        this.socket = socket;
-        this.fileInputStream = fileInputStream;
-        this.transferFile = transferFile;
+        this.targetName = targetName;
+        this.isDownload = isDownload;
         this.continuation = continuation;
     }
 
@@ -88,7 +67,7 @@ public class DirectTransfer extends Thread {
         }
 
         try (BufferedOutputStream bufferedOutputStream
-                     = new BufferedOutputStream(fileOutputStream)) {
+                     = new BufferedOutputStream(new FileOutputStream(targetName + ".downloading"))) {
             InputStream inputStream = socket.getInputStream();
 
             int bytesRead;
@@ -97,42 +76,37 @@ public class DirectTransfer extends Thread {
                 digest.update(data, 0, bytesRead);
                 totalRead += bytesRead;
             }
-            BigInteger realHash = new BigInteger(digest.digest());
-
-            if (transferFile.checkHash(realHash)) {
-                System.err.println("Hash mismatch, expected: " + transferFile.hash.toString() +
-                        " got: " + realHash.toString());
-                fileOutputStream.close();
-                // make sure to delete the file from the file system
-                localPeer.getDhtStore().removeFile(transferFile.hash);
-
-                throw new IOException();
-            }
             bufferedOutputStream.flush();
+        }
+
+        BigInteger realHash = new BigInteger(digest.digest());
+        if (!transferFile.checkHash(realHash)) {
+            System.err.println("Hash mismatch, expected: " + transferFile.hash.toString() +
+                    " got: " + realHash.toString());
+
+            throw new IOException();
         }
 
         if (transferFile instanceof SignedFile) {
             // further checks are necessary to ensure that the public timestamp of the downloaded
             // data corresponds to the advertised timestamp
-            if (!FileList.checkTimestamp(filename, ((SignedFile) transferFile).timestamp)) {
+            if (!FileList.checkTimestamp(targetName + ".downloading",
+                    ((SignedFile) transferFile).timestamp)) {
                 System.err.println("Timestamp mismatch!");
-                // make sure to delete the file from the file system
-                localPeer.getDhtStore().removeFile(transferFile.hash);
-
                 throw new IOException();
             }
         }
 
         System.out.println("Download complete: " + socket.getLocalPort()
                 + " - " + socket.getPort());
-        stopTransfer(true);
     }
 
     private void upload() throws IOException {
         byte[] data = new byte[8192];
         long totalWritten = 0;
 
-        try (BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream)) {
+        try (BufferedInputStream bufferedInputStream = new BufferedInputStream(
+                new FileInputStream(targetName))) {
             try (OutputStream outputStream = socket.getOutputStream()) {
                 System.out.println("Starting upload: " + socket.getLocalPort()
                         + " - " + socket.getPort());
@@ -144,8 +118,6 @@ public class DirectTransfer extends Thread {
                 outputStream.flush();
             }
         }
-
-        stopTransfer(true);
     }
 
     synchronized void stopTransfer(boolean success) {
@@ -156,8 +128,14 @@ public class DirectTransfer extends Thread {
             stopped = true;
             if (continuation != null)
                 if (success) {
+                    if (isDownload)
+                        // solidify download
+                        new File(targetName + ".downloading").renameTo(new File(targetName));
                     continuation.notifyFinished(this);
                 } else {
+                    if (isDownload)
+                        // make sure to delete traces in the file system
+                        new File(targetName + ".downloading").delete();
                     continuation.notifyFailed(this);
                 }
             localPeer.notifyTransferCompleted(this, success);
@@ -172,23 +150,22 @@ public class DirectTransfer extends Thread {
                 ssocket.close();
             }
 
-            if (fileInputStream != null)
+            if (transferFile instanceof SignedFile)
+                targetName += ".signed";
+
+            if (!isDownload)
                 upload();
-            else if (fileOutputStream != null)
+            else
                 download();
+            stopTransfer(true);
 
         } catch (IOException ioe) {
             if (!stopped)
                 System.out.println("Transfer failed due to: " + ioe.toString());
+            ioe.printStackTrace();
             stopTransfer(false);
         }
         finally {
-            try { if (fileInputStream != null) fileInputStream.close(); }
-            catch (IOException ioe) { ioe.printStackTrace(); }
-
-            try { if (fileOutputStream != null) fileOutputStream.close(); }
-            catch (IOException ioe) { ioe.printStackTrace(); }
-
             try { if (socket != null) socket.close(); }
             catch (IOException ioe) { ioe.printStackTrace(); }
         }

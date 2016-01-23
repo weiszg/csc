@@ -64,7 +64,7 @@ public class LocalPeer {
         dhtServer.startServer();
         transferManager = new TransferManager(this);
 
-        fileListPath = "./storage/" + userName + "/" + "FileList";
+        fileListPath = "./storage/" + userName + "/" + "MyFileList";
         loadKeys();
 
         stabiliser = new Stabiliser(this, stabiliseInterval);
@@ -85,7 +85,7 @@ public class LocalPeer {
         KeyPair keyPair = FileList.initKeys("./keys/" + userName + "-");
         privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();
-        fileList = FileList.loadOrCreate(fileListPath, publicKey);
+        fileList = FileList.loadOrCreate(fileListPath + ".signed", publicKey);
     }
 
     public synchronized void join(String remotePeerIP) {
@@ -180,15 +180,16 @@ public class LocalPeer {
 
     synchronized String saveFileList() {
         try {
-            SignedObject so = fileList.getSignedVersion(privateKey);
-            ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(fileListPath));
-            ous.writeObject(so);
+            SignedFileList sf = fileList.getSignedVersion(privateKey);
+            ObjectOutputStream ous = new ObjectOutputStream(
+                    new FileOutputStream(fileListPath + ".signed"));
+            ous.writeObject(sf);
             ous.flush();
             ous.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return fileListPath;
+        return fileListPath + ".signed";
     }
 
     synchronized void setLastQueriedFileList(FileList fileList) {

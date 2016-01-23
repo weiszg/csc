@@ -165,13 +165,12 @@ class FileUploadContinuation extends TransferContinuation {
                     localPeer.fileList.put(lastName, metaHash);
                     String fileListPath = localPeer.saveFileList();
                     try {
-                        BigInteger realHash = Hasher.hashFile(fileListPath);
                         runningTransfers.add(localPeer.getTransferManager().signedUpload(
                                 fileListPath, localPeer.localAddress.getUserID(),
                                 localPeer.fileList.getLastModified(), this));
                         fileListUpdated = true;
                     } catch (IOException e) {
-                        System.err.println("File list file hashing problem:" + e.toString());
+                        System.err.println("File list upload problem:" + e.toString());
                     }
                 } else {
                     System.out.println("Cleaning up");

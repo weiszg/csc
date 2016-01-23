@@ -114,13 +114,13 @@ public class DhtServer implements DhtComm {
             throws IOException {
         acceptConnection(source);
         DhtFile transferFile = localPeer.getDhtStore().getFile(file);
-        FileInputStream fis = localPeer.getDhtStore().readFile(file);
+        String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
-        Thread uploader = new DirectTransfer(localPeer, source, socket, fis, transferFile,
-                new InternalUploadContinuation());
+        Thread uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
+                transferFile, new InternalUploadContinuation());
         uploader.start();
         return transferFile.size;
     }
@@ -145,13 +145,13 @@ public class DhtServer implements DhtComm {
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.hash.toString());
-        FileOutputStream fos = localPeer.getDhtStore().writeFile(file.hash);
 
+        String fileName = localPeer.getDhtStore().getFolder() + "/" + file.hash;
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
 
-        Thread downloader = new DirectTransfer(localPeer, source, socket, fos, file,
+        Thread downloader = new DirectTransfer(localPeer, source, socket, fileName, true, file,
                 new InternalDownloadContinuation());
         downloader.start();
         return 0;

@@ -51,6 +51,17 @@ public class FileList implements Serializable {
         }
     }
 
+    static long loadTimestamp(File file) throws IOException {
+        // check whether the public timestamp of a signed file equals to the provided timestamp
+        ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+        Object myobj;
+        try { myobj = ois.readObject(); }
+        catch (ClassNotFoundException e) { throw new IOException("ClassNotFound on loadTimestamp"); }
+        if (myobj instanceof SignedFileList)
+            return ((SignedFileList) myobj).getLastModified();
+        else throw new IOException("File format isn't SignedFileList");
+    }
+
     static FileList load(String file, PublicKey publicKey) {
         try {
             ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
@@ -169,7 +180,7 @@ public class FileList implements Serializable {
     }
 }
 
-class SignedFileList {
+class SignedFileList implements Serializable {
     // This is a wrapper for SignedObject that also includes a timestamp of when the FileList
     // has last been modified.
 

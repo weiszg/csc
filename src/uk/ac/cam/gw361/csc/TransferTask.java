@@ -37,7 +37,7 @@ class DownloadTask extends TransferTask {
         retries++;
         try {
             DirectTransfer transfer = localPeer.getClient().download(
-                    fileName, fileHash, hashCheck, continuation);
+                    fileName, fileHash, continuation);
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {

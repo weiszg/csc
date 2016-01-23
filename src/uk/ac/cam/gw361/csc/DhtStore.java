@@ -33,16 +33,24 @@ public class DhtStore {
             }
         }
 
+        // read contents of the folder
         File[] listOfFiles = myFolder.listFiles();
         for (File f : listOfFiles) {
             if (f.isFile()) {
                 try {
-                    BigInteger key = new BigInteger(f.getName());
-                    System.out.println(key.toString());
-                    // the owner doesn't matter, replicas could/should be deleted
-                    addFile(new DhtFile(key, f.length(), localPeer.localAddress));
-                    if (debug) System.out.println("File found " + f.getName());
-                } catch (NumberFormatException e) { }
+                    if (f.getName().endsWith(".signed")) {
+                        BigInteger key = new BigInteger(f.getName().substring(0,
+                                f.getName().length() - ".signed".length()));
+                        addFile(new SignedFile(key, f.length(), localPeer.localAddress,
+                                FileList.loadTimestamp(f)));
+                        if (debug) System.out.println("Signed file found " + f.getName());
+                    } else {
+                        BigInteger key = new BigInteger(f.getName());
+                        // the owner doesn't matter, replicas could/should be deleted
+                        addFile(new DhtFile(key, f.length(), localPeer.localAddress));
+                        if (debug) System.out.println("File found " + f.getName());
+                    }
+                } catch (NumberFormatException | IOException e) { }
             }
         }
     }
@@ -53,35 +61,7 @@ public class DhtStore {
         else return files.get(file);
     }
 
-    public synchronized FileInputStream readFile(BigInteger file) throws IOException {
-        if (!files.containsKey(file))
-            throw new IOException("File not found");
-        else {
-            try {
-                FileInputStream fis = new FileInputStream(myFolder.getPath()
-                        + "/" + file.toString());
-                return fis;
-            } catch (FileNotFoundException fnf) {
-                System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
-                        + "/" + file.toString());
-                return null;
-            }
-        }
-    }
-
-    public synchronized FileOutputStream writeFile(BigInteger file) {
-        if (files.containsKey(file))
-            System.out.println("Overwriting file " + file.toString());
-        try {
-            FileOutputStream fos = new FileOutputStream(myFolder.getPath()
-                    + "/" + file.toString());
-            return fos;
-        } catch (FileNotFoundException fnf) {
-            System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
-                    + "/" + file.toString());
-            return null;
-        }
-    }
+    public String getFolder() { return storeDir + localPeer.userName; }
 
     public synchronized void removeFile(BigInteger file) {
         System.out.println("Removing file " + file.toString());
@@ -200,12 +180,15 @@ public class DhtStore {
     public synchronized void print(PrintStream out, String beginning) {
         for (BigInteger file : files.keySet()) {
             out.print(beginning);
-            if (files.get(file).owner.equals(localPeer.localAddress))
+            DhtFile dhtFile = files.get(file);
+            if (dhtFile.owner.equals(localPeer.localAddress))
                 out.print("xxx ");
             else
                 out.print("    ");
             out.print(file.toString() + "  ");
-            out.println(files.get(file).lastQueried.toString());
+            if (dhtFile instanceof SignedFile)
+                out.println("SIGNED  ");
+            out.println(dhtFile.lastQueried.toString());
         }
     }
 }
