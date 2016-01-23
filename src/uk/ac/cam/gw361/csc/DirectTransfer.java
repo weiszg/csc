@@ -120,22 +120,29 @@ public class DirectTransfer extends Thread {
         }
     }
 
-    synchronized void stopTransfer(boolean success) {
+    synchronized  void stopTransfer(boolean success) {
+        stopTransfer(success, true);
+    }
+
+    synchronized void stopTransfer(boolean success, boolean callContinuation) {
         // called internally when the transfer has naturally finished
         // or externally to stop transfer either because the target we upload to has the
         // file already (success) or we are out of range (failure)
         if (!stopped) {
             stopped = true;
-            if (continuation != null)
+
+            if (isDownload)
                 if (success) {
-                    if (isDownload)
-                        // solidify download
-                        new File(targetName + ".downloading").renameTo(new File(targetName));
+                    // solidify download
+                    new File(targetName + ".downloading").renameTo(new File(targetName));
+                } else {
+                    new File(targetName + ".downloading").delete();
+                }
+
+            if (callContinuation && continuation != null)
+                if (success) {
                     continuation.notifyFinished(this);
                 } else {
-                    if (isDownload)
-                        // make sure to delete traces in the file system
-                        new File(targetName + ".downloading").delete();
                     continuation.notifyFailed(this);
                 }
             localPeer.notifyTransferCompleted(this, success);
@@ -160,14 +167,15 @@ public class DirectTransfer extends Thread {
             stopTransfer(true);
 
         } catch (IOException ioe) {
-            if (!stopped)
+            if (!stopped) {
                 System.out.println("Transfer failed due to: " + ioe.toString());
-            ioe.printStackTrace();
-            stopTransfer(false);
+                ioe.printStackTrace();
+                stopTransfer(false);
+            }
         }
         finally {
             try { if (socket != null) socket.close(); }
-            catch (IOException ioe) { ioe.printStackTrace(); }
+            catch (IOException ioe) { if (!stopped) ioe.printStackTrace(); }
         }
     }
 }

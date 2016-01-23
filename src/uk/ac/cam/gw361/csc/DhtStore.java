@@ -57,7 +57,7 @@ public class DhtStore {
 
     public synchronized DhtFile getFile(BigInteger file) throws IOException {
         if (!files.containsKey(file))
-            throw new IOException("File not found");
+            throw new IOException("File not found: " + file.toString());
         else return files.get(file);
     }
 
@@ -187,7 +187,7 @@ public class DhtStore {
                 out.print("    ");
             out.print(file.toString() + "  ");
             if (dhtFile instanceof SignedFile)
-                out.println("SIGNED  ");
+                out.print("SIGNED  ");
             out.println(dhtFile.lastQueried.toString());
         }
     }
@@ -212,9 +212,9 @@ class DhtFile implements Serializable {
 }
 
 class SignedFile extends DhtFile {
-    long timestamp;
+    Long timestamp;
 
-    SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, long timestamp) {
+    SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, Long timestamp) {
         super(hash, size, owner);
         this.timestamp = timestamp;
     }

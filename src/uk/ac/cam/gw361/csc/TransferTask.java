@@ -20,15 +20,15 @@ public abstract class TransferTask {
 class DownloadTask extends TransferTask {
     LocalPeer localPeer;
     String fileName;
-    BigInteger fileHash;
+    DhtFile file;
     boolean hashCheck;
     TransferContinuation continuation;
 
-    DownloadTask(LocalPeer localPeer, String fileName, BigInteger fileHash, boolean hashCheck,
+    DownloadTask(LocalPeer localPeer, String fileName, DhtFile file, boolean hashCheck,
                  TransferContinuation continuation) {
         this.localPeer = localPeer;
         this.fileName = fileName;
-        this.fileHash = fileHash;
+        this.file = file;
         this.hashCheck = hashCheck;
         this.continuation = continuation;
     }
@@ -37,7 +37,7 @@ class DownloadTask extends TransferTask {
         retries++;
         try {
             DirectTransfer transfer = localPeer.getClient().download(
-                    fileName, fileHash, continuation);
+                    fileName, file, continuation);
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
@@ -48,12 +48,11 @@ class DownloadTask extends TransferTask {
 
     private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
-            System.out.println("Starting the execution of transfer " + fileHash.toString()
-                    + " failed, retrying transfer in " + waitRetry / 1000 + "s");
+            System.out.println("Retrying " + fileName + " in " + waitRetry / 1000 + "s");
             try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
             return execute();
         } else {
-            System.out.println("Starting the execution of transfer " + fileHash.toString()
+            System.out.println("Starting the execution of transfer " + file.hash.toString()
                     + " failed, giving up.");
             throw e;
         }
@@ -64,16 +63,14 @@ class UploadTask extends TransferTask {
     LocalPeer localPeer;
     DhtPeerAddress target;
     BigInteger fileHash;
-    DhtPeerAddress owner;
     TransferContinuation continuation;
     boolean retry;
 
-    UploadTask(LocalPeer localPeer, DhtPeerAddress target, BigInteger fileHash, DhtPeerAddress owner,
+    UploadTask(LocalPeer localPeer, DhtPeerAddress target, BigInteger fileHash,
                  TransferContinuation continuation, boolean retry) {
         this.localPeer = localPeer;
         this.target = target;
         this.fileHash = fileHash;
-        this.owner = owner;
         this.continuation = continuation;
         this.retry = retry;
     }
@@ -82,7 +79,7 @@ class UploadTask extends TransferTask {
         retries++;
         try {
             DirectTransfer transfer = localPeer.getClient().upload(
-                    target, fileHash, owner, continuation);
+                    target, fileHash, continuation);
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
@@ -93,8 +90,7 @@ class UploadTask extends TransferTask {
 
     private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retry && retries < maxRetries) {
-            System.out.println("Starting the execution of transfer " + fileHash.toString()
-                    + " failed, retrying transfer in " + waitRetry / 1000 + "s");
+            System.out.println("Retrying " + fileHash.toString() + " in " + waitRetry / 1000 + "s");
             try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
             return execute();
         } else {
@@ -132,8 +128,7 @@ class NamedUploadTask extends TransferTask {
 
     private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
-            System.out.println("Starting the execution of transfer " + name
-                    + " failed, retrying transfer in " + waitRetry / 1000 + "s");
+            System.out.println("Retrying " + name + " in " + waitRetry / 1000 + "s");
             try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
             return execute();
         } else {
@@ -175,8 +170,7 @@ class SignedUploadTask extends TransferTask {
 
     private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
-            System.out.println("Starting the execution of transfer " + name
-                    + " failed, retrying transfer in " + waitRetry / 1000 + "s");
+            System.out.println("Retrying " + name + " in " + waitRetry / 1000 + "s");
             try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
             return execute();
         } else {

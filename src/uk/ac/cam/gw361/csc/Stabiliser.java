@@ -205,7 +205,7 @@ public class Stabiliser extends Thread {
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
                         DirectTransfer ft = localPeer.getTransferManager().uploadNoRetry(
-                            remotePeer, file, localPeer.localAddress, new InternalUploadContinuation());
+                            remotePeer, file, new InternalUploadContinuation());
                         localPeer.addRunningTransfer(ft);
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {

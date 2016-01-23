@@ -336,7 +336,7 @@ class FileListDownloadContinuation extends TransferContinuation {
             System.err.println("FileListDownloadContinuation with a non-SignedFile download");
 
         LocalPeer localPeer = finishedTransfer.localPeer;
-        FileList fileList = FileList.load(fileName, publicKey);
+        FileList fileList = FileList.load(fileName + ".signed", publicKey);
         if (fileList == null) {
             System.err.println("Error reading file list");
         } else {
