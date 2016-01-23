@@ -16,32 +16,32 @@ public class TransferManager {
         this.localPeer = localPeer;
     }
 
-    DhtTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
+    DirectTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
                          TransferContinuation continuation) throws IOException {
         TransferTask task = new DownloadTask(localPeer, fileName, fileHash, hashCheck, continuation);
         return task.execute();
     }
 
-    DhtTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
+    DirectTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
                        TransferContinuation continuation) throws IOException {
         TransferTask task = new UploadTask(localPeer, target, file, owner, continuation, true);
         return task.execute();
     }
 
-    DhtTransfer uploadNoRetry(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
+    DirectTransfer uploadNoRetry(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
                        TransferContinuation continuation) throws IOException {
         TransferTask task = new UploadTask(localPeer, target, file, owner, continuation, false);
         return task.execute();
     }
 
-    DhtTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         TransferTask task = new NamedUploadTask(localPeer, name, continuation);
         return task.execute();
     }
 
-    public DhtTransfer signedUpload(String name, BigInteger fileID, BigInteger realHash,
+    public DirectTransfer signedUpload(String name, BigInteger fileID, long timestamp,
                                     FileUploadContinuation continuation) throws IOException {
-        TransferTask task = new SignedUploadTask(localPeer, name, fileID, realHash, continuation);
+        TransferTask task = new SignedUploadTask(localPeer, name, fileID, timestamp, continuation);
         return task.execute();
     }
 }

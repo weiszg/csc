@@ -34,12 +34,12 @@ public class LocalPeer {
     public synchronized void setNeighbourState(NeighbourState newState) {
         neighbourState = newState;
     }
-    public synchronized void addRunningTransfer(DhtTransfer ft) {
+    public synchronized void addRunningTransfer(DirectTransfer ft) {
         runningTransfers.add(ft);
     }
     public void stabilise() { stabiliser.stabilise(); }
 
-    Set<DhtTransfer> runningTransfers = new HashSet<>();
+    Set<DirectTransfer> runningTransfers = new HashSet<>();
 
     private PrivateKey privateKey;
     private PublicKey publicKey;
@@ -106,16 +106,16 @@ public class LocalPeer {
         return next;
     }
 
-    public DhtTransfer getEntity(BigInteger file) throws IOException {
+    public DirectTransfer getEntity(BigInteger file) throws IOException {
         return transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
                 file, true, null);
     }
 
-    public DhtTransfer publishEntity(String file) throws IOException {
+    public DirectTransfer publishEntity(String file) throws IOException {
         return transferManager.upload(file, null);
     }
 
-    public DhtTransfer getFileList(String user, String publicKeyLoc) throws IOException {
+    public DirectTransfer getFileList(String user, String publicKeyLoc) throws IOException {
         BigInteger ID = Hasher.hashString(user);
         PublicKey publicKey = null;
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(publicKeyLoc))) {
@@ -135,7 +135,7 @@ public class LocalPeer {
         }
     }
 
-    public DhtTransfer getFile(String fileName) throws IOException {
+    public DirectTransfer getFile(String fileName) throws IOException {
         if (lastQueriedFileList == null || lastQueriedFileList.get(fileName) == null) {
             System.err.println("File not found");
             return null;
@@ -144,13 +144,13 @@ public class LocalPeer {
         return getFile(fileName, fileMeta);
     }
 
-    public DhtTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
+    public DirectTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
         return transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
                 fileMeta, true, new FileDownloadContinuation(fileName));
     }
 
-    public DhtTransfer publishFile(String fileName) throws IOException {
+    public DirectTransfer publishFile(String fileName) throws IOException {
         FileUploadContinuation.createDir();
         Path p = Paths.get(fileName);
         String lastName = p.getFileName().toString();
@@ -174,7 +174,7 @@ public class LocalPeer {
         }
     }
 
-    synchronized void notifyTransferCompleted(DhtTransfer ft, boolean success) {
+    synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
         runningTransfers.remove(ft);
     }
 

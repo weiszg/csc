@@ -127,20 +127,20 @@ public class DhtStore {
             return files.get(file).size;
     }
 
-    public synchronized BigInteger getRealHash(BigInteger file) throws IOException {
-        if (!files.containsKey(file))
-            throw new IOException("File not found");
-        else
-            return files.get(file).realHash;
-    }
-
     public synchronized boolean containsFile(BigInteger file) {
         return files.containsKey(file);
     }
 
     public synchronized boolean hasFile(DhtFile file) {
-        return (files.containsKey(file.hash)
-                && files.get(file.hash).realHash.equals(file.realHash));
+        DhtFile storedFile = files.get(file.hash);
+        if (storedFile != null)
+            // if either of them isn't a SignedFile then we're done, we have the same file
+            // otherwise we also have to check if we store a later or equal version
+            // note it is important that an existing content-signed file can't be overwritten
+            // by a SignedFile
+            return (!(storedFile instanceof SignedFile) || !(file instanceof SignedFile) ||
+                    ((SignedFile) storedFile).timestamp >= ((SignedFile) file).timestamp);
+        else return false;
     }
 
     public synchronized boolean refreshResponsibility(BigInteger file, DhtPeerAddress owner,
@@ -212,27 +212,32 @@ public class DhtStore {
 
 class DhtFile implements Serializable {
     BigInteger hash;
-    BigInteger realHash; // realHash=hash except for signed content
     Long size;
     DhtPeerAddress owner;
     transient Date lastQueried;
 
     DhtFile(BigInteger hash, Long size, DhtPeerAddress owner) {
         this.hash = hash;
-        this.realHash = hash;
         this.size = size;
         this.owner = owner;
         this.lastQueried = new Date();
     }
 
-    DhtFile(BigInteger hash, BigInteger realHash, Long size, DhtPeerAddress owner) {
-        this.hash = hash;
-        if (realHash != null)
-            this.realHash = realHash;
-        else
-            this.realHash = hash;
-        this.size = size;
-        this.owner = owner;
-        this.lastQueried = new Date();
+    boolean checkHash(BigInteger expectedHash) {
+        return (expectedHash != null && hash.equals(expectedHash));
+    }
+}
+
+class SignedFile extends DhtFile {
+    long timestamp;
+
+    SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, long timestamp) {
+        super(hash, size, owner);
+        this.timestamp = timestamp;
+    }
+
+    boolean checkHash(BigInteger expectedHash) {
+        // signed files always pass the hash check - they aren't hash addressed
+        return true;
     }
 }

@@ -14,7 +14,7 @@ public abstract class TransferTask {
     int waitRetry = 3000;
     
     int retries = 0;
-    abstract DhtTransfer execute() throws IOException;
+    abstract DirectTransfer execute() throws IOException;
 }
 
 class DownloadTask extends TransferTask {
@@ -33,10 +33,10 @@ class DownloadTask extends TransferTask {
         this.continuation = continuation;
     }
 
-    DhtTransfer execute() throws IOException {
+    DirectTransfer execute() throws IOException {
         retries++;
         try {
-            DhtTransfer transfer = localPeer.getClient().download(
+            DirectTransfer transfer = localPeer.getClient().download(
                     fileName, fileHash, hashCheck, continuation);
             transfer.setOriginalTask(this);
             return transfer;
@@ -46,7 +46,7 @@ class DownloadTask extends TransferTask {
         }
     }
 
-    private DhtTransfer retryExecute(IOException e) throws IOException {
+    private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
             System.out.println("Starting the execution of transfer " + fileHash.toString()
                     + " failed, retrying transfer in " + waitRetry / 1000 + "s");
@@ -78,10 +78,10 @@ class UploadTask extends TransferTask {
         this.retry = retry;
     }
 
-    DhtTransfer execute() throws IOException {
+    DirectTransfer execute() throws IOException {
         retries++;
         try {
-            DhtTransfer transfer = localPeer.getClient().upload(
+            DirectTransfer transfer = localPeer.getClient().upload(
                     target, fileHash, owner, continuation);
             transfer.setOriginalTask(this);
             return transfer;
@@ -91,7 +91,7 @@ class UploadTask extends TransferTask {
         }
     }
 
-    private DhtTransfer retryExecute(IOException e) throws IOException {
+    private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retry && retries < maxRetries) {
             System.out.println("Starting the execution of transfer " + fileHash.toString()
                     + " failed, retrying transfer in " + waitRetry / 1000 + "s");
@@ -117,10 +117,10 @@ class NamedUploadTask extends TransferTask {
         this.continuation = continuation;
     }
 
-    DhtTransfer execute() throws IOException {
+    DirectTransfer execute() throws IOException {
         retries++;
         try {
-            DhtTransfer transfer = localPeer.getClient().upload(
+            DirectTransfer transfer = localPeer.getClient().upload(
                     name, continuation);
             transfer.setOriginalTask(this);
             return transfer;
@@ -130,7 +130,7 @@ class NamedUploadTask extends TransferTask {
         }
     }
 
-    private DhtTransfer retryExecute(IOException e) throws IOException {
+    private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
             System.out.println("Starting the execution of transfer " + name
                     + " failed, retrying transfer in " + waitRetry / 1000 + "s");
@@ -147,23 +147,24 @@ class NamedUploadTask extends TransferTask {
 class SignedUploadTask extends TransferTask {
     LocalPeer localPeer;
     String name;
-    BigInteger fileID; BigInteger realHash;
+    BigInteger fileID;
+    long timestamp;
     FileUploadContinuation continuation;
 
-    SignedUploadTask(LocalPeer localPeer, String name, BigInteger fileID, BigInteger realHash,
+    SignedUploadTask(LocalPeer localPeer, String name, BigInteger fileID, long timestamp,
                      FileUploadContinuation continuation) {
         this.localPeer = localPeer;
         this.name = name;
         this.fileID = fileID;
-        this.realHash = realHash;
+        this.timestamp = timestamp;
         this.continuation = continuation;
     }
 
-    DhtTransfer execute() throws IOException {
+    DirectTransfer execute() throws IOException {
         retries++;
         try {
-            DhtTransfer transfer = localPeer.getClient().signedUpload(
-                    name, fileID, realHash, continuation);
+            DirectTransfer transfer = localPeer.getClient().signedUpload(
+                    name, fileID, timestamp, continuation);
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
@@ -172,7 +173,7 @@ class SignedUploadTask extends TransferTask {
         }
     }
 
-    private DhtTransfer retryExecute(IOException e) throws IOException {
+    private DirectTransfer retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
             System.out.println("Starting the execution of transfer " + name
                     + " failed, retrying transfer in " + waitRetry / 1000 + "s");

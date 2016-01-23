@@ -13,10 +13,17 @@ import java.util.Map;
  */
 public class FileList implements Serializable {
     private Map<String, BigInteger> files = new HashMap<>();
+    private long lastModified = System.currentTimeMillis() / 1000;
+
     private static final boolean debug = false;
+
+    synchronized long getLastModified() {
+        return lastModified;
+    }
 
     synchronized void put(String fileName, BigInteger hash) {
         files.put(fileName, hash);
+        lastModified = System.currentTimeMillis() / 1000;
     }
 
     synchronized List<String> getFileList() {
@@ -30,14 +37,28 @@ public class FileList implements Serializable {
         return files.get(file);
     }
 
+    static boolean checkTimestamp(String file, long timestamp) {
+        // check whether the public timestamp of a signed file equals to the provided timestamp
+        try {
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+            Object myobj = ois.readObject();
+            if (myobj instanceof SignedFileList)
+                return ((SignedFileList) myobj).getLastModified()==timestamp;
+            else return false;
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Failing to check the timestamp of file " + file);
+            return false;
+        }
+    }
+
     static FileList load(String file, PublicKey publicKey) {
         try {
             ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
             Object myobj = ois.readObject();
-            if (myobj instanceof SignedObject)
-                return getVerified((SignedObject) myobj, publicKey);
+            if (myobj instanceof SignedFileList)
+                return getVerified((SignedFileList) myobj, publicKey);
             else return null;
-        } catch (ClassNotFoundException | HashMismatchException e) {
+        } catch (ClassNotFoundException | SignatureMismatchException e) {
             e.printStackTrace();
             return null;
         } catch (IOException e) {
@@ -105,30 +126,42 @@ public class FileList implements Serializable {
         }
     }
 
-    SignedObject getSignedVersion(PrivateKey privateKey) throws IOException {
+    SignedFileList getSignedVersion(PrivateKey privateKey) throws IOException {
         Signature dsa;
         try {
             dsa = Signature.getInstance("SHA1withDSA", "SUN");
             SignedObject so = new SignedObject(this, privateKey, dsa);
-            return so;
+            SignedFileList sf = new SignedFileList(so, lastModified);
+            return sf;
         } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException |
                 SignatureException | IOException e) {
             throw new IOException(e.toString());
         }
     }
 
-    static FileList getVerified(SignedObject so, PublicKey publicKey)
-            throws HashMismatchException, IOException {
+    private static FileList getVerified(SignedFileList sf, PublicKey publicKey)
+            throws SignatureMismatchException, IOException {
         Signature dsa;
         try {
             dsa = Signature.getInstance("SHA1withDSA", "SUN");
             if (debug) System.out.println(publicKey.toString());
+
+            SignedObject so = sf.getSignedObject();
             if (so.verify(publicKey, dsa)) {
                 Object myobj = so.getObject();
-                if (myobj instanceof FileList)
-                    return (FileList) myobj;
-                else throw new HashMismatchException();
-            } else throw new HashMismatchException();
+
+                if (myobj instanceof FileList) {
+                    FileList result = (FileList) myobj;
+
+                    // check if extracted result's timestamp matches with the SignedFileList's
+                    // publicly advertised timestamp, as otherwise the file is corrupt
+                    if (result.lastModified != sf.getLastModified())
+                        throw new SignatureMismatchException();
+
+                    return result;
+                }
+                else throw new SignatureMismatchException();
+            } else throw new SignatureMismatchException();
         } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException |
                 SignatureException | IOException | ClassNotFoundException e) {
             throw new IOException(e.toString());
@@ -136,6 +169,22 @@ public class FileList implements Serializable {
     }
 }
 
-class HashMismatchException extends Exception {
+class SignedFileList {
+    // This is a wrapper for SignedObject that also includes a timestamp of when the FileList
+    // has last been modified.
+
+    private SignedObject signedObject;
+    private long lastModified;
+
+    SignedFileList(SignedObject signedObject, long lastModified) {
+        this.signedObject = signedObject;
+        this.lastModified = lastModified;
+    }
+
+    SignedObject getSignedObject() { return signedObject; }
+    long getLastModified() { return lastModified; }
+}
+
+class SignatureMismatchException extends Exception {
 
 }

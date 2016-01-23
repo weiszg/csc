@@ -10,68 +10,69 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Created by gellert on 10/11/2015.
  */
-public class DhtTransfer extends Thread {
+public class DirectTransfer extends Thread {
     Socket socket = null;
     ServerSocket ssocket = null;
     FileOutputStream fileOutputStream = null;
     FileInputStream fileInputStream = null;
     TransferContinuation continuation = null;
-    BigInteger fileHash;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
     boolean stopped = false;
-    boolean hashCheck = true; // to disregard hash checks for signed content downloads
+    DhtFile transferFile;
 
     protected TransferTask originalTask;
     void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
+    // todo: set timestamp to what server thinks it is so that checking can be done later
+    // checking module already implemented, need to do this to finish end-to-end checking
+    // and then need to do peer-to-peer handling as well, essentially replacing realHash with
+    // timestamp
 
-    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                       FileOutputStream fileOutputStream, BigInteger fileHash,
-                       boolean hashCheck, TransferContinuation continuation) {
+    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                          FileOutputStream fileOutputStream, DhtFile transferFile,
+                          TransferContinuation continuation) {
         // download file, server mode
         this.remotePeer = remotePeer;
-        this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileOutputStream = fileOutputStream;
-        this.hashCheck = hashCheck;
+        this.transferFile = transferFile;
         this.continuation = continuation;
     }
 
-    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                       FileOutputStream fileOutputStream, BigInteger fileHash,
-                       Boolean hashCheck, TransferContinuation continuation) {
+    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
+                          FileOutputStream fileOutputStream, DhtFile transferFile,
+                          TransferContinuation continuation) {
         // download file, client mode
         this.remotePeer = remotePeer;
-        this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileOutputStream = fileOutputStream;
-        this.hashCheck = hashCheck;
+        this.transferFile = transferFile;
         this.continuation = continuation;
     }
 
-    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
-                       FileInputStream fileInputStream, BigInteger fileHash,
-                       TransferContinuation continuation) {
+    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
+                          FileInputStream fileInputStream, DhtFile transferFile,
+                          TransferContinuation continuation) {
         // upload mode, server mode
         this.remotePeer = remotePeer;
-        this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.ssocket = socket;
         this.fileInputStream = fileInputStream;
+        this.transferFile = transferFile;
         this.continuation = continuation;
     }
 
-    public DhtTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
-                       FileInputStream fileInputStream, BigInteger fileHash,
-                       TransferContinuation continuation) {
+    public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
+                          FileInputStream fileInputStream, DhtFile transferFile,
+                          TransferContinuation continuation) {
         // upload file, client mode
         this.remotePeer = remotePeer;
-        this.fileHash = fileHash;
         this.localPeer = localPeer;
         this.socket = socket;
         this.fileInputStream = fileInputStream;
+        this.transferFile = transferFile;
         this.continuation = continuation;
     }
 
@@ -98,19 +99,33 @@ public class DhtTransfer extends Thread {
             }
             BigInteger realHash = new BigInteger(digest.digest());
 
-            if (hashCheck && !realHash.equals(fileHash)) {
-                System.err.println("Hash mismatch, expected: " + fileHash.toString() +
+            if (transferFile.checkHash(realHash)) {
+                System.err.println("Hash mismatch, expected: " + transferFile.hash.toString() +
                         " got: " + realHash.toString());
                 fileOutputStream.close();
-                localPeer.getDhtStore().removeFile(fileHash);
+                // make sure to delete the file from the file system
+                localPeer.getDhtStore().removeFile(transferFile.hash);
+
                 throw new IOException();
             }
             bufferedOutputStream.flush();
         }
 
+        if (transferFile instanceof SignedFile) {
+            // further checks are necessary to ensure that the public timestamp of the downloaded
+            // data corresponds to the advertised timestamp
+            if (!FileList.checkTimestamp(filename, ((SignedFile) transferFile).timestamp)) {
+                System.err.println("Timestamp mismatch!");
+                // make sure to delete the file from the file system
+                localPeer.getDhtStore().removeFile(transferFile.hash);
+
+                throw new IOException();
+            }
+        }
+
         System.out.println("Download complete: " + socket.getLocalPort()
                 + " - " + socket.getPort());
-        stopTransfer(true, totalRead);
+        stopTransfer(true);
     }
 
     private void upload() throws IOException {
@@ -134,10 +149,6 @@ public class DhtTransfer extends Thread {
     }
 
     synchronized void stopTransfer(boolean success) {
-        stopTransfer(success, null);
-    }
-
-    synchronized void stopTransfer(boolean success, Long transferSize) {
         // called internally when the transfer has naturally finished
         // or externally to stop transfer either because the target we upload to has the
         // file already (success) or we are out of range (failure)
@@ -145,10 +156,7 @@ public class DhtTransfer extends Thread {
             stopped = true;
             if (continuation != null)
                 if (success) {
-                    if (transferSize == null)
-                        continuation.notifyFinished(this);
-                    else
-                        continuation.notifyFinished(this, transferSize);
+                    continuation.notifyFinished(this);
                 } else {
                     continuation.notifyFailed(this);
                 }

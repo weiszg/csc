@@ -113,16 +113,16 @@ public class DhtServer implements DhtComm {
     public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
             throws IOException {
         acceptConnection(source);
-        Long size = localPeer.getDhtStore().getLength(file);
+        DhtFile transferFile = localPeer.getDhtStore().getFile(file);
         FileInputStream fis = localPeer.getDhtStore().readFile(file);
 
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
-        Thread uploader = new DhtTransfer(localPeer, source, socket, fis, file,
+        Thread uploader = new DirectTransfer(localPeer, source, socket, fis, transferFile,
                 new InternalUploadContinuation());
         uploader.start();
-        return size;
+        return transferFile.size;
     }
 
     @Override
@@ -150,9 +150,9 @@ public class DhtServer implements DhtComm {
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
-        // do not check hash for this download - might be signed content
-        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file.hash, false,
-                new InternalDownloadContinuation(file));
+
+        Thread downloader = new DirectTransfer(localPeer, source, socket, fos, file,
+                new InternalDownloadContinuation());
         downloader.start();
         return 0;
     }
