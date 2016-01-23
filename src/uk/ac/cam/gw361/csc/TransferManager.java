@@ -16,32 +16,33 @@ public class TransferManager {
         this.localPeer = localPeer;
     }
 
-    DhtTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
-                         TransferContinuation continuation) throws IOException {
-        TransferTask task = new DownloadTask(localPeer, fileName, fileHash, hashCheck, continuation);
+    DirectTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
+                         TransferContinuation continuation, boolean retry) throws IOException {
+        DhtFile toDownload;
+        if (hashCheck)
+            toDownload = new DhtFile(fileHash, null, null);
+        else
+            toDownload = new SignedFile(fileHash, null, null, null);
+
+        TransferTask task = new DownloadTask(localPeer, fileName, toDownload, hashCheck,
+                continuation, retry);
         return task.execute();
     }
 
-    DhtTransfer upload(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
-                       TransferContinuation continuation) throws IOException {
-        TransferTask task = new UploadTask(localPeer, target, file, owner, continuation, true);
+    DirectTransfer upload(DhtPeerAddress target, BigInteger file,
+                       TransferContinuation continuation, boolean retry) throws IOException {
+        TransferTask task = new UploadTask(localPeer, target, file, continuation, retry);
         return task.execute();
     }
 
-    DhtTransfer uploadNoRetry(DhtPeerAddress target, BigInteger file, DhtPeerAddress owner,
-                       TransferContinuation continuation) throws IOException {
-        TransferTask task = new UploadTask(localPeer, target, file, owner, continuation, false);
-        return task.execute();
-    }
-
-    DhtTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         TransferTask task = new NamedUploadTask(localPeer, name, continuation);
         return task.execute();
     }
 
-    public DhtTransfer signedUpload(String name, BigInteger fileID, BigInteger realHash,
+    public DirectTransfer signedUpload(String name, BigInteger fileID, long timestamp,
                                     FileUploadContinuation continuation) throws IOException {
-        TransferTask task = new SignedUploadTask(localPeer, name, fileID, realHash, continuation);
+        TransferTask task = new SignedUploadTask(localPeer, name, fileID, timestamp, continuation);
         return task.execute();
     }
 }

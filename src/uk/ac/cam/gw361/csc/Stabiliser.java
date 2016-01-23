@@ -57,6 +57,12 @@ public class Stabiliser extends Thread {
             localPeer.getClient().bootstrap(bootstrapPeer);
             System.out.println(localPeer.localAddress.getConnectAddress()
                     + ": connected to DHT pool");
+            try {
+                // try fetching my file list
+                localPeer.getFileList(localPeer.userName, localPeer.publicKey, true);
+            } catch (IOException e) {
+                System.out.println("No files uploaded yet");
+            }
         } catch (IOException ioe) {
             System.err.println(localPeer.localAddress.getConnectAddress()
                     +  ": failed to connect to DHT pool");
@@ -204,9 +210,9 @@ public class Stabiliser extends Thread {
             if (!doNotTransfer.contains(file))
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
-                        DhtTransfer ft = localPeer.getTransferManager().uploadNoRetry(
-                            remotePeer, file, localPeer.localAddress, new InternalUploadContinuation());
-                        localPeer.addRunningTransfer(ft);
+                        DirectTransfer ft = localPeer.getTransferManager().upload(
+                            remotePeer, file, new InternalUploadContinuation(), false);
+                        // track transfer with ft
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {
                         // no replication to failing link, the link will be deleted when

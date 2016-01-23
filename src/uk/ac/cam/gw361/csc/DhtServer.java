@@ -113,16 +113,16 @@ public class DhtServer implements DhtComm {
     public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
             throws IOException {
         acceptConnection(source);
-        Long size = localPeer.getDhtStore().getLength(file);
-        FileInputStream fis = localPeer.getDhtStore().readFile(file);
+        DhtFile transferFile = localPeer.getDhtStore().getFile(file);
+        String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
-        Thread uploader = new DhtTransfer(localPeer, source, socket, fis, file,
-                new InternalUploadContinuation());
+        Thread uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
+                transferFile, new InternalUploadContinuation());
         uploader.start();
-        return size;
+        return transferFile.size;
     }
 
     @Override
@@ -145,14 +145,14 @@ public class DhtServer implements DhtComm {
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.hash.toString());
-        FileOutputStream fos = localPeer.getDhtStore().writeFile(file.hash);
 
+        String fileName = localPeer.getDhtStore().getFolder() + "/" + file.hash;
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
-        // do not check hash for this download - might be signed content
-        Thread downloader = new DhtTransfer(localPeer, source, socket, fos, file.hash, false,
-                new InternalDownloadContinuation(file));
+
+        Thread downloader = new DirectTransfer(localPeer, source, socket, fileName, true, file,
+                new InternalDownloadContinuation());
         downloader.start();
         return 0;
     }

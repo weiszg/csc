@@ -12,7 +12,6 @@ import java.util.*;
  */
 
 //todo: diff download
-//todo: resume failed file up/downloads
 public class LocalPeer {
     final String userName;
     final String fileListPath;
@@ -34,15 +33,10 @@ public class LocalPeer {
     public synchronized void setNeighbourState(NeighbourState newState) {
         neighbourState = newState;
     }
-    public synchronized void addRunningTransfer(DhtTransfer ft) {
-        runningTransfers.add(ft);
-    }
     public void stabilise() { stabiliser.stabilise(); }
 
-    Set<DhtTransfer> runningTransfers = new HashSet<>();
-
     private PrivateKey privateKey;
-    private PublicKey publicKey;
+    PublicKey publicKey;
     FileList fileList;
     private FileList lastQueriedFileList;
 
@@ -64,7 +58,7 @@ public class LocalPeer {
         dhtServer.startServer();
         transferManager = new TransferManager(this);
 
-        fileListPath = "./storage/" + userName + "/" + "FileList";
+        fileListPath = "./storage/" + userName + "/" + "MyFileList";
         loadKeys();
 
         stabiliser = new Stabiliser(this, stabiliseInterval);
@@ -85,7 +79,7 @@ public class LocalPeer {
         KeyPair keyPair = FileList.initKeys("./keys/" + userName + "-");
         privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();
-        fileList = FileList.loadOrCreate(fileListPath, publicKey);
+        fileList = FileList.loadOrCreate(fileListPath + ".signed", publicKey);
     }
 
     public synchronized void join(String remotePeerIP) {
@@ -106,36 +100,41 @@ public class LocalPeer {
         return next;
     }
 
-    public DhtTransfer getEntity(BigInteger file) throws IOException {
+    public DirectTransfer getEntity(BigInteger file) throws IOException {
         return transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
-                file, true, null);
+                file, true, null, true);
     }
 
-    public DhtTransfer publishEntity(String file) throws IOException {
+    public DirectTransfer publishEntity(String file) throws IOException {
         return transferManager.upload(file, null);
     }
 
-    public DhtTransfer getFileList(String user, String publicKeyLoc) throws IOException {
-        BigInteger ID = Hasher.hashString(user);
-        PublicKey publicKey = null;
+    public DirectTransfer getFileList(String user, String publicKeyLoc) throws IOException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(publicKeyLoc))) {
             Object myobj = ois.readObject();
             if (!(myobj instanceof PublicKey)) {
                 System.err.println("Not a valid public key");
                 return null;
             }
-            publicKey = (PublicKey) myobj;
-            FileDownloadContinuation.createDir();
-            String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
-            return transferManager.download(fileName, ID, false,
-                    new FileListDownloadContinuation(fileName, publicKey));
+            PublicKey publicKey = (PublicKey) myobj;
+            return getFileList(user, publicKey, false);
         } catch (ClassNotFoundException e) {
             System.err.println(e.toString());
             return null;
         }
     }
 
-    public DhtTransfer getFile(String fileName) throws IOException {
+    DirectTransfer getFileList(String user, PublicKey publicKey, boolean own)
+            throws IOException {
+        BigInteger ID = Hasher.hashString(user);
+        FileDownloadContinuation.createDir();
+        String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
+        // retry unless querying for own FileList (that might not exist)
+        return transferManager.download(fileName, ID, false,
+                new FileListDownloadContinuation(fileName, publicKey, own), !own);
+    }
+
+    public DirectTransfer getFile(String fileName) throws IOException {
         if (lastQueriedFileList == null || lastQueriedFileList.get(fileName) == null) {
             System.err.println("File not found");
             return null;
@@ -144,13 +143,13 @@ public class LocalPeer {
         return getFile(fileName, fileMeta);
     }
 
-    public DhtTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
+    public DirectTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
         return transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
-                fileMeta, true, new FileDownloadContinuation(fileName));
+                fileMeta, true, new FileDownloadContinuation(fileName), true);
     }
 
-    public DhtTransfer publishFile(String fileName) throws IOException {
+    public DirectTransfer publishFile(String fileName) throws IOException {
         FileUploadContinuation.createDir();
         Path p = Paths.get(fileName);
         String lastName = p.getFileName().toString();
@@ -170,19 +169,19 @@ public class LocalPeer {
     void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
-             transferManager.upload(p, file.hash, localAddress, new InternalUploadContinuation());
+             transferManager.upload(p, file.hash, new InternalUploadContinuation(), true);
         }
     }
 
-    synchronized void notifyTransferCompleted(DhtTransfer ft, boolean success) {
-        runningTransfers.remove(ft);
+    synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
     }
 
     synchronized String saveFileList() {
         try {
-            SignedObject so = fileList.getSignedVersion(privateKey);
-            ObjectOutputStream ous = new ObjectOutputStream(new FileOutputStream(fileListPath));
-            ous.writeObject(so);
+            SignedFileList sf = fileList.getSignedVersion(privateKey);
+            ObjectOutputStream ous = new ObjectOutputStream(
+                    new FileOutputStream(fileListPath + ".signed"));
+            ous.writeObject(sf);
             ous.flush();
             ous.close();
         } catch (IOException e) {

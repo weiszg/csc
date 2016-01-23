@@ -3,7 +3,6 @@ package uk.ac.cam.gw361.csc;
 import java.io.*;
 import java.math.BigInteger;
 import java.util.*;
-
 /**
  * Created by gellert on 06/11/2015.
  */
@@ -33,55 +32,35 @@ public class DhtStore {
             }
         }
 
+        // read contents of the folder
         File[] listOfFiles = myFolder.listFiles();
         for (File f : listOfFiles) {
             if (f.isFile()) {
                 try {
-                    BigInteger key = new BigInteger(f.getName());
-                    System.out.println(key.toString());
-                    // the owner doesn't matter, replicas could/should be deleted
-                    addFile(new DhtFile(key, f.length(), localPeer.localAddress));
-                    if (debug) System.out.println("File found " + f.getName());
-                } catch (NumberFormatException e) { }
+                    if (f.getName().endsWith(".signed")) {
+                        BigInteger key = new BigInteger(f.getName().substring(0,
+                                f.getName().length() - ".signed".length()));
+                        addFile(new SignedFile(key, f.length(), localPeer.localAddress,
+                                FileList.loadTimestamp(f)));
+                        if (debug) System.out.println("Signed file found " + f.getName());
+                    } else {
+                        BigInteger key = new BigInteger(f.getName());
+                        // the owner doesn't matter, replicas could/should be deleted
+                        addFile(new DhtFile(key, f.length(), localPeer.localAddress));
+                        if (debug) System.out.println("File found " + f.getName());
+                    }
+                } catch (NumberFormatException | IOException e) { }
             }
         }
     }
 
     public synchronized DhtFile getFile(BigInteger file) throws IOException {
         if (!files.containsKey(file))
-            throw new IOException("File not found");
+            throw new IOException("File not found: " + file.toString());
         else return files.get(file);
     }
 
-    public synchronized FileInputStream readFile(BigInteger file) throws IOException {
-        if (!files.containsKey(file))
-            throw new IOException("File not found");
-        else {
-            try {
-                FileInputStream fis = new FileInputStream(myFolder.getPath()
-                        + "/" + file.toString());
-                return fis;
-            } catch (FileNotFoundException fnf) {
-                System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
-                        + "/" + file.toString());
-                return null;
-            }
-        }
-    }
-
-    public synchronized FileOutputStream writeFile(BigInteger file) {
-        if (files.containsKey(file))
-            System.out.println("Overwriting file " + file.toString());
-        try {
-            FileOutputStream fos = new FileOutputStream(myFolder.getPath()
-                    + "/" + file.toString());
-            return fos;
-        } catch (FileNotFoundException fnf) {
-            System.err.println("DhtStore broken, file not found: " + myFolder.getPath()
-                    + "/" + file.toString());
-            return null;
-        }
-    }
+    public String getFolder() { return storeDir + localPeer.userName; }
 
     public synchronized void removeFile(BigInteger file) {
         System.out.println("Removing file " + file.toString());
@@ -127,20 +106,20 @@ public class DhtStore {
             return files.get(file).size;
     }
 
-    public synchronized BigInteger getRealHash(BigInteger file) throws IOException {
-        if (!files.containsKey(file))
-            throw new IOException("File not found");
-        else
-            return files.get(file).realHash;
-    }
-
     public synchronized boolean containsFile(BigInteger file) {
         return files.containsKey(file);
     }
 
     public synchronized boolean hasFile(DhtFile file) {
-        return (files.containsKey(file.hash)
-                && files.get(file.hash).realHash.equals(file.realHash));
+        DhtFile storedFile = files.get(file.hash);
+        if (storedFile != null)
+            // if either of them isn't a SignedFile then we're done, we have the same file
+            // otherwise we also have to check if we store a later or equal version
+            // note it is important that an existing content-signed file can't be overwritten
+            // by a SignedFile
+            return (!(storedFile instanceof SignedFile) || !(file instanceof SignedFile) ||
+                    ((SignedFile) storedFile).timestamp >= ((SignedFile) file).timestamp);
+        else return false;
     }
 
     public synchronized boolean refreshResponsibility(BigInteger file, DhtPeerAddress owner,
@@ -200,39 +179,59 @@ public class DhtStore {
     public synchronized void print(PrintStream out, String beginning) {
         for (BigInteger file : files.keySet()) {
             out.print(beginning);
-            if (files.get(file).owner.equals(localPeer.localAddress))
+            DhtFile dhtFile = files.get(file);
+            if (dhtFile.owner.equals(localPeer.localAddress))
                 out.print("xxx ");
             else
                 out.print("    ");
             out.print(file.toString() + "  ");
-            out.println(files.get(file).lastQueried.toString());
+            if (dhtFile instanceof SignedFile)
+                out.print("SIGNED  ");
+            out.println(dhtFile.lastQueried.toString());
         }
     }
 }
 
 class DhtFile implements Serializable {
     BigInteger hash;
-    BigInteger realHash; // realHash=hash except for signed content
     Long size;
     DhtPeerAddress owner;
     transient Date lastQueried;
 
     DhtFile(BigInteger hash, Long size, DhtPeerAddress owner) {
         this.hash = hash;
-        this.realHash = hash;
         this.size = size;
         this.owner = owner;
         this.lastQueried = new Date();
     }
 
-    DhtFile(BigInteger hash, BigInteger realHash, Long size, DhtPeerAddress owner) {
-        this.hash = hash;
-        if (realHash != null)
-            this.realHash = realHash;
-        else
-            this.realHash = hash;
-        this.size = size;
-        this.owner = owner;
-        this.lastQueried = new Date();
+    DhtFile(DhtFile toCopy) {
+        this.hash = toCopy.hash;
+        this.size = toCopy.size;
+        this.owner = toCopy.owner;
+        this.lastQueried = toCopy.lastQueried;
+    }
+
+    boolean checkHash(BigInteger expectedHash) {
+        return (expectedHash != null && hash.equals(expectedHash));
+    }
+}
+
+class SignedFile extends DhtFile {
+    Long timestamp;
+
+    SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, Long timestamp) {
+        super(hash, size, owner);
+        this.timestamp = timestamp;
+    }
+
+    SignedFile(SignedFile toCopy) {
+        super(toCopy);
+        this.timestamp = toCopy.timestamp;
+    }
+
+    boolean checkHash(BigInteger expectedHash) {
+        // signed files always pass the hash check - they aren't hash addressed
+        return true;
     }
 }
