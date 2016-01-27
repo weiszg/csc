@@ -21,13 +21,10 @@ public class DirectTransfer extends Thread {
     boolean stopped = false;
     DhtFile transferFile;
     boolean isDownload;
+    static boolean debug = false;
 
     protected TransferTask originalTask;
     void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
-    // todo: set timestamp to what server thinks it is so that checking can be done later
-    // checking module already implemented, need to do this to finish end-to-end checking
-    // and then need to do peer-to-peer handling as well, essentially replacing realHash with
-    // timestamp
 
     public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
                           String targetName, boolean isDownload, DhtFile transferFile,
@@ -66,8 +63,11 @@ public class DirectTransfer extends Thread {
             throw new IOException("No such algorithm");
         }
 
-        try (BufferedOutputStream bufferedOutputStream
-                     = new BufferedOutputStream(new FileOutputStream(targetName + ".downloading"))) {
+
+        try (
+                FileOutputStream os = new FileOutputStream(targetName + ".part");
+                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(os)
+        ) {
             InputStream inputStream = socket.getInputStream();
 
             int bytesRead;
@@ -77,6 +77,8 @@ public class DirectTransfer extends Thread {
                 totalRead += bytesRead;
             }
             bufferedOutputStream.flush();
+            os.flush();
+            os.close();
         }
 
         BigInteger realHash = new BigInteger(digest.digest());
@@ -90,14 +92,13 @@ public class DirectTransfer extends Thread {
         if (transferFile instanceof SignedFile) {
             // further checks are necessary to ensure that the public timestamp of the downloaded
             // data corresponds to the advertised timestamp
-            if (!FileList.checkTimestamp(targetName + ".downloading",
+            if (!FileList.checkTimestamp(targetName + ".part",
                     ((SignedFile) transferFile).timestamp)) {
-                System.err.println("Timestamp mismatch!");
-                throw new IOException();
+                throw new IOException("Timestamp mismatch!");
             }
         }
 
-        System.out.println("Download complete: " + socket.getLocalPort()
+        if (debug) System.out.println("Download complete: " + socket.getLocalPort()
                 + " - " + socket.getPort());
     }
 
@@ -108,7 +109,7 @@ public class DirectTransfer extends Thread {
         try (BufferedInputStream bufferedInputStream = new BufferedInputStream(
                 new FileInputStream(targetName))) {
             try (OutputStream outputStream = socket.getOutputStream()) {
-                System.out.println("Starting upload: " + socket.getLocalPort()
+                if (debug) System.out.println("Starting upload: " + socket.getLocalPort()
                         + " - " + socket.getPort());
                 int bytesWritten;
                 while ((bytesWritten = bufferedInputStream.read(data, 0, data.length)) != -1) {
@@ -134,9 +135,17 @@ public class DirectTransfer extends Thread {
             if (isDownload)
                 if (success) {
                     // solidify download
-                    new File(targetName + ".downloading").renameTo(new File(targetName));
+                    try {
+                        Files.move(new File(targetName + ".part").toPath(),
+                                new File(targetName).toPath(),
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException e) {
+                        System.err.println("Unable to rename " + targetName + ": " + e.toString());
+                        success = false;
+                    }
                 } else {
-                    new File(targetName + ".downloading").delete();
+                    // clean up
+                    new File(targetName + ".part").delete();
                 }
 
             if (callContinuation && continuation != null)
@@ -168,14 +177,14 @@ public class DirectTransfer extends Thread {
 
         } catch (IOException ioe) {
             if (!stopped) {
-                System.out.println("Transfer failed due to: " + ioe.toString());
-                ioe.printStackTrace();
+                System.out.println("Transfer " + transferFile.hash.toString() +
+                        " failed due to: " + ioe.toString());
                 stopTransfer(false);
             }
         }
         finally {
             try { if (socket != null) socket.close(); }
-            catch (IOException ioe) { if (!stopped) ioe.printStackTrace(); }
+            catch (IOException ioe) { if (!stopped) ioe.printStackTrace(System.out); }
         }
     }
 }

@@ -17,26 +17,21 @@ public class TransferManager {
     }
 
     DirectTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
-                         TransferContinuation continuation) throws IOException {
+                         TransferContinuation continuation, boolean retry) throws IOException {
         DhtFile toDownload;
         if (hashCheck)
             toDownload = new DhtFile(fileHash, null, null);
         else
             toDownload = new SignedFile(fileHash, null, null, null);
 
-        TransferTask task = new DownloadTask(localPeer, fileName, toDownload, hashCheck, continuation);
+        TransferTask task = new DownloadTask(localPeer, fileName, toDownload, hashCheck,
+                continuation, retry);
         return task.execute();
     }
 
     DirectTransfer upload(DhtPeerAddress target, BigInteger file,
-                       TransferContinuation continuation) throws IOException {
-        TransferTask task = new UploadTask(localPeer, target, file, continuation, true);
-        return task.execute();
-    }
-
-    DirectTransfer uploadNoRetry(DhtPeerAddress target, BigInteger file,
-                       TransferContinuation continuation) throws IOException {
-        TransferTask task = new UploadTask(localPeer, target, file, continuation, false);
+                       TransferContinuation continuation, boolean retry) throws IOException {
+        TransferTask task = new UploadTask(localPeer, target, file, continuation, retry);
         return task.execute();
     }
 

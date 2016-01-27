@@ -16,7 +16,7 @@ public abstract class TransferContinuation {
     abstract void notifyFinished(DirectTransfer finishedTransfer);
     
     // indicates how many times to retry a transfer before giving up
-    int maxRetries = 3;
+    int maxRetries = 5;
     // how much to wait between retries
     int waitRetry = 3000;
     
@@ -37,7 +37,7 @@ public abstract class TransferContinuation {
             catch (IOException e) {
                 System.err.println("Giving up " + fileHash.toString() + " - " + e.toString());
             }
-        } else {
+        } else if (transfer.originalTask != null) {
             System.err.println("Giving up " + fileHash.toString());
         }
         return ret;
@@ -96,7 +96,6 @@ class FileUploadContinuation extends TransferContinuation {
     private BigInteger metaHash;
     FileMetadata meta;
     TreeMap<Integer, BigInteger> waitingChunks;
-    Set<DirectTransfer> runningTransfers = new HashSet<>();
 
     public static void createDir() {
         File myFolder = new File(transferDir);
@@ -140,58 +139,68 @@ class FileUploadContinuation extends TransferContinuation {
         f.delete();
     }
 
+    private synchronized boolean canStartMore() {
+        return concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty();
+    }
+
     @Override
-    public synchronized  void notifyFinished(DirectTransfer finishedTransfer) {
+    public  void notifyFinished(DirectTransfer finishedTransfer) {
         LocalPeer localPeer = finishedTransfer.localPeer;
-        runningTransfers.remove(finishedTransfer);
-        if (first) {
-            // metadata upload has finished, process metadata and start file blocks
-            first = false;
-            // save the hash of the metadata, the entry point for the file
-            metaHash = finishedTransfer.transferFile.hash;
-            System.out.println("Metadata uploaded");
-        } else {
-            if (concurrentTransfers > 0) {
-                // excludes special uploads such as FileList
-                finishedBlocks++;
-                concurrentTransfers--;
-                System.out.println("Uploaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
-            }
+        synchronized (this) {
+            if (first) {
+                // metadata upload has finished, process metadata and start file blocks
+                first = false;
+                // save the hash of the metadata, the entry point for the file
+                metaHash = finishedTransfer.transferFile.hash;
+                System.out.println("Metadata uploaded");
+            } else {
+                if (concurrentTransfers > 0) {
+                    // excludes special uploads such as FileList
+                    finishedBlocks++;
+                    concurrentTransfers--;
+                    System.out.println("Uploaded " + finishedBlocks + "MB of "
+                            + meta.blocks + "MB, threads: " + concurrentTransfers);
+                }
 
-            // if done update FileList
-            if (waitingChunks.isEmpty() && concurrentTransfers==0) {
-                if (!fileListUpdated) {
-                    System.out.println("File upload finished, updating FileList");
-                    localPeer.fileList.put(lastName, metaHash);
-                    String fileListPath = localPeer.saveFileList();
-                    try {
-                        runningTransfers.add(localPeer.getTransferManager().signedUpload(
-                                fileListPath, localPeer.localAddress.getUserID(),
-                                localPeer.fileList.getLastModified(), this));
-                        fileListUpdated = true;
-                    } catch (IOException e) {
-                        System.err.println("File list upload problem:" + e.toString());
+                // if done update FileList
+                if (waitingChunks.isEmpty() && concurrentTransfers == 0) {
+                    if (!fileListUpdated) {
+                        System.out.println("File upload finished, updating FileList");
+                        localPeer.fileList.put(lastName, metaHash);
+                        String fileListPath = localPeer.saveFileList();
+                        try {
+                            localPeer.getTransferManager().signedUpload(
+                                    fileListPath, localPeer.localAddress.getUserID(),
+                                    localPeer.fileList.getLastModified(), this);
+                            fileListUpdated = true;
+                        } catch (IOException e) {
+                            System.err.println("File list upload problem:" + e.toString());
+                        }
+                    } else {
+                        System.out.println("Cleaning up");
+                        removeFile(transferDir + lastName + ".meta");
+                        for (int i = 0; i < meta.blocks; i++)
+                            removeFile(transferDir + lastName + "." + i);
+
+                        System.out.println("Done.");
                     }
-                } else {
-                    System.out.println("Cleaning up");
-                    removeFile(transferDir + lastName + ".meta");
-                    for (int i=0; i<meta.blocks; i++)
-                        removeFile(transferDir + lastName + "." + i);
-
-                    System.out.println("Done.");
                 }
             }
         }
 
-        while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
-            int nextIndex = waitingChunks.firstKey();
-            waitingChunks.remove(waitingChunks.firstKey());
+        while (canStartMore()) {
+            int nextIndex;
+            synchronized (this) {
+                nextIndex = waitingChunks.firstKey();
+                waitingChunks.remove(waitingChunks.firstKey());
+                concurrentTransfers++;
+            }
 
-            concurrentTransfers++;
             try {
-                runningTransfers.add(localPeer.getTransferManager().upload(
-                        transferDir + lastName + "." + nextIndex, this));
+                localPeer.getTransferManager().upload(
+                        transferDir + lastName + "." + nextIndex, this);
             } catch (IOException e) {
+                synchronized (this) { concurrentTransfers--; }
                 System.err.println("File upload failed");
             }
         }
@@ -199,11 +208,10 @@ class FileUploadContinuation extends TransferContinuation {
 
     @Override
     public DirectTransfer notifyFailed(DirectTransfer transfer) {
-        runningTransfers.remove(transfer);
         System.out.println("File chunk upload failed");
         DirectTransfer newTransfer = super.notifyFailed(transfer);
-        if (newTransfer != null)
-            runningTransfers.add(newTransfer);
+        if (newTransfer == null)
+            synchronized (this) { concurrentTransfers--; }
         return newTransfer;
     }
 }
@@ -217,7 +225,6 @@ class FileDownloadContinuation extends TransferContinuation {
     private String fileName;
     FileMetadata meta;
     TreeMap<Integer, BigInteger> waitingChunks;
-    Set<DirectTransfer> runningTransfers = new HashSet<>();
 
     public FileDownloadContinuation(String fileName) {
         this.fileName = fileName;
@@ -260,49 +267,60 @@ class FileDownloadContinuation extends TransferContinuation {
         }
     }
 
-    @Override
-    public synchronized  void notifyFinished(DirectTransfer finishedTransfer) {
-        LocalPeer localPeer = finishedTransfer.localPeer;
-        runningTransfers.remove(finishedTransfer);
-        if (first) {
-            // metadata download has finished, process metadata and start file blocks
-            first = false;
-            try (ObjectInputStream ois = new ObjectInputStream(
-                    new FileInputStream(transferDir + fileName + ".meta"))) {
-                meta = (FileMetadata) ois.readObject();
-                waitingChunks = meta.getChunks();
-                System.out.println("Metadata collected");
-                // delete metadata
-                new File(transferDir + fileName + ".meta").delete();
-            } catch (ClassNotFoundException | IOException e) {
-                System.out.println("Error processing metadata: " + e.toString());
-            }
-        } else {
-            finishedBlocks++;
-            concurrentTransfers--;
-            System.out.println("Downloaded " + finishedBlocks + "MB of " + meta.blocks + "MB");
+    private synchronized boolean canStartMore() {
+        return concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty();
+    }
 
-            // if done merge downloaded chunks
-            if (waitingChunks.isEmpty() && concurrentTransfers==0) {
-                try {
-                    mergeFile();
-                    System.out.println("Merging succesful, download complete");
-                } catch (IOException e) {
-                    System.err.println("Merging failed: " + e.toString());
+    @Override
+    public void notifyFinished(DirectTransfer finishedTransfer) {
+        LocalPeer localPeer = finishedTransfer.localPeer;
+        synchronized (this) {
+            if (first) {
+                // metadata download has finished, process metadata and start file blocks
+                first = false;
+                try (ObjectInputStream ois = new ObjectInputStream(
+                        new FileInputStream(transferDir + fileName + ".meta"))) {
+                    meta = (FileMetadata) ois.readObject();
+                    waitingChunks = meta.getChunks();
+                    System.out.println("Metadata collected");
+                    // delete metadata
+                    new File(transferDir + fileName + ".meta").delete();
+                } catch (ClassNotFoundException | IOException e) {
+                    System.out.println("Error processing metadata: " + e.toString());
+                }
+            } else {
+                finishedBlocks++;
+                concurrentTransfers--;
+                System.out.println("Downloaded " + finishedBlocks + "MB of "
+                        + meta.blocks + "MB, threads: " + concurrentTransfers);
+
+                // if done merge downloaded chunks
+                if (waitingChunks.isEmpty() && concurrentTransfers == 0) {
+                    try {
+                        mergeFile();
+                        System.out.println("Merging succesful, download complete");
+                    } catch (IOException e) {
+                        System.err.println("Merging failed: " + e.toString());
+                    }
                 }
             }
         }
 
-        while (concurrentTransfers < maxConcurrentTransfers && !waitingChunks.isEmpty()) {
-            int nextIndex = waitingChunks.firstKey();
-            BigInteger nextTransfer = waitingChunks.remove(waitingChunks.firstKey());
+        while (canStartMore()) {
+            int nextIndex;
+            BigInteger nextTransferHash;
+            synchronized (this) {
+                nextIndex = waitingChunks.firstKey();
+                nextTransferHash = waitingChunks.remove(waitingChunks.firstKey());
+                concurrentTransfers++;
+            }
 
-            concurrentTransfers++;
             try {
-                runningTransfers.add(localPeer.getTransferManager().download(
+                localPeer.getTransferManager().download(
                         FileDownloadContinuation.transferDir
-                                + fileName + "." + nextIndex, nextTransfer, true, this));
+                                + fileName + "." + nextIndex, nextTransferHash, true, this, true);
             } catch (IOException e) {
+                synchronized (this) { concurrentTransfers--; }
                 System.err.println("File download failed");
                 e.printStackTrace();
             }
@@ -311,11 +329,10 @@ class FileDownloadContinuation extends TransferContinuation {
 
     @Override
     public DirectTransfer notifyFailed(DirectTransfer transfer) {
-        runningTransfers.remove(transfer);
         System.out.println("File chunk download failed");
         DirectTransfer newTransfer = super.notifyFailed(transfer);
-        if (newTransfer != null)
-            runningTransfers.add(newTransfer);
+        if (newTransfer == null)
+            synchronized (this) { concurrentTransfers--; }
         return newTransfer;
     }
 }
@@ -324,8 +341,9 @@ class FileListDownloadContinuation extends TransferContinuation {
     static String transferDir = "./downloads/";
     String fileName;
     PublicKey publicKey;
+    boolean own;
 
-    FileListDownloadContinuation(String fileName, PublicKey publicKey) {
+    FileListDownloadContinuation(String fileName, PublicKey publicKey, boolean own) {
         this.fileName = fileName;
         this.publicKey = publicKey;
     }
@@ -340,6 +358,8 @@ class FileListDownloadContinuation extends TransferContinuation {
         if (fileList == null) {
             System.err.println("Error reading file list");
         } else {
+            if (own)
+                localPeer.fileList = fileList;
             localPeer.setLastQueriedFileList(fileList);
         }
     }

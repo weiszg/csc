@@ -12,7 +12,6 @@ import java.util.*;
  */
 
 //todo: diff download
-//todo: resume failed file up/downloads
 public class LocalPeer {
     final String userName;
     final String fileListPath;
@@ -34,15 +33,12 @@ public class LocalPeer {
     public synchronized void setNeighbourState(NeighbourState newState) {
         neighbourState = newState;
     }
-    public synchronized void addRunningTransfer(DirectTransfer ft) {
-        runningTransfers.add(ft);
-    }
     public void stabilise() { stabiliser.stabilise(); }
 
-    Set<DirectTransfer> runningTransfers = new HashSet<>();
+    //Set<DirectTransfer> runningTransfers = new HashSet<>();
 
     private PrivateKey privateKey;
-    private PublicKey publicKey;
+    PublicKey publicKey;
     FileList fileList;
     private FileList lastQueriedFileList;
 
@@ -108,7 +104,7 @@ public class LocalPeer {
 
     public DirectTransfer getEntity(BigInteger file) throws IOException {
         return transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
-                file, true, null);
+                file, true, null, true);
     }
 
     public DirectTransfer publishEntity(String file) throws IOException {
@@ -116,23 +112,28 @@ public class LocalPeer {
     }
 
     public DirectTransfer getFileList(String user, String publicKeyLoc) throws IOException {
-        BigInteger ID = Hasher.hashString(user);
-        PublicKey publicKey = null;
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(publicKeyLoc))) {
             Object myobj = ois.readObject();
             if (!(myobj instanceof PublicKey)) {
                 System.err.println("Not a valid public key");
                 return null;
             }
-            publicKey = (PublicKey) myobj;
-            FileDownloadContinuation.createDir();
-            String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
-            return transferManager.download(fileName, ID, false,
-                    new FileListDownloadContinuation(fileName, publicKey));
+            PublicKey publicKey = (PublicKey) myobj;
+            return getFileList(user, publicKey, false);
         } catch (ClassNotFoundException e) {
             System.err.println(e.toString());
             return null;
         }
+    }
+
+    DirectTransfer getFileList(String user, PublicKey publicKey, boolean own)
+            throws IOException {
+        BigInteger ID = Hasher.hashString(user);
+        FileDownloadContinuation.createDir();
+        String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
+        // retry unless querying for own FileList (that might not exist)
+        return transferManager.download(fileName, ID, false,
+                new FileListDownloadContinuation(fileName, publicKey, own), !own);
     }
 
     public DirectTransfer getFile(String fileName) throws IOException {
@@ -147,7 +148,7 @@ public class LocalPeer {
     public DirectTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
         return transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
-                fileMeta, true, new FileDownloadContinuation(fileName));
+                fileMeta, true, new FileDownloadContinuation(fileName), true);
     }
 
     public DirectTransfer publishFile(String fileName) throws IOException {
@@ -170,12 +171,11 @@ public class LocalPeer {
     void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
-             transferManager.upload(p, file.hash, new InternalUploadContinuation());
+             transferManager.upload(p, file.hash, new InternalUploadContinuation(), true);
         }
     }
 
     synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
-        runningTransfers.remove(ft);
     }
 
     synchronized String saveFileList() {

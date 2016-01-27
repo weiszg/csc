@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +19,13 @@ public class LocalDhtCommWrapper implements DhtComm {
 
     LocalDhtCommWrapper(DhtComm comm) {
         this.comm = comm;
+    }
+
+    private DhtFile cloneDhtFile(DhtFile file) {
+        if (file instanceof SignedFile)
+            return new SignedFile((SignedFile)file);
+        else
+            return new DhtFile(file);
     }
 
     public DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
@@ -35,7 +43,7 @@ public class LocalDhtCommWrapper implements DhtComm {
     }
 
     public Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
-        return comm.download(source, port, file);
+        return comm.download(source, port, cloneDhtFile(file));
     }
 
     public Boolean isAlive(DhtPeerAddress source) throws RemoteException {
@@ -48,7 +56,11 @@ public class LocalDhtCommWrapper implements DhtComm {
 
     public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException {
-        return comm.storingFiles(source, files);
+        List<DhtFile> clonedFiles = new LinkedList<>();
+        for (DhtFile file : files)
+            clonedFiles.add(cloneDhtFile(file));
+
+        return comm.storingFiles(source, clonedFiles);
     }
 
     public String query(String input) throws RemoteException {

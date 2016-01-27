@@ -165,7 +165,7 @@ public class DhtClient {
         DhtPeerAddress target = lookup(file.hash);
         if (file.hash != null)
             ft = doDownload(target, fileName, file, continuation);
-        localPeer.runningTransfers.add(ft);
+        // track transfer with ft
         return ft;
     }
 
@@ -201,7 +201,7 @@ public class DhtClient {
 
         DhtFile dbFile = localPeer.getDhtStore().getFile(file);
         DirectTransfer ft = doUpload(target, dbFile, fileName, continuation);
-        localPeer.runningTransfers.add(ft);
+        // track transfer with ft
         return ft;
     }
 
@@ -218,8 +218,7 @@ public class DhtClient {
             DhtFile uploadFile = new DhtFile(fileHash, file.length(), target);
             ft = doUpload(target, uploadFile, name, continuation);
         }
-
-        localPeer.runningTransfers.add(ft);
+        // track transfer with ft
         return ft;
     }
 
@@ -227,7 +226,7 @@ public class DhtClient {
             FileUploadContinuation continuation) throws IOException {
         // used for uploads signed with a private key - they aren't hash checked and can be uploaded
         // to an arbitrary target
-        File file = new File(name);
+        File file = new File(name + ".signed");
         if (!file.exists())
             throw new IOException("File not found for signedUpload");
 
@@ -259,11 +258,11 @@ public class DhtClient {
                 System.out.println("Out of range for receiver " + peer.getConnectAddress());
                 ft.stopTransfer(false);
             } else if (response.equals(2)) {
-                System.out.println("redundant: " + file.hash.toString() + " " + file.hash.toString());
+                System.out.println("redundant: " + file.hash.toString());
                 ft.stopTransfer(true);
-            } else
-                // the transfer is on
-                localPeer.runningTransfers.add(ft);
+            }
+                // else the transfer is on
+                // track transfer with ft
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;

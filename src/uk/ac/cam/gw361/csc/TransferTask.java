@@ -9,7 +9,7 @@ import java.math.BigInteger;
 
 public abstract class TransferTask {
     // indicates how many times to retry a transfer before giving up
-    int maxRetries = 3;
+    int maxRetries = 5;
     // how much to wait between retries
     int waitRetry = 3000;
     
@@ -23,14 +23,16 @@ class DownloadTask extends TransferTask {
     DhtFile file;
     boolean hashCheck;
     TransferContinuation continuation;
+    boolean retry;
 
     DownloadTask(LocalPeer localPeer, String fileName, DhtFile file, boolean hashCheck,
-                 TransferContinuation continuation) {
+                 TransferContinuation continuation, boolean retry) {
         this.localPeer = localPeer;
         this.fileName = fileName;
         this.file = file;
         this.hashCheck = hashCheck;
         this.continuation = continuation;
+        this.retry = retry;
     }
 
     DirectTransfer execute() throws IOException {
@@ -47,7 +49,7 @@ class DownloadTask extends TransferTask {
     }
 
     private DirectTransfer retryExecute(IOException e) throws IOException {
-        if (retries < maxRetries) {
+        if (retry && retries < maxRetries) {
             System.out.println("Retrying " + fileName + " in " + waitRetry / 1000 + "s");
             try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
             return execute();

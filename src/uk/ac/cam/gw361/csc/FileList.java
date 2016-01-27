@@ -41,14 +41,13 @@ public class FileList implements Serializable {
         // check whether the public timestamp of a signed file equals to the provided timestamp
         // for downloads we accept any timestamp by setting timestamp to null
         if (timestamp == null) return true;
-        try {
-            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             Object myobj = ois.readObject();
             if (myobj instanceof SignedFileList)
                 return ((SignedFileList) myobj).getLastModified()==timestamp;
             else return false;
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Failing to check the timestamp of file " + file);
+            System.err.println("Failing to check the timestamp of file " + file + ": " + e.toString());
             return false;
         }
     }

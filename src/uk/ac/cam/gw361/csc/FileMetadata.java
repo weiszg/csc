@@ -22,15 +22,13 @@ public class FileMetadata implements CscData, Serializable {
         blocks = (int)((length-1) / blockSize) + 1;
         hashes = new ArrayList<>(blocks);
 
-        FileInputStream fis = new FileInputStream(filePath);
-        try {
-            BufferedInputStream bis = new BufferedInputStream(fis);
+        try (BufferedInputStream bis = new BufferedInputStream(
+                new FileInputStream(filePath))) {
+
             for (int i = 0; i < blocks; i++) {
                 BigInteger nextHash = Hasher.hashFile(bis, blockSize);
                 hashes.add(nextHash);
             }
-        } finally {
-            fis.close();
         }
     }
 

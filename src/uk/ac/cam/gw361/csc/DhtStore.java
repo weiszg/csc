@@ -1,5 +1,7 @@
 package uk.ac.cam.gw361.csc;
 
+import com.sun.istack.internal.NotNull;
+
 import java.io.*;
 import java.math.BigInteger;
 import java.util.*;
@@ -193,7 +195,7 @@ public class DhtStore {
     }
 }
 
-class DhtFile implements Serializable {
+class DhtFile implements Serializable, Comparable<DhtFile> {
     BigInteger hash;
     Long size;
     DhtPeerAddress owner;
@@ -206,8 +208,20 @@ class DhtFile implements Serializable {
         this.lastQueried = new Date();
     }
 
+    DhtFile(DhtFile toCopy) {
+        this.hash = toCopy.hash;
+        this.size = toCopy.size;
+        this.owner = toCopy.owner;
+        this.lastQueried = toCopy.lastQueried;
+    }
+
     boolean checkHash(BigInteger expectedHash) {
         return (expectedHash != null && hash.equals(expectedHash));
+    }
+
+    @Override
+    public int compareTo(DhtFile other) {
+        return owner.compareTo(other.owner);
     }
 }
 
@@ -217,6 +231,11 @@ class SignedFile extends DhtFile {
     SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, Long timestamp) {
         super(hash, size, owner);
         this.timestamp = timestamp;
+    }
+
+    SignedFile(SignedFile toCopy) {
+        super(toCopy);
+        this.timestamp = toCopy.timestamp;
     }
 
     boolean checkHash(BigInteger expectedHash) {

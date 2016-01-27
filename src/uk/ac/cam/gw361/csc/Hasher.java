@@ -10,8 +10,9 @@ import java.security.NoSuchAlgorithmException;
  */
 public class Hasher {
     public static BigInteger hashFile(String name) throws IOException {
-            BufferedInputStream is = new BufferedInputStream(new FileInputStream(name));
+        try (BufferedInputStream is = new BufferedInputStream(new FileInputStream(name))) {
             return hashFile(is, 0);
+        }
     }
 
     public static BigInteger hashFile(BufferedInputStream is, long size) throws IOException {
