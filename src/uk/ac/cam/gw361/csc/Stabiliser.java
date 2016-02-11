@@ -90,8 +90,6 @@ public class Stabiliser extends Thread {
     }
 
     private void doStabilise() {
-        // todo: time limits for remote calls and failure recognition
-
         if (debug) System.out.println("stabilising... " + localPeer.localAddress.getConnectAddress());
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();

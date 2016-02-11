@@ -94,7 +94,7 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
-    public DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
+    public DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
         if (debug) System.out.println("server lookup");
         acceptConnection(source);
         return localPeer.getNextLocalHop(target);

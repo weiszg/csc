@@ -11,7 +11,6 @@ import java.util.*;
  * Created by gellert on 24/10/2015.
  */
 
-//todo: diff download
 public class LocalPeer {
     final String userName;
     final String fileListPath;
@@ -27,7 +26,7 @@ public class LocalPeer {
     private TransferManager transferManager;
     public TransferManager getTransferManager() { return transferManager; }
 
-
+    private FingerState fingerState;
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
     public synchronized void setNeighbourState(NeighbourState newState) {
@@ -51,6 +50,7 @@ public class LocalPeer {
         userID = Hasher.hashString(userName);
         localAddress = new DhtPeerAddress(userID, "localhost", port, userID);
         neighbourState = new NeighbourState(localAddress);
+        fingerState = new FingerState(this);
 
         dhtStore = new DhtStore(this);
         dhtClient = new DhtClient(this);
@@ -88,16 +88,21 @@ public class LocalPeer {
         stabilise();
     }
 
-    public DhtPeerAddress getNextLocalHop(BigInteger target) {
+    public DoubleAddress getNextLocalHop(BigInteger target) {
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
 
-        DhtPeerAddress next = peers.lower(
+        DhtPeerAddress nextNeighbour = peers.floor(
                 new DhtPeerAddress(target, null, null, localAddress.getUserID()));
-        if (next == null) {
-            next = peers.last();
+        if (nextNeighbour == null) {
+            nextNeighbour = peers.last();
         }
-        return next;
+
+        peers = fingerState.getFingers();
+        DhtPeerAddress nextFinger = peers.floor(
+                new DhtPeerAddress(target, null, null, localAddress.getUserID()));
+
+        return new DoubleAddress(nextNeighbour, nextFinger);
     }
 
     public DirectTransfer getEntity(BigInteger file) throws IOException {

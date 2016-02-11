@@ -37,6 +37,22 @@ public class DhtClient {
         localPeer.getNeighbourState().addNeighbour(pred);
     }
 
+    private DhtComm connect(DoubleAddress server) throws ConnectionFailedException {
+        if (server.finger != null) {
+            server.fingerAlive = true;
+            try {
+                DhtComm comm = connect(server.finger);
+                if (comm != null)
+                    return comm;
+            } catch (ConnectionFailedException e) {
+                // we'll return the neighbour connect instead
+            }
+        }
+
+        server.fingerAlive = false;
+        return connect(server.neighbour);
+    }
+
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         if (server.equals(localPeer.localAddress)) return localPeer.getServer();
         if (PeerManager.allowLocalConnect &&
@@ -104,27 +120,40 @@ public class DhtClient {
             throws IOException {
         // navigate to the highest peer lower than the target
         if (debug) System.out.println("client lookup");
-        DhtPeerAddress start = localPeer.getNextLocalHop(target);
-        if (start.getHost().equals("localhost"))
-            return start;
+        DoubleAddress start = localPeer.getNextLocalHop(target);
+        if (start.neighbour.equals("localhost"))
+            return start.neighbour;
         else
             return doLookup(start, target);
     }
 
-    private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target)
-            throws IOException {
+    private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target) throws IOException {
+        return doLookup(new DoubleAddress(start, null), target);
+    }
+
+    private DhtPeerAddress doLookup(DoubleAddress start, BigInteger target) throws IOException {
         if (debug) System.out.println("client dolookup");
-        DhtPeerAddress nextHop = start, prevHop = null;
+        DoubleAddress nextHop = start, prevHop = null;
 
         do {
             prevHop = nextHop;
             DhtComm comm = connect(prevHop);
             nextHop = comm.nextHop(localPeer.localAddress, target);
-            nextHop.setRelative(localPeer.localAddress.getUserID());
-            if (nextHop.getHost().equals("localhost"))
-                nextHop.setHost(prevHop.getHost());
-        } while (!nextHop.equals(prevHop));
-        return nextHop;
+
+            // fix relatives and host names
+            DhtPeerAddress prevAddress = prevHop.fingerAlive ? prevHop.finger : prevHop.neighbour;
+            nextHop.neighbour.setRelative(localPeer.localAddress.getUserID());
+            if (nextHop.neighbour.getHost().equals("localhost"))
+                nextHop.neighbour.setHost(prevAddress.getHost());
+
+            if (nextHop.finger != null) {
+                nextHop.finger.setRelative(localPeer.localAddress.getUserID());
+                if (nextHop.finger.getHost().equals("localhost"))
+                    nextHop.finger.setHost(prevAddress.getHost());
+            }
+
+        } while (!nextHop.neighbour.equals(prevHop.neighbour));
+        return nextHop.neighbour;
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress peer)

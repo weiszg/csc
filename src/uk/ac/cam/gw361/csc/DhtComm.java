@@ -14,7 +14,8 @@ import java.util.Set;
  * Created by gellert on 01/11/2015.
  */
 public interface DhtComm extends Remote {
-    DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
+    int logKeySize = 160;  // 160-bit key sizes
+    DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
     Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException;

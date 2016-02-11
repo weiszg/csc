@@ -28,9 +28,10 @@ public class LocalDhtCommWrapper implements DhtComm {
             return new DhtFile(file);
     }
 
-    public DhtPeerAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
-        DhtPeerAddress result = comm.nextHop(source, target);
-        return new DhtPeerAddress(result);
+    public DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
+        DoubleAddress result = comm.nextHop(source, target);
+        return new DoubleAddress(new DhtPeerAddress(result.neighbour),
+                                new DhtPeerAddress(result.finger));
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException {
