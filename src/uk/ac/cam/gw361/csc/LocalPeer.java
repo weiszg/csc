@@ -89,18 +89,19 @@ public class LocalPeer {
     }
 
     public DoubleAddress getNextLocalHop(BigInteger target) {
+        DhtPeerAddress targetAddress =
+                new DhtPeerAddress(target, null, null, localAddress.getUserID());
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
 
-        DhtPeerAddress nextNeighbour = peers.floor(
-                new DhtPeerAddress(target, null, null, localAddress.getUserID()));
+        DhtPeerAddress nextNeighbour = peers.lower(
+                targetAddress);
         if (nextNeighbour == null) {
             nextNeighbour = peers.last();
         }
 
         peers = fingerState.getFingers();
-        DhtPeerAddress nextFinger = peers.floor(
-                new DhtPeerAddress(target, null, null, localAddress.getUserID()));
+        DhtPeerAddress nextFinger = peers.lower(targetAddress);
 
         return new DoubleAddress(nextNeighbour, nextFinger);
     }

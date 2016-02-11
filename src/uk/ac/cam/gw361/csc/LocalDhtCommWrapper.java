@@ -3,7 +3,6 @@ package uk.ac.cam.gw361.csc;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +30,7 @@ public class LocalDhtCommWrapper implements DhtComm {
     public DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException {
         DoubleAddress result = comm.nextHop(source, target);
         return new DoubleAddress(new DhtPeerAddress(result.neighbour),
-                                new DhtPeerAddress(result.finger));
+                ((result.finger==null) ? null : new DhtPeerAddress(result.finger)));
     }
 
     public NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException {

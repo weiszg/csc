@@ -7,7 +7,7 @@ import java.io.Serializable;
  */
 public class DoubleAddress implements Serializable {
     DhtPeerAddress neighbour, finger;
-    transient boolean fingerAlive = true;
+    transient boolean fingerAlive = false;
 
     DoubleAddress(DhtPeerAddress neighbour, DhtPeerAddress finger) {
         this.neighbour = neighbour;

@@ -3,7 +3,6 @@ package uk.ac.cam.gw361.csc;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.File;
 import java.math.BigInteger;
 import java.util.*;
 
@@ -15,7 +14,7 @@ public class DhtNeighbourTest {
     @Test
     public void testNeighbours() {
         NeighbourState.k = 5;
-        int peerCount = 5;
+        int peerCount = 1000;
         int startPort = 11000;
         int k = NeighbourState.k;
 

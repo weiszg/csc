@@ -15,6 +15,9 @@ import java.util.Set;
  */
 public interface DhtComm extends Remote {
     int logKeySize = 160;  // 160-bit key sizes
+
+    // gets next hop towards target such that the process converges to the biggest address
+    // that is strictly less than the target
     DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
     NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;

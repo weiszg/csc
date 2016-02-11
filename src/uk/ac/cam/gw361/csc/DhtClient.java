@@ -55,9 +55,13 @@ public class DhtClient {
 
     private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
         if (server.equals(localPeer.localAddress)) return localPeer.getServer();
-        if (PeerManager.allowLocalConnect &&
-                server.getUserID() != null && PeerManager.hasPeer(server))
-            return PeerManager.getServer(server);
+        if (PeerManager.allowLocalConnect) {
+            if (server.getUserID() != null && PeerManager.hasPeer(server))
+                return PeerManager.getServer(server);
+            if (server.getHost() != null && server.getHost().equals("localhost") &&
+                    PeerManager.hasPeer(server.getPort()))
+                 return PeerManager.getServer(server.getPort());
+        }
 
         Profiler profiler;
         if (debug)
@@ -121,7 +125,7 @@ public class DhtClient {
         // navigate to the highest peer lower than the target
         if (debug) System.out.println("client lookup");
         DoubleAddress start = localPeer.getNextLocalHop(target);
-        if (start.neighbour.equals("localhost"))
+        if (start.neighbour.getHost().equals("localhost"))
             return start.neighbour;
         else
             return doLookup(start, target);

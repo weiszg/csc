@@ -11,27 +11,38 @@ public class PeerManager {
     // if both the caller and the callee live
     static boolean allowLocalConnect = true;
 
-    private static Map<DhtPeerAddress, LocalPeer> peerLookup = new HashMap<>();
+    private static Map<DhtPeerAddress, LocalPeer> addressLookup = new HashMap<>();
+    private static Map<Integer, LocalPeer> portLookup = new HashMap<>();
 
     static LocalPeer spawnPeer(String userName, long stabiliseInterval) {
         LocalPeer localPeer = new LocalPeer(userName, stabiliseInterval);
-        peerLookup.put(localPeer.localAddress, localPeer);
+        addressLookup.put(localPeer.localAddress, localPeer);
+        portLookup.put(localPeer.localAddress.getPort(), localPeer);
         return localPeer;
     }
 
     static void removePeer(DhtPeerAddress address) {
-        peerLookup.remove(address);
+        addressLookup.remove(address);
+        portLookup.remove(address.getPort());
     }
 
     static boolean hasPeer(DhtPeerAddress address) {
-        return peerLookup.containsKey(address);
+        return addressLookup.containsKey(address);
+    }
+
+    static boolean hasPeer(Integer localPort) {
+        return portLookup.containsKey(localPort);
     }
 
     static LocalPeer getPeer(DhtPeerAddress address) {
-        return peerLookup.get(address);
+        return addressLookup.get(address);
     }
 
     static DhtComm getServer(DhtPeerAddress address) {
-        return new LocalDhtCommWrapper(peerLookup.get(address).getServer());
+        return new LocalDhtCommWrapper(addressLookup.get(address).getServer());
+    }
+
+    static DhtComm getServer(Integer localPort) {
+        return new LocalDhtCommWrapper(portLookup.get(localPort).getServer());
     }
 }
