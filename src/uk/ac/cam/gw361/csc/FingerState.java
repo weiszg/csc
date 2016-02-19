@@ -88,7 +88,7 @@ public class FingerState {
         // refresh oldestIndex
         try {
             DhtPeerAddress newFinger = localPeer.getClient().lookup(
-                    fingerAddress[oldestIndex].getUserID(), debug);
+                    fingerAddress[oldestIndex].getUserID(), debug, null);
             newFinger.setRelative(me);
 
             if (localPeer.localAddress.equals(newFinger))

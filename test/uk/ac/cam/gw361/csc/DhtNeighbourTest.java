@@ -4,6 +4,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.*;
 
@@ -69,6 +70,9 @@ public class DhtNeighbourTest {
 
     @Test
     public void testFingers() {
+        // before fingers are ready do a measurement
+        measureHopCount("hopcount_nofinger_equilibrium.csv");
+
         for (int i = 0; i < peerCount; i++) {
             DhtPeerAddress checkedAddress = sortedAddresses.get(i);
             LocalPeer checkedPeer = PeerManager.getPeer(checkedAddress);
@@ -110,5 +114,23 @@ public class DhtNeighbourTest {
             checkedAddress.print(System.out, "");
             checkedPeer.getFingerState().print(System.out, "");
         }
+
+        // now that fingers are all set up, do a measurement
+        measureHopCount("hopcount_finger_equilibrium.csv");
+    }
+
+    void measureHopCount(String file) {
+        HopCountReporter reporter = new HopCountReporter(file);
+        for (DhtPeerAddress a : addresses) {
+            for (DhtPeerAddress b : addresses) {
+                // measure hop count from A to B
+                try {
+                    PeerManager.getPeer(a).getClient().lookup(b.getUserID(), false, reporter);
+                } catch (IOException e) {
+                    System.out.println("hopcount measure error: " + e.toString());
+                }
+            }
+        }
+        reporter.stop();
     }
 }
