@@ -75,7 +75,7 @@ class CommandReader extends Thread {
     private static LocalPeer localPeer;
 
     public CommandReader(LocalPeer localPeer) {
-        this.localPeer = localPeer;
+        CommandReader.localPeer = localPeer;
     }
 
     public void run() {

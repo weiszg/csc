@@ -33,7 +33,8 @@ public class DhtClient {
             host = host.split(":")[0];
         }
         DhtPeerAddress pred = doLookup(new DhtPeerAddress(null, host, port,
-                        localPeer.localAddress.getUserID()), localPeer.localAddress.getUserID());
+                        localPeer.localAddress.getUserID()),
+                localPeer.localAddress.getUserID(), false);
         localPeer.getNeighbourState().addNeighbour(pred);
     }
 
@@ -120,26 +121,35 @@ public class DhtClient {
         }
     }
 
-    public DhtPeerAddress lookup(final BigInteger target)
+    public DhtPeerAddress lookup(final BigInteger target) throws IOException {
+        return lookup(target, false);
+    }
+
+    public DhtPeerAddress lookup(final BigInteger target, boolean trace)
             throws IOException {
         // navigate to the highest peer lower than the target
         if (debug) System.out.println("client lookup");
+        if (trace) System.out.println("lookup to " + target.toString());
         DoubleAddress start = localPeer.getNextLocalHop(target);
-        if (start.neighbour.getHost().equals("localhost"))
-            return start.neighbour;
-        else
-            return doLookup(start, target);
+        if (trace)
+            start.print(System.out, "start: ");
+
+        return doLookup(start, target, trace);
     }
 
-    private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target) throws IOException {
-        return doLookup(new DoubleAddress(start, null), target);
+    private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target, boolean trace)
+            throws IOException {
+        return doLookup(new DoubleAddress(start, null), target, trace);
     }
 
-    private DhtPeerAddress doLookup(DoubleAddress start, BigInteger target) throws IOException {
+    private DhtPeerAddress doLookup(DoubleAddress start, BigInteger target, boolean trace)
+            throws IOException {
         if (debug) System.out.println("client dolookup");
         DoubleAddress nextHop = start, prevHop = null;
+        int hop = 0;
 
         do {
+            hop++;
             prevHop = nextHop;
             DhtComm comm = connect(prevHop);
             nextHop = comm.nextHop(localPeer.localAddress, target);
@@ -156,6 +166,7 @@ public class DhtClient {
                     nextHop.finger.setHost(prevAddress.getHost());
             }
 
+            if (trace) nextHop.print(System.out, "hop " + hop + ": ");
         } while (!nextHop.neighbour.equals(prevHop.neighbour));
         return nextHop.neighbour;
     }

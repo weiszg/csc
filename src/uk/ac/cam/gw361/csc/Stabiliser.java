@@ -132,6 +132,8 @@ public class Stabiliser extends Thread {
 
         localPeer.setNeighbourState(newState);
         lastStabilised = System.nanoTime() / 1000000;
+        if (debug) System.out.println("Updating fingers");
+        localPeer.getFingerState().update();
         if (debug) System.out.println("Set new state");
         migrateResponsibilities(failingPeers);
         if (debug) System.out.println("Migrated responsibilities");

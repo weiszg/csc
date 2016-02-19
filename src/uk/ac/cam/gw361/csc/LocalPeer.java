@@ -29,6 +29,7 @@ public class LocalPeer {
     private FingerState fingerState;
     private NeighbourState neighbourState;
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
+    public synchronized FingerState getFingerState() { return fingerState; }
     public synchronized void setNeighbourState(NeighbourState newState) {
         neighbourState = newState;
     }
@@ -94,14 +95,16 @@ public class LocalPeer {
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
         peers.add(localAddress);
 
-        DhtPeerAddress nextNeighbour = peers.lower(
-                targetAddress);
+        DhtPeerAddress nextNeighbour = peers.lower(targetAddress);
         if (nextNeighbour == null) {
             nextNeighbour = peers.last();
         }
 
         peers = fingerState.getFingers();
         DhtPeerAddress nextFinger = peers.lower(targetAddress);
+        // check if this is any better than the neighbour information
+        if (nextFinger != null && nextNeighbour.compareTo(nextFinger) > 0)
+            nextFinger = null;
 
         return new DoubleAddress(nextNeighbour, nextFinger);
     }
@@ -216,6 +219,8 @@ public class LocalPeer {
         try {
             if (input.equals("nb")) {
                 getNeighbourState().print(printStream, "");
+            } else if (input.equals("fingers")) {
+                getFingerState().print(printStream, "");
             } else if (input.equals("files")) {
                 getDhtStore().print(printStream, "");
             } else if (input.equals("stabilise")) {
