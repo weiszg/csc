@@ -102,8 +102,7 @@ public class LocalPeer {
 
         peers = fingerState.getFingers();
         DhtPeerAddress nextFinger = peers.lower(targetAddress);
-        if (nextFinger==null)
-            fingerState.print(System.out, "");
+
         // check if this is any better than the neighbour information
         if (nextFinger != null && nextNeighbour.compareTo(nextFinger) > 0)
             nextFinger = null;

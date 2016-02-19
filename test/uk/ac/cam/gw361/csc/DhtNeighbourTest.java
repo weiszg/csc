@@ -20,7 +20,7 @@ public class DhtNeighbourTest {
 
     @BeforeClass
     public static void setUpBeforeClass() {
-        NeighbourState.k = 5;
+        NeighbourState.k = 3;
         k = NeighbourState.k;
         addresses = new TreeSet<>();
 
@@ -87,11 +87,12 @@ public class DhtNeighbourTest {
             }
 
             for (int j=0; j<DhtComm.logKeySize; j++) {
-                BigInteger fingerID = checkedAddress.getUserID().subtract(
+                BigInteger fingerID = checkedAddress.getUserID().add(
                         new BigInteger("2").pow(j));
                 DhtPeerAddress fingerAddress = new DhtPeerAddress(fingerID, null, null,
                         checkedAddress.getUserID());
 
+                // check if we agree in what the definition of the finger is
                 if (!fingerAddress.equals(
                         checkedPeer.getFingerState().fingerAddress[j])) {
                     System.err.println("Expected: " + fingerAddress.getUserID().toString());
@@ -102,13 +103,18 @@ public class DhtNeighbourTest {
                         checkedPeer.getFingerState().fingerAddress[j]));
 
                 DhtPeerAddress actualFinger = relativeAddresses.lower(fingerAddress);
-                if (!actualFinger.equals(checkedFingers[j])) {
-                    System.err.println("Expected: " + actualFinger.getUserID().toString());
-                    System.err.println("     got: " + ((checkedFingers[j] == null) ? "null" :
-                            checkedFingers[j].getUserID().toString()));
-                }
+                // if finger is useless it is expected to be null
+                if (actualFinger.equals(checkedAddress))
+                    Assert.assertTrue(checkedFingers[j] == null);
+                else {
+                    if (!actualFinger.equals(checkedFingers[j])) {
+                        System.err.println("Expected: " + actualFinger.getUserID().toString());
+                        System.err.println("     got: " + ((checkedFingers[j] == null) ? "null" :
+                                checkedFingers[j].getUserID().toString()));
+                    }
 
-                Assert.assertTrue(actualFinger.equals(checkedFingers[j]));
+                    Assert.assertTrue(actualFinger.equals(checkedFingers[j]));
+                }
             }
 
             checkedAddress.print(System.out, "");

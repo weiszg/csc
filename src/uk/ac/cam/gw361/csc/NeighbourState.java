@@ -49,6 +49,10 @@ public class NeighbourState implements Serializable {
         return ret;
     }
 
+    public synchronized DhtPeerAddress getImmediateSuccessor() {
+        return successors.first();
+    }
+
     public synchronized TreeSet<DhtPeerAddress> getNeighbours() {
         TreeSet<DhtPeerAddress> peers = new TreeSet<>();
         for (DhtPeerAddress peer : predecessors) {

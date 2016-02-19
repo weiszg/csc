@@ -21,7 +21,7 @@ public class FingerState {
         this.localPeer = localPeer;
         me = localPeer.localAddress.getUserID();
         for (int i=0; i<fingerAddress.length; i++) {
-            BigInteger address = me.subtract(new BigInteger("2").pow(i));
+            BigInteger address = me.add(new BigInteger("2").pow(i));
             fingerAddress[i] = new DhtPeerAddress(address, null, null, me);
             age[i] = 1;
         }
@@ -57,7 +57,7 @@ public class FingerState {
                 System.out.println("done=" + i + ", nulls=" + countNulls() +
                         ", ages=" + countAges());
         }
-        if (countNulls() > 0)
+        if (countAges() > 0)
             System.err.println("Fingers still out of date after updateAll");
     }
 
@@ -72,10 +72,28 @@ public class FingerState {
         //if (localPeer.userName.equals("9"))
         //    debug = true;
 
+        // determine lowest useful finger
+        DhtPeerAddress successor = localPeer.getNeighbourState().getImmediateSuccessor();
+        if (successor == null)
+            // neighbours not ready yet
+            return;
+
+        int lowestUsefulIndex = DhtComm.logKeySize;
+        for (int i=0; i<fingerAddress.length; i++) {
+            if (successor.compareTo(fingerAddress[i]) >= 0) {
+                // finger i is useless
+                finger[i] = null;
+                age[i] = 0;
+            } else {
+                lowestUsefulIndex = i;
+                break;
+            }
+        }
+
         int maxAge = -1;
         int oldestIndex = -1;
 
-        for (int i=0; i<age.length; i++) {
+        for (int i=lowestUsefulIndex; i<age.length; i++) {
             if (age[i] > maxAge) {
                 maxAge = age[i];
                 oldestIndex = i;
@@ -98,37 +116,11 @@ public class FingerState {
 
             synchronized (this) {
                 if (newFinger != null) {
-                    newFinger.setRelative(me);
-                    if (finger[oldestIndex] != null && !finger[oldestIndex].equals(newFinger)) {
-                        // we change the old finger to something different
-                        // delete the old finger from any subsequent entry
-                        for (int i = oldestIndex + 1; i < finger.length; i++) {
-                            if (finger[oldestIndex].equals(finger[i]) && age[i] > 0) {
-                                if (debug)
-                                    System.out.println("nulling " + i);
-                                finger[i] = null;
-                                age[i]++;  // make sure this will not be up to date
-                            } else {
-                                // only delete one batch
-                                break;
-                            }
-                        }
-                    }
-
                     // update oldest finger to lookup value
                     if (debug) System.out.println("index " + oldestIndex + " update: " +
                             newFinger.getUserID().toString());
                     finger[oldestIndex] = newFinger;
                     age[oldestIndex] = 0;
-
-                    // see if this is a valid finger for any subsequent entry;
-                    for (int i = oldestIndex + 1; i < finger.length; i++) {
-                        if (newFinger.compareTo(fingerAddress[i]) <= 0) {
-                            finger[i] = newFinger;
-                            age[i]=0;
-                            if (debug) System.out.println("new finger also " + i + "th finger");
-                        }
-                    }
                 }
             }
         } catch (IOException e) {
