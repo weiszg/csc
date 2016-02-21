@@ -1,4 +1,6 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.storage;
+
+import uk.ac.cam.gw361.csc.dht.SignedFileList;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -17,27 +19,27 @@ public class FileList implements Serializable {
 
     private static final boolean debug = false;
 
-    synchronized long getLastModified() {
+    public synchronized long getLastModified() {
         return lastModified;
     }
 
-    synchronized void put(String fileName, BigInteger hash) {
+    public synchronized void put(String fileName, BigInteger hash) {
         files.put(fileName, hash);
         lastModified = System.currentTimeMillis() / 1000;
     }
 
-    synchronized List<String> getFileList() {
+    public synchronized List<String> getFileList() {
         List<String> result = new LinkedList<>();
         for (String file : files.keySet())
             result.add(file);
         return result;
     }
 
-    synchronized BigInteger get(String file) {
+    public synchronized BigInteger get(String file) {
         return files.get(file);
     }
 
-    static boolean checkTimestamp(String file, Long timestamp) {
+    public static boolean checkTimestamp(String file, Long timestamp) {
         // check whether the public timestamp of a signed file equals to the provided timestamp
         // for downloads we accept any timestamp by setting timestamp to null
         if (timestamp == null) return true;
@@ -63,7 +65,7 @@ public class FileList implements Serializable {
         else throw new IOException("File format isn't SignedFileList");
     }
 
-    static FileList load(String file, PublicKey publicKey) {
+    public static FileList load(String file, PublicKey publicKey) {
         try {
             ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
             Object myobj = ois.readObject();
@@ -78,7 +80,7 @@ public class FileList implements Serializable {
         }
     }
 
-    static FileList loadOrCreate(String file, PublicKey publicKey) {
+    public static FileList loadOrCreate(String file, PublicKey publicKey) {
         FileList fileList = load(file, publicKey);
         if (fileList == null) {
             System.out.println("Creating empty file list");
@@ -86,7 +88,7 @@ public class FileList implements Serializable {
         } else return fileList;
     }
 
-    static KeyPair initKeys(String keyPath) {
+    public static KeyPair initKeys(String keyPath) {
         // load previously saved keypair or create a new keypair
         try {
             ObjectInputStream ois = new ObjectInputStream(new FileInputStream(keyPath
@@ -138,7 +140,7 @@ public class FileList implements Serializable {
         }
     }
 
-    SignedFileList getSignedVersion(PrivateKey privateKey) throws IOException {
+    public SignedFileList getSignedVersion(PrivateKey privateKey) throws IOException {
         Signature dsa;
         try {
             dsa = Signature.getInstance("SHA1withDSA", "SUN");
@@ -181,21 +183,6 @@ public class FileList implements Serializable {
     }
 }
 
-class SignedFileList implements Serializable {
-    // This is a wrapper for SignedObject that also includes a timestamp of when the FileList
-    // has last been modified.
-
-    private SignedObject signedObject;
-    private long lastModified;
-
-    SignedFileList(SignedObject signedObject, long lastModified) {
-        this.signedObject = signedObject;
-        this.lastModified = lastModified;
-    }
-
-    SignedObject getSignedObject() { return signedObject; }
-    long getLastModified() { return lastModified; }
-}
 
 class SignatureMismatchException extends Exception {
 

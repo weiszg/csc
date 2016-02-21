@@ -2,6 +2,10 @@ package uk.ac.cam.gw361.csc;
 
 import org.junit.Assert;
 import org.junit.Test;
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
+import uk.ac.cam.gw361.csc.dht.NeighbourState;
+import uk.ac.cam.gw361.csc.dht.PeerManager;
 
 import java.io.*;
 import java.util.*;

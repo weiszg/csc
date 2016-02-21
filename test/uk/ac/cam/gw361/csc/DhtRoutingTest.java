@@ -3,6 +3,8 @@ package uk.ac.cam.gw361.csc;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import uk.ac.cam.gw361.csc.analysis.HopCountReporter;
+import uk.ac.cam.gw361.csc.dht.*;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -11,7 +13,7 @@ import java.util.*;
 /**
  * Created by gellert on 08/11/2015.
  */
-public class DhtNeighbourTest {
+public class DhtRoutingTest {
     static int peerCount = 200;
     static int startPort = 10000;
     static int k;
@@ -20,7 +22,7 @@ public class DhtNeighbourTest {
 
     @BeforeClass
     public static void setUpBeforeClass() {
-        NeighbourState.k = 3;
+        NeighbourState.k = 5;
         k = NeighbourState.k;
         addresses = new TreeSet<>();
 
@@ -86,7 +88,7 @@ public class DhtNeighbourTest {
                         a.getUserID(), a.getHost(), a.getPort(), checkedAddress.getUserID()));
             }
 
-            for (int j=0; j<DhtComm.logKeySize; j++) {
+            for (int j=0; j< DhtComm.logKeySize; j++) {
                 BigInteger fingerID = checkedAddress.getUserID().add(
                         new BigInteger("2").pow(j));
                 DhtPeerAddress fingerAddress = new DhtPeerAddress(fingerID, null, null,

@@ -1,8 +1,12 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.analysis;
 
 /**
  * Created by gellert on 17/12/2015.
  */
+
+import uk.ac.cam.gw361.csc.dht.DhtClient;
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.PeerManager;
 
 import java.io.File;
 import java.io.IOException;

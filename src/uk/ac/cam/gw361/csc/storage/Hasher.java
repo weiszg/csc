@@ -1,4 +1,4 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.storage;
 
 import java.io.*;
 import java.math.BigInteger;

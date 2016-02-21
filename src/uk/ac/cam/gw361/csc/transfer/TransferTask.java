@@ -1,4 +1,8 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.transfer;
+
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
 
 import java.io.IOException;
 import java.math.BigInteger;

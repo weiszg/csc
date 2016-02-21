@@ -1,4 +1,7 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.storage;
+
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -189,49 +192,5 @@ public class DhtStore {
                 out.print("SIGNED  ");
             out.println(dhtFile.lastQueried.toString());
         }
-    }
-}
-
-class DhtFile implements Serializable {
-    BigInteger hash;
-    Long size;
-    DhtPeerAddress owner;
-    transient Date lastQueried;
-
-    DhtFile(BigInteger hash, Long size, DhtPeerAddress owner) {
-        this.hash = hash;
-        this.size = size;
-        this.owner = owner;
-        this.lastQueried = new Date();
-    }
-
-    DhtFile(DhtFile toCopy) {
-        this.hash = toCopy.hash;
-        this.size = toCopy.size;
-        this.owner = toCopy.owner;
-        this.lastQueried = toCopy.lastQueried;
-    }
-
-    boolean checkHash(BigInteger expectedHash) {
-        return (expectedHash != null && hash.equals(expectedHash));
-    }
-}
-
-class SignedFile extends DhtFile {
-    Long timestamp;
-
-    SignedFile(BigInteger hash, Long size, DhtPeerAddress owner, Long timestamp) {
-        super(hash, size, owner);
-        this.timestamp = timestamp;
-    }
-
-    SignedFile(SignedFile toCopy) {
-        super(toCopy);
-        this.timestamp = toCopy.timestamp;
-    }
-
-    boolean checkHash(BigInteger expectedHash) {
-        // signed files always pass the hash check - they aren't hash addressed
-        return true;
     }
 }

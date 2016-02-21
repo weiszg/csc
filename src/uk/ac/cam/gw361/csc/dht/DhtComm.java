@@ -1,14 +1,12 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
 
-import java.io.IOError;
+import uk.ac.cam.gw361.csc.storage.DhtFile;
 import java.io.IOException;
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Created by gellert on 01/11/2015.

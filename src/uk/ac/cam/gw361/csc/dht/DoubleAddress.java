@@ -1,4 +1,6 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
+
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
 
 import java.io.PrintStream;
 import java.io.Serializable;

@@ -1,5 +1,9 @@
 package uk.ac.cam.gw361.csc;
 
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
+import uk.ac.cam.gw361.csc.dht.PeerManager;
+import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
+
 import java.io.IOException;
 import java.rmi.server.RMISocketFactory;
 import java.util.Scanner;

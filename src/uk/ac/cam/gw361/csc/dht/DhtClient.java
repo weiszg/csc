@@ -1,4 +1,13 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
+
+import uk.ac.cam.gw361.csc.analysis.HopCountReporter;
+import uk.ac.cam.gw361.csc.analysis.Profiler;
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.storage.Hasher;
+import uk.ac.cam.gw361.csc.storage.SignedFile;
+import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
+import uk.ac.cam.gw361.csc.transfer.FileUploadContinuation;
+import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -249,7 +258,7 @@ public class DhtClient {
         return ft;
     }
 
-    DirectTransfer upload(DhtPeerAddress target, BigInteger file,
+    public DirectTransfer upload(DhtPeerAddress target, BigInteger file,
                               TransferContinuation continuation) throws IOException {
         if (!localPeer.getDhtStore().containsFile(file))
             throw new IOException("File not found");
@@ -261,7 +270,7 @@ public class DhtClient {
         return ft;
     }
 
-    DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    public DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         BigInteger fileHash = Hasher.hashFile(name);
         File file = new File(name);
         if (!file.exists())
@@ -344,20 +353,3 @@ class ConnectionFailedException extends IOException {
 class PeerNotStableException extends RemoteException {
 }
 
-class TimedRMISocketFactory extends RMISocketFactory {
-    int timeout = 1000;
-    public Socket createSocket(String host, int port) throws IOException
-    {
-        Socket socket = new Socket();
-        socket.setSoTimeout(timeout);
-        socket.setSoLinger(true, timeout) ;
-        socket.connect( new InetSocketAddress(host, port), timeout);
-        return socket;
-    }
-
-    public ServerSocket createServerSocket(int port)
-            throws IOException
-    {
-        return new ServerSocket(port);
-    }
-}

@@ -1,4 +1,7 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
+
+import uk.ac.cam.gw361.csc.storage.*;
+import uk.ac.cam.gw361.csc.transfer.*;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -12,10 +15,10 @@ import java.util.*;
  */
 
 public class LocalPeer {
-    final String userName;
+    public final String userName;
     final String fileListPath;
     private final BigInteger userID;
-    final DhtPeerAddress localAddress;
+    public final DhtPeerAddress localAddress;
     private DhtServer dhtServer;
     private DhtClient dhtClient;
     private Stabiliser stabiliser;
@@ -37,7 +40,7 @@ public class LocalPeer {
 
     private PrivateKey privateKey;
     PublicKey publicKey;
-    FileList fileList;
+    public FileList fileList;
     private FileList lastQueriedFileList;
 
     public LocalPeer(String userName, long stabiliseInterval) {
@@ -183,10 +186,10 @@ public class LocalPeer {
         }
     }
 
-    synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
+    public synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
     }
 
-    synchronized String saveFileList() {
+    public synchronized String saveFileList() {
         try {
             SignedFileList sf = fileList.getSignedVersion(privateKey);
             ObjectOutputStream ous = new ObjectOutputStream(
@@ -200,14 +203,14 @@ public class LocalPeer {
         return fileListPath;
     }
 
-    synchronized void setLastQueriedFileList(FileList fileList) {
+    public synchronized void setLastQueriedFileList(FileList fileList) {
         lastQueriedFileList = fileList;
         System.out.println("Files:");
         for (String file : fileList.getFileList())
             System.out.println("   " + file);
     }
 
-    void disconnect() {
+    public void disconnect() {
         PeerManager.removePeer(localAddress);
         dhtServer.stopServer();
         stabiliser.disconnect();

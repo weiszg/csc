@@ -1,8 +1,7 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.analysis;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigInteger;
 
@@ -32,34 +31,16 @@ public abstract class Reporter {
         out.println("");
     }
 
-    void start() {
+    public void start() {
         active = true;
     }
 
-    void stop() {
+    public void stop() {
         active = false;
         flush();
     }
 
     void flush() {
         out.flush();
-    }
-}
-
-class HopCountReporter extends Reporter {
-    HopCountReporter(String file) {
-        super(file);
-        active = true;
-        report(new String[]{"from", "to", "result", "hops", "fingers used"});
-    }
-
-    void report(BigInteger from, BigInteger to, BigInteger result,
-                Integer hops, Integer fingerUsed) {
-        if (!active)
-            return;
-
-        String[] args = new String[]{from.toString(), to.toString(), result.toString(),
-                hops.toString(), fingerUsed.toString()};
-        report(args);
     }
 }

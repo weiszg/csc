@@ -1,4 +1,9 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
+
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
+import uk.ac.cam.gw361.csc.transfer.InternalDownloadContinuation;
+import uk.ac.cam.gw361.csc.transfer.InternalUploadContinuation;
 
 import java.io.*;
 import java.math.BigInteger;

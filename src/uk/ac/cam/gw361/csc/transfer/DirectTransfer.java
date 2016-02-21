@@ -1,4 +1,10 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.transfer;
+
+import uk.ac.cam.gw361.csc.storage.FileList;
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
+import uk.ac.cam.gw361.csc.storage.SignedFile;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -121,11 +127,11 @@ public class DirectTransfer extends Thread {
         }
     }
 
-    synchronized  void stopTransfer(boolean success) {
+    synchronized public void stopTransfer(boolean success) {
         stopTransfer(success, true);
     }
 
-    synchronized void stopTransfer(boolean success, boolean callContinuation) {
+    synchronized public void stopTransfer(boolean success, boolean callContinuation) {
         // called internally when the transfer has naturally finished
         // or externally to stop transfer either because the target we upload to has the
         // file already (success) or we are out of range (failure)

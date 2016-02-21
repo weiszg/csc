@@ -1,4 +1,4 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.analysis;
 
 /**
  * Created by gellert on 11/01/2016.
@@ -8,13 +8,13 @@ public class Profiler {
     private String moduleName;
     private long criticalTimeLength;
 
-    Profiler(String moduleName, long criticalTimeLength) {
+    public Profiler(String moduleName, long criticalTimeLength) {
         this.moduleName = moduleName;
         this.criticalTimeLength = criticalTimeLength;
         startTime = System.nanoTime();
     }
 
-    void end() {
+    public void end() {
         long endTime = System.nanoTime();
         long elapsedTime = (endTime - startTime) / 1000000;
         String msg = "Profiling: module " + moduleName + " executed for " + elapsedTime + " ms";

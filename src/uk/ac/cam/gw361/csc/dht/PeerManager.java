@@ -1,4 +1,9 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
+
+import uk.ac.cam.gw361.csc.dht.DhtComm;
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.LocalDhtCommWrapper;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,12 +14,12 @@ import java.util.Map;
 public class PeerManager {
     // localConnect defines whether peers are connected by normal function calls and without RMI
     // if both the caller and the callee live
-    static boolean allowLocalConnect = true;
+    static public boolean allowLocalConnect = true;
 
     private static Map<DhtPeerAddress, LocalPeer> addressLookup = new HashMap<>();
     private static Map<Integer, LocalPeer> portLookup = new HashMap<>();
 
-    static LocalPeer spawnPeer(String userName, long stabiliseInterval) {
+    public static LocalPeer spawnPeer(String userName, long stabiliseInterval) {
         LocalPeer localPeer = new LocalPeer(userName, stabiliseInterval);
         addressLookup.put(localPeer.localAddress, localPeer);
         portLookup.put(localPeer.localAddress.getPort(), localPeer);
@@ -34,7 +39,7 @@ public class PeerManager {
         return portLookup.containsKey(localPort);
     }
 
-    static LocalPeer getPeer(DhtPeerAddress address) {
+    static public LocalPeer getPeer(DhtPeerAddress address) {
         return addressLookup.get(address);
     }
 

@@ -1,4 +1,4 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.dht;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -14,8 +14,8 @@ public class FingerState {
     private LocalPeer localPeer;
     private BigInteger me;
     private int[] age = new int[DhtComm.logKeySize];
-    DhtPeerAddress[] finger = new DhtPeerAddress[DhtComm.logKeySize];
-    final DhtPeerAddress[] fingerAddress = new DhtPeerAddress[DhtComm.logKeySize];
+    public DhtPeerAddress[] finger = new DhtPeerAddress[DhtComm.logKeySize];
+    public final DhtPeerAddress[] fingerAddress = new DhtPeerAddress[DhtComm.logKeySize];
 
     FingerState(LocalPeer localPeer) {
         this.localPeer = localPeer;
@@ -48,7 +48,7 @@ public class FingerState {
             age[i]++;
     }
 
-    synchronized void updateAll() {
+    public synchronized void updateAll() {
         doAge();
 
         for (int i=0; i<DhtComm.logKeySize; i++) {

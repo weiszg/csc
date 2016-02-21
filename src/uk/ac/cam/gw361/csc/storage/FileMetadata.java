@@ -1,4 +1,4 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.storage;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -8,14 +8,14 @@ import java.util.TreeMap;
 /**
  * Created by gellert on 13/12/2015.
  */
-public class FileMetadata implements CscData, Serializable {
-    static final int blockSize = 1024*1024;
+public class FileMetadata implements Serializable {
+    public static final int blockSize = 1024*1024;
     private ArrayList<BigInteger> hashes;
     public final long length;
     public final int blocks;
     final String fileName;
 
-    FileMetadata(String filePath, String fileName) throws IOException {
+    public FileMetadata(String filePath, String fileName) throws IOException {
         this.fileName = fileName;
         File f = new File(filePath);
         length = f.length();

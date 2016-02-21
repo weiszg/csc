@@ -1,4 +1,9 @@
-package uk.ac.cam.gw361.csc;
+package uk.ac.cam.gw361.csc.transfer;
+
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
+import uk.ac.cam.gw361.csc.storage.SignedFile;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -12,11 +17,11 @@ public class TransferManager {
     // In particular, a TransferTask can repeat the entire task by calling execute.
 
     LocalPeer localPeer;
-    TransferManager(LocalPeer localPeer) {
+    public TransferManager(LocalPeer localPeer) {
         this.localPeer = localPeer;
     }
 
-    DirectTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
+    public DirectTransfer download(String fileName, BigInteger fileHash, boolean hashCheck,
                          TransferContinuation continuation, boolean retry) throws IOException {
         DhtFile toDownload;
         if (hashCheck)
@@ -29,13 +34,13 @@ public class TransferManager {
         return task.execute();
     }
 
-    DirectTransfer upload(DhtPeerAddress target, BigInteger file,
+    public DirectTransfer upload(DhtPeerAddress target, BigInteger file,
                        TransferContinuation continuation, boolean retry) throws IOException {
         TransferTask task = new UploadTask(localPeer, target, file, continuation, retry);
         return task.execute();
     }
 
-    DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    public DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
         TransferTask task = new NamedUploadTask(localPeer, name, continuation);
         return task.execute();
     }
