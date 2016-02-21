@@ -18,7 +18,6 @@ public class LocalDhtCommWrapper implements DhtComm {
     // PeerManager.allowLocalConnect. Otherwise eg calling setRelative on the return
     // DhtPeerAddress would modify the state of the server
     private DhtComm comm;
-
     LocalDhtCommWrapper(DhtComm comm) {
         this.comm = comm;
     }

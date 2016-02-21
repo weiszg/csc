@@ -20,11 +20,13 @@ public class NeighbourState implements Serializable {
 
     NeighbourState(NeighbourState toCopy) {
         // copy constructor
-        for (DhtPeerAddress peer : toCopy.successors)
-            successors.add(new DhtPeerAddress(peer));
+        synchronized (toCopy) {
+            for (DhtPeerAddress peer : toCopy.successors)
+                successors.add(new DhtPeerAddress(peer));
 
-        for (DhtPeerAddress peer : toCopy.predecessors)
-            predecessors.add(new DhtPeerAddress(peer));
+            for (DhtPeerAddress peer : toCopy.predecessors)
+                predecessors.add(new DhtPeerAddress(peer));
+        }
     }
 
     synchronized void setLocalAddress(DhtPeerAddress localAddress) {
@@ -48,7 +50,7 @@ public class NeighbourState implements Serializable {
     }
 
     public synchronized DhtPeerAddress getImmediateSuccessor() {
-        return successors.first();
+        return (successors.isEmpty() ? null : successors.first());
     }
 
     public synchronized TreeSet<DhtPeerAddress> getNeighbours() {
