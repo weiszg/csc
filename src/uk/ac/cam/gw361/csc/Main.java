@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc;
 
 import uk.ac.cam.gw361.csc.dht.LocalPeer;
 import uk.ac.cam.gw361.csc.dht.PeerManager;
+import uk.ac.cam.gw361.csc.dht.ProxiedConnector;
 import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
 
 import java.io.IOException;
@@ -13,6 +14,22 @@ import java.util.Scanner;
  */
 public class Main {
     public static void main(String[] args) {
+        // set proxy latency and bandwidth
+        PeerManager.setConnector(new ProxiedConnector(0, 100000));
+
+        manualStart(args);
+
+        /*Proxy proxy = new Proxy(8000, "192.30.252.129", 80, 0, 0, 1000000);
+        while (true) {
+            System.out.println("Rx: " + proxy.getInSpeed() + ", Tx: " + proxy.getOutSpeed() +
+                    ", on:" + proxy.isAlive());
+            try { Thread.sleep(1000); }
+            catch (InterruptedException e) { }
+        }*/
+        // normally: manualStart(args);
+    }
+
+    private static void manualStart(String[] args) {
         System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
@@ -58,7 +75,6 @@ public class Main {
 
         Thread commandReader = new CommandReader(localPeer);
         commandReader.start();
-
     }
 
     public static void debug1() {

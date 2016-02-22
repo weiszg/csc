@@ -18,12 +18,20 @@ public class PeerManager {
 
     private static Map<DhtPeerAddress, LocalPeer> addressLookup = new HashMap<>();
     private static Map<Integer, LocalPeer> portLookup = new HashMap<>();
+    private static Connector connector = null;
 
     public static LocalPeer spawnPeer(String userName, long stabiliseInterval) {
         LocalPeer localPeer = new LocalPeer(userName, stabiliseInterval);
         addressLookup.put(localPeer.localAddress, localPeer);
         portLookup.put(localPeer.localAddress.getPort(), localPeer);
         return localPeer;
+    }
+
+    public static synchronized void setConnector(Connector newConnector) {
+        connector = newConnector;
+    }
+    public static synchronized Connector getConnector() {
+        return connector;
     }
 
     static void removePeer(DhtPeerAddress address) {

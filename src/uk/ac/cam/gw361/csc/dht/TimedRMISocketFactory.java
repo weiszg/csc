@@ -15,8 +15,9 @@ public class TimedRMISocketFactory extends RMISocketFactory {
     {
         Socket socket = new Socket();
         socket.setSoTimeout(timeout);
-        socket.setSoLinger(true, timeout) ;
-        socket.connect( new InetSocketAddress(host, port), timeout);
+        socket.setSoLinger(true, timeout);
+        // use PeerManager's connector to allow proxies
+        PeerManager.getConnector().connect(socket, new InetSocketAddress(host, port), timeout);
         return socket;
     }
 
