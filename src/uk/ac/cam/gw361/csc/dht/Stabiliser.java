@@ -144,7 +144,9 @@ public class Stabiliser extends Thread {
         stabiliseReplicas();
         if (debug) System.out.println("Stabilised replicas");
         localPeer.getDhtStore().vacuum();
-        if (debug) System.out.println("Vacuumed");
+        if (debug) System.out.println("Vacuumed DhtStore");
+        localPeer.getClient().vacuumConnectionCace();
+        if (debug) System.out.println("Vacuumed connection cache");
 
         if (debug) System.out.println("stabilised");
     }

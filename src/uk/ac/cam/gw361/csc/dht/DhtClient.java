@@ -19,6 +19,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +30,8 @@ public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
     private Map<DhtPeerAddress, DhtComm> connections = new HashMap<>();
+    private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
+    private long cacheTime = 10000;  // how long to cache connections
 
     public DhtClient(LocalPeer localPeer) {
         this.localPeer = localPeer;
@@ -93,8 +96,10 @@ public class DhtClient {
         // cache lookup has to be synchronised
         DhtComm cached = null;
         synchronized (connections) {
-            if (server.getUserID() != null && connections.containsKey(server))
+            if (server.getUserID() != null && connections.containsKey(server)) {
                 cached = connections.get(server);
+                lastUsed.put(server, System.currentTimeMillis());
+            }
         }
 
         if (cached != null) {
@@ -108,6 +113,7 @@ public class DhtClient {
                 return cached;
             } catch (RemoteException e) {
                 connections.remove(server);
+                lastUsed.remove(server);
             }
         }
 
@@ -118,10 +124,12 @@ public class DhtClient {
                     && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
                 throw new ConnectionFailedException("UserID mismatch");
 
-            // cache the connection synchronously
-            synchronized (this) {
-                if (server.getUserID() != null)
+            // cache the connection
+            synchronized (connections) {
+                if (server.getUserID() != null) {
                     connections.put(server, ret);
+                    lastUsed.put(server, System.currentTimeMillis());
+                }
             }
             return ret;
         } catch (Exception e) {
@@ -333,6 +341,23 @@ public class DhtClient {
             throw ioe;
         }
         return ft;
+    }
+
+    void vacuumConnectionCace() {
+        LinkedList<DhtPeerAddress> evict = new LinkedList<>();
+        synchronized (connections) {
+            for (Map.Entry<DhtPeerAddress, Long> e : lastUsed.entrySet()) {
+                if (e.getValue() < System.currentTimeMillis() - cacheTime) {
+                    // cache entry is old and has to be evicted
+                    evict.add(e.getKey());
+                }
+            }
+
+            for (DhtPeerAddress a : evict) {
+                connections.remove(a);
+                lastUsed.remove(a);
+            }
+        }
     }
 
     public String query(DhtPeerAddress peer, String input) throws IOException {
