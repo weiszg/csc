@@ -64,7 +64,7 @@ public class DirectTransfer extends Thread {
 
         MessageDigest digest;
         try {
-            digest = MessageDigest.getInstance("SHA-1");
+            digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("No such algorithm");
         }

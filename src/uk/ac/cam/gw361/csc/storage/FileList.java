@@ -143,7 +143,7 @@ public class FileList implements Serializable {
     public SignedFileList getSignedVersion(PrivateKey privateKey) throws IOException {
         Signature dsa;
         try {
-            dsa = Signature.getInstance("SHA1withDSA", "SUN");
+            dsa = Signature.getInstance("SHA256withDSA", "SUN");
             SignedObject so = new SignedObject(this, privateKey, dsa);
             SignedFileList sf = new SignedFileList(so, lastModified);
             return sf;
@@ -157,7 +157,7 @@ public class FileList implements Serializable {
             throws SignatureMismatchException, IOException {
         Signature dsa;
         try {
-            dsa = Signature.getInstance("SHA1withDSA", "SUN");
+            dsa = Signature.getInstance("SHA256withDSA", "SUN");
             if (debug) System.out.println(publicKey.toString());
 
             SignedObject so = sf.getSignedObject();

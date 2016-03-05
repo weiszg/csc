@@ -19,7 +19,7 @@ public class Hasher {
         // hashes size many bytes of the file read from the input stream
         // size=0 hashes the whole file
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             int n = 0;
             long totalRead = 0;
@@ -43,7 +43,7 @@ public class Hasher {
     public static BigInteger hashString(String input) {
         MessageDigest cript = null;
         try {
-            cript = MessageDigest.getInstance("SHA-1");
+            cript = MessageDigest.getInstance("SHA-256");
             cript.reset();
             cript.update(input.getBytes("utf8"));
             return new BigInteger(cript.digest());

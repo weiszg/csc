@@ -12,7 +12,7 @@ import java.util.Map;
  * Created by gellert on 01/11/2015.
  */
 public interface DhtComm extends Remote {
-    int logKeySize = 160;  // 160-bit key sizes
+    int logKeySize = 256;  // 256-bit key sizes
 
     // gets next hop towards target such that the process converges to the biggest address
     // that is strictly less than the target
