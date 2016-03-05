@@ -202,7 +202,7 @@ public class Stabiliser extends Thread {
                     } else if (localPeer.getDhtStore().refreshResponsibility(file, p, false))
                         // this means one of our successors has the file therefore
                         // we are wrong in believing that we are the owners
-                        // hence prevent all transfers of this file
+                        // hence prevent all transfers of this file and refresh responsibility
                         doNotTransfer.add(file);
                 }
             } catch (IOException e) {
@@ -216,9 +216,8 @@ public class Stabiliser extends Thread {
             if (!doNotTransfer.contains(file))
                 for (DhtPeerAddress remotePeer : transfers.get(file)) {
                     try {
-                        DirectTransfer ft = localPeer.getTransferManager().upload(
-                            remotePeer, file, new InternalUploadContinuation(), false);
-                        // track transfer with ft
+                        localPeer.getTransferManager().upload(
+                                remotePeer, file, new InternalUploadContinuation(), false);
                         // when transfer finishes, make it the new owner if is between me and file
                     } catch (IOException e) {
                         // no replication to failing link, the link will be deleted when

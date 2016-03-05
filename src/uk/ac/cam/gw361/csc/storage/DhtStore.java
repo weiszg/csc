@@ -121,6 +121,7 @@ public class DhtStore {
             // note it is important that an existing content-signed file can't be overwritten
             // by a SignedFile
             return (!(storedFile instanceof SignedFile) || !(file instanceof SignedFile) ||
+                    ((SignedFile) file).timestamp == null ||
                     ((SignedFile) storedFile).timestamp >= ((SignedFile) file).timestamp);
         else return false;
     }

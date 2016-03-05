@@ -19,6 +19,7 @@ public class DhtRoutingTest {
     static int k;
     static TreeSet<DhtPeerAddress> addresses;
     static List<DhtPeerAddress> sortedAddresses;
+    static private boolean debug = false;
 
     @BeforeClass
     public static void setUpBeforeClass() {
@@ -119,8 +120,8 @@ public class DhtRoutingTest {
                 }
             }
 
-            checkedAddress.print(System.out, "");
-            checkedPeer.getFingerState().print(System.out, "");
+            if (debug) checkedAddress.print(System.out, "");
+            if (debug) checkedPeer.getFingerState().print(System.out, "");
         }
 
         // now that fingers are all set up, do a measurement
