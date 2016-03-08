@@ -124,6 +124,7 @@ public class DhtServer implements DhtComm {
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
+
         Thread uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
                 transferFile, new InternalUploadContinuation());
         uploader.start();
@@ -154,6 +155,7 @@ public class DhtServer implements DhtComm {
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.hash;
         Socket socket = new Socket();
         socket.setSoTimeout(1000);
+
         socket.connect(new InetSocketAddress(source.getHost(), port), 900);
 
         Thread downloader = new DirectTransfer(localPeer, source, socket, fileName, true, file,

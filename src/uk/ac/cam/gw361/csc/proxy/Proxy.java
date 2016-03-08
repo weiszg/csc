@@ -1,5 +1,8 @@
 package uk.ac.cam.gw361.csc.proxy;
 
+import sun.nio.ch.Net;
+import uk.ac.cam.gw361.csc.dht.PeerManager;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -10,11 +13,13 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Created by gellert on 21/02/2016.
  */
 public class Proxy {
+    private static boolean debug = false;
     int localPort;
     String targetHost;
     int targetPort;
@@ -51,6 +56,10 @@ public class Proxy {
         inSend = new ProxySend(this, outRec, true);
 
         listener.start();
+        if (debug) {
+            ProxyLogger logger = new ProxyLogger(this);
+            logger.start();
+        }
     }
 
     synchronized void close() {
@@ -128,6 +137,7 @@ class ProxySend extends Thread {
         PacketDescriptor p = new PacketDescriptor(length);
         history.add(p);
         bytesLastSec += length;
+        PeerManager.reportBytesSent(in, length, false);
     }
 
     private void pause(long millis) {
@@ -139,8 +149,9 @@ class ProxySend extends Thread {
         }
 
         long oldTime = System.nanoTime();
-        try { Thread.sleep(millis + latencyDeviation); }
-        catch (InterruptedException e) { }
+        LockSupport.parkNanos((millis + latencyDeviation) * 1000000);
+//        try { Thread.sleep(millis + latencyDeviation); }
+//        catch (InterruptedException e) { }
         long newTime = System.nanoTime();
 
         // update deviation measure
@@ -174,7 +185,7 @@ class ProxySend extends Thread {
                         }
                         tie.popFromBuffer();
                     } else {
-                        pause(1000);
+                        pause(100);
                     }
                 } else {
                     pause(toWait);
@@ -262,7 +273,7 @@ class ProxyRec extends Thread {
             ForwardPacket p = new ForwardPacket(choppedData);
             while (!addToBuffer(p)) {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(200);
                 } catch (InterruptedException e) {
                 }
             }
@@ -319,5 +330,22 @@ class ProxyListener extends Thread {
     void close() {
         try { socketRec.close(); } catch (IOException e) { }
         try { socketSend.close(); } catch (IOException e) { }
+    }
+}
+
+class ProxyLogger extends Thread {
+    Proxy proxy;
+    ProxyLogger(Proxy proxy) {
+        this.proxy = proxy;
+    }
+
+    public void run() {
+        while (proxy.isAlive()) {
+            System.out.println("Rx: " + proxy.getInSpeed() + ", Tx: " + proxy.getOutSpeed() +
+                    ", on:" + proxy.isAlive());
+
+            try { Thread.sleep(1000); } catch (InterruptedException e) { }
+        }
+        System.out.println("Proxy stopped");
     }
 }

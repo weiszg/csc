@@ -8,14 +8,15 @@ import java.math.BigInteger;
 /**
  * Created by gellert on 18/02/2016.
  */
-public abstract class Reporter {
+public class Reporter {
     // used to report various data for analysis
     PrintStream out;
     boolean active = false;
 
-    Reporter(String file) {
+    public Reporter(String file) {
         try {
-        out = new PrintStream(new FileOutputStream(file));
+            out = new PrintStream(new FileOutputStream(file));
+            active = true;
         } catch (IOException e) {
             System.err.println("Reporter error: " + e.toString());
         }

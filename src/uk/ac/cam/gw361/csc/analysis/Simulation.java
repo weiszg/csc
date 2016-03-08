@@ -158,8 +158,8 @@ public class Simulation {
     static Process startOne(Integer i, Integer connectTo, String path) {
         try {
             ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
-                    (startPort + i) + ":" + (startPort + i),
-                    InetAddress.getLocalHost().getHostAddress() + ":"
+                    "username=" + (startPort + i) + ":" + (startPort + i),
+                    "host=" + InetAddress.getLocalHost().getHostAddress() + ":"
                     + (startPort + connectTo));
             pb.redirectOutput(new File("./log/" + i + ".out"));
             return doStart(pb, path);
@@ -171,7 +171,8 @@ public class Simulation {
 
     static Process startOne(Integer i, String connectTo, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
-                (startPort + i) + ":" + (startPort + i), connectTo);
+                "username=" + (startPort + i) + ":" + (startPort + i),
+                "host=" + connectTo);
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }

@@ -1,5 +1,6 @@
 package uk.ac.cam.gw361.csc.transfer;
 
+import uk.ac.cam.gw361.csc.dht.PeerManager;
 import uk.ac.cam.gw361.csc.storage.FileList;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 import uk.ac.cam.gw361.csc.dht.DhtPeerAddress;
@@ -81,6 +82,7 @@ public class DirectTransfer extends Thread {
                 bufferedOutputStream.write(data, 0, bytesRead);
                 digest.update(data, 0, bytesRead);
                 totalRead += bytesRead;
+                PeerManager.reportBytesSent(true, bytesRead, true);
             }
             bufferedOutputStream.flush();
             os.flush();
@@ -121,6 +123,7 @@ public class DirectTransfer extends Thread {
                 while ((bytesWritten = bufferedInputStream.read(data, 0, data.length)) != -1) {
                     outputStream.write(data, 0, bytesWritten);
                     totalWritten += bytesWritten;
+                    PeerManager.reportBytesSent(false, bytesWritten, true);
                 }
                 outputStream.flush();
             }

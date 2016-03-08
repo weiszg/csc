@@ -67,9 +67,12 @@ public class Stabiliser extends Thread {
             } catch (IOException e) {
                 System.out.println("No files uploaded yet");
             }
+        } catch (ConnectionFailedException e) {
+            System.err.println(localPeer.localAddress.getConnectAddress()
+                    +  ": failed to connect to DHT pool, " + e.reason);
         } catch (IOException ioe) {
             System.err.println(localPeer.localAddress.getConnectAddress()
-                    +  ": failed to connect to DHT pool");
+                    +  ": failed to connect to DHT pool, " + ioe.toString());
         }
     }
 

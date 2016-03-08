@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc.dht;
 
 import uk.ac.cam.gw361.csc.analysis.HopCountReporter;
 import uk.ac.cam.gw361.csc.analysis.Profiler;
+import uk.ac.cam.gw361.csc.analysis.Reporter;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 import uk.ac.cam.gw361.csc.storage.Hasher;
 import uk.ac.cam.gw361.csc.storage.SignedFile;
@@ -14,6 +15,7 @@ import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -32,8 +34,14 @@ public class DhtClient {
     private Map<DhtPeerAddress, DhtComm> connections = new HashMap<>();
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
+    private Reporter connectReporter, lookupReporter;
 
     public DhtClient(LocalPeer localPeer) {
+        if (PeerManager.perfmon)
+            connectReporter = new Reporter("connectLatency.csv");
+        if (PeerManager.perfmon)
+            lookupReporter = new Reporter("lookupLatency.csv");
+
         this.localPeer = localPeer;
     }
 
@@ -76,16 +84,16 @@ public class DhtClient {
                  return PeerManager.getServer(server.getPort());
         }
 
-        Profiler profiler;
-        if (debug)
-            profiler = new Profiler("connect-" + localPeer.localAddress.getConnectAddress(), 3000);
+        Profiler profiler = null;
+        if (PeerManager.perfmon)
+            profiler = new Profiler(connectReporter);
 
         DhtComm comm;
         try {
             comm = doConnect(server);
             return comm;
         } finally {
-            if (debug) profiler.end();
+            if (PeerManager.perfmon) profiler.end();
         }
     }
 
@@ -132,7 +140,7 @@ public class DhtClient {
                 }
             }
             return ret;
-        } catch (Exception e) {
+        } catch (IOException | NotBoundException e) {
             if (debug) System.err.println("Client exception: " + e.toString());
             throw new ConnectionFailedException(e.toString());
         }
@@ -145,13 +153,22 @@ public class DhtClient {
     public DhtPeerAddress lookup(final BigInteger target, boolean trace, HopCountReporter reporter)
             throws IOException {
         // navigate to the highest peer lower than the target
-        if (debug) System.out.println("client lookup");
-        if (trace) System.out.println("lookup to " + target.toString());
-        DoubleAddress start = localPeer.getNextLocalHop(target);
-        if (trace)
-            start.print(System.out, "start: ");
+        Profiler profiler = null;
+        if (PeerManager.perfmon)
+            profiler = new Profiler(lookupReporter);
 
-        return doLookup(start, target, trace, reporter);
+        try {
+            if (debug) System.out.println("client lookup");
+            if (trace) System.out.println("lookup to " + target.toString());
+            DoubleAddress start = localPeer.getNextLocalHop(target);
+            if (trace)
+                start.print(System.out, "start: ");
+
+            return doLookup(start, target, trace, reporter);
+        } finally {
+            if (PeerManager.perfmon)
+                profiler.end();
+        }
     }
 
     private DhtPeerAddress doLookup(DhtPeerAddress start, BigInteger target,

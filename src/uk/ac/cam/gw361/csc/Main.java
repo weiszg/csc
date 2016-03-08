@@ -15,7 +15,7 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
         // set proxy latency and bandwidth
-        PeerManager.setConnector(new ProxiedConnector(0, 100000));
+        // PeerManager.setConnector(new ProxiedConnector(0, 100000));
 
         manualStart(args);
 
@@ -39,26 +39,46 @@ public class Main {
             e.printStackTrace();
         }
 
+        String userName = null, host = null;
+        int count = 1, stabiliseInterval = 5000;
+        boolean proxied = false; int proxyBytesPerSec = 100000; int proxyLatency = 0;
 
-        String userName = (args.length < 1) ? null : args[0];
-        String host = (args.length < 2) ? null : args[1];
-        String ct = (args.length < 3) ? null : args[2];
-        int count = 1;
+        for (String arg : args) {
+            if (arg.startsWith("username="))
+                userName = arg.substring("username=".length());
+            else if (arg.startsWith("host="))
+                host = arg.substring("host=".length());
+            else if (arg.startsWith("ct="))
+                count = Integer.parseInt(arg.substring("ct=".length()));
+            else if (arg.startsWith("stabiliseInterval="))
+                stabiliseInterval = Integer.parseInt(arg.substring("stabiliseInterval=".length()));
+            else if (arg.startsWith("proxied"))
+                proxied = true;
+            else if (arg.startsWith("proxyBytesPerSec"))
+                proxyBytesPerSec = Integer.parseInt(arg.substring("proxyBytesPerSec=".length()));
+            else if (arg.startsWith("proxyLatency"))
+                proxyLatency = Integer.parseInt(arg.substring("proxyLatency=".length()));
+            else if (arg.startsWith("perfmon"))
+                PeerManager.perfmon = true;
+            else
+                System.err.println("argument couldn't be recognised: " + arg);
+
+        }
+
+        if (proxied) {
+            PeerManager.setConnector(new ProxiedConnector(proxyLatency, proxyBytesPerSec));
+            PeerManager.startLogging();
+        }
 
         if (userName == null) {
             Scanner scanner = new Scanner(System.in);
-            System.out.println("username, host, ct");
+            System.out.println("username, host");
             userName = scanner.next();
             host = scanner.next();
             if (host.equals("-")) host = null;
-            ct = scanner.next();
-            if (ct.equals("-")) ct = null;
         }
 
-        if (ct != null)
-            count = Integer.parseInt(ct);
-
-        LocalPeer localPeer = PeerManager.spawnPeer(userName, 5000);
+        LocalPeer localPeer = PeerManager.spawnPeer(userName, stabiliseInterval);
         if (host != null) {
             localPeer.join(host);
         }

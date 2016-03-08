@@ -23,7 +23,6 @@ public class Connector {
         s.connect(new InetSocketAddress(host, port));
     }
 
-
     Registry getRegistry(String host, int port) throws RemoteException {
         return LocateRegistry.getRegistry(host, port);
     }
