@@ -16,6 +16,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.rmi.NotBoundException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -31,7 +32,7 @@ import java.util.Map;
 public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
-    private Map<DhtPeerAddress, DhtComm> connections = new HashMap<>();
+    private Map<DhtPeerAddress, Remote> connections = new HashMap<>();
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
     private Reporter connectReporter, lookupReporter;
@@ -58,11 +59,11 @@ public class DhtClient {
         localPeer.getNeighbourState().addNeighbour(pred);
     }
 
-    private DhtComm connect(DoubleAddress server) throws ConnectionFailedException {
+    private Remote connect(DoubleAddress server) throws ConnectionFailedException {
         if (server.finger != null) {
             server.fingerAlive = true;
             try {
-                DhtComm comm = connect(server.finger);
+                Remote comm = connect(server.finger);
                 if (comm != null)
                     return comm;
             } catch (ConnectionFailedException e) {
@@ -74,9 +75,12 @@ public class DhtClient {
         return connect(server.neighbour);
     }
 
-    private DhtComm connect(DhtPeerAddress server) throws ConnectionFailedException {
-        if (server.equals(localPeer.localAddress)) return localPeer.getServer();
-        if (PeerManager.allowLocalConnect) {
+    private Remote connect(DhtPeerAddress server) throws ConnectionFailedException {
+        // don't connect to myself through RMI
+        if (!localPeer.isCscOnly() && server.equals(localPeer.localAddress))
+            return localPeer.getServer();
+
+        if (!localPeer.isCscOnly() && PeerManager.allowLocalConnect) {
             if (server.getUserID() != null && PeerManager.hasPeer(server))
                 return PeerManager.getServer(server);
             if (server.getHost() != null && server.getHost().equals("localhost") &&
@@ -88,7 +92,7 @@ public class DhtClient {
         if (PeerManager.perfmon)
             profiler = new Profiler(connectReporter);
 
-        DhtComm comm;
+        Remote comm;
         try {
             comm = doConnect(server);
             return comm;
@@ -97,12 +101,12 @@ public class DhtClient {
         }
     }
 
-    private DhtComm doConnect(DhtPeerAddress server)
+    private Remote doConnect(DhtPeerAddress server)
             throws ConnectionFailedException {
         if (debug) server.print(System.out, "client connect: ");
 
         // cache lookup has to be synchronised
-        DhtComm cached = null;
+        Remote cached = null;
         synchronized (connections) {
             if (server.getUserID() != null && connections.containsKey(server)) {
                 cached = connections.get(server);
@@ -112,14 +116,18 @@ public class DhtClient {
 
         if (cached != null) {
             try {
-                if (server.getUserID() != null)
-                    if (!cached.checkUserID(localPeer.localAddress, server.getUserID()))
+                if (!localPeer.isCscOnly()) {
+                    if (server.getUserID() != null)
+                        if (!((DhtComm) cached).checkUserID(localPeer.localAddress, server.getUserID()))
+                            throw new RemoteException();
+                        else if (!((DhtComm) cached).isAlive(localPeer.localAddress))
+                            throw new RemoteException();
+                } else {
+                    if (!((CscComm) cached).isAlive())
                         throw new RemoteException();
-                else
-                    if (!cached.isAlive(localPeer.localAddress))
-                        throw new RemoteException();
+                }
                 return cached;
-            } catch (RemoteException e) {
+            } catch (IOException e) {
                 connections.remove(server);
                 lastUsed.remove(server);
             }
@@ -127,10 +135,15 @@ public class DhtClient {
 
         try {
             Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
-            DhtComm ret = (DhtComm) registry.lookup("DhtComm");
-            if (server.getUserID() != null
-                    && !ret.checkUserID(localPeer.localAddress, server.getUserID()))
-                throw new ConnectionFailedException("UserID mismatch");
+            Remote ret;
+            if (localPeer.isCscOnly())
+                ret = registry.lookup("CscComm");
+            else {
+                ret = registry.lookup("DhtComm");
+                if (server.getUserID() != null && !localPeer.isCscOnly()
+                        && !((DhtComm) ret).checkUserID(localPeer.localAddress, server.getUserID()))
+                    throw new ConnectionFailedException("UserID mismatch");
+            }
 
             // cache the connection
             synchronized (connections) {
@@ -181,6 +194,11 @@ public class DhtClient {
                                     boolean trace, HopCountReporter reporter)
             throws IOException {
         if (debug) System.out.println("client dolookup");
+        if (localPeer.isCscOnly()) {
+            CscComm cscomm = ((CscComm) connect(start));
+            return cscomm.lookup(target);
+        }
+
         DoubleAddress nextHop = start, prevHop = null;
         int hop = 0;
         int fingerUsed = 0;
@@ -188,7 +206,7 @@ public class DhtClient {
         do {
             hop++;
             prevHop = nextHop;
-            DhtComm comm = connect(prevHop);
+            DhtComm comm = ((DhtComm) connect(prevHop));
             nextHop = comm.nextHop(localPeer.localAddress, target);
 
             if (prevHop.fingerAlive)
@@ -221,7 +239,7 @@ public class DhtClient {
             throws IOException {
         if (debug) System.out.println("client getneighbourstate");
         NeighbourState result;
-        DhtComm comm = connect(peer);
+        DhtComm comm = ((DhtComm) connect(peer));
         try {
             result = comm.getNeighbourState(localPeer.localAddress);
             if (result == null)
@@ -239,7 +257,7 @@ public class DhtClient {
             throws IOException {
         if (debug) System.out.println("client getstoringfiles");
         Map<BigInteger, Boolean> result;
-        DhtComm comm = connect(peer);
+        DhtComm comm = ((DhtComm) connect(peer));
         try {
             result = comm.storingFiles(localPeer.localAddress, files);
             return result;
@@ -264,14 +282,26 @@ public class DhtClient {
             throws IOException {
         if (debug) System.out.println("client download");
 
-        DhtComm comm = connect(peer);
+        DhtComm comm=null; CscComm csccomm=null;
+        if (localPeer.isCscOnly())
+            csccomm = ((CscComm) connect(peer));
+        else
+            comm = ((DhtComm) connect(peer));
+
         DirectTransfer ft = null;
         try {
             ServerSocket listener = new ServerSocket(0);
             // the owner doesn't matter, the destination of the download could be a different folder
             ft = new DirectTransfer(localPeer, peer, listener, fileName, true, file, continuation);
             ft.start();
-            Long size = comm.upload(localPeer.localAddress, listener.getLocalPort(), file.hash);
+
+            Long size = null;
+            if (localPeer.isCscOnly())
+                size = csccomm.upload(localPeer.localAddress.getHost(),
+                        listener.getLocalPort(), file.hash);
+            else
+                size = comm.upload(localPeer.localAddress, listener.getLocalPort(), file.hash);
+
             if (size == null)
                 throw new IOException("Size null");
         } catch (IOException ioe) {
@@ -336,14 +366,26 @@ public class DhtClient {
     private DirectTransfer doUpload(DhtPeerAddress peer, DhtFile file, String fileName,
                                  TransferContinuation continuation) throws IOException {
         if (debug) System.out.println("client upload");
-        DhtComm comm = connect(peer);
+
+        DhtComm comm=null; CscComm csccomm=null;
+        if (localPeer.isCscOnly())
+            csccomm = ((CscComm) connect(peer));
+        else
+            comm = ((DhtComm) connect(peer));
+
         DirectTransfer ft;
         try {
             ServerSocket listener = new ServerSocket(0);
             ft = new DirectTransfer(localPeer, peer, listener, fileName, false, file, continuation);
             ft.start();
 
-            Integer response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
+            Integer response;
+            if (localPeer.isCscOnly())
+                response = csccomm.download(localPeer.localAddress.getHost(),
+                        listener.getLocalPort(), file);
+            else
+                response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
+
             if (response.equals(1)) {
                 System.out.println("Out of range for receiver " + peer.getConnectAddress());
                 ft.stopTransfer(false);
@@ -379,7 +421,7 @@ public class DhtClient {
 
     public String query(DhtPeerAddress peer, String input) throws IOException {
         if (debug) System.out.println("client query");
-        DhtComm comm = connect(peer);
+        DhtComm comm = ((DhtComm) connect(peer));
         return comm.query(input);
     }
 }

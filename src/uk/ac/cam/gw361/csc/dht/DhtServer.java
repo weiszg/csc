@@ -33,6 +33,7 @@ public class DhtServer implements DhtComm {
     private Map<DhtPeerAddress, Socket> uploads = new HashMap<>();
     private final int port;
     private final Registry registry;
+    private CscServer cscServer;
 
     public DhtServer(LocalPeer localPeer, int port) {
         this.port = port;
@@ -49,18 +50,25 @@ public class DhtServer implements DhtComm {
             e.printStackTrace();
         } finally {
             registry = reg;
+            cscServer = new CscServer(localPeer, port, registry, this);
         }
     }
 
     public void startServer() {
         try {
-            DhtComm stub = (DhtComm) UnicastRemoteObject.exportObject(this, 0);
-
+            DhtComm dhtstub = (DhtComm) UnicastRemoteObject.exportObject(this, 0);
             // bind the remote object's stub in the registry
             try {
-                registry.bind("DhtComm", stub);
+                registry.bind("DhtComm", dhtstub);
             } catch (AlreadyBoundException e) {
-                registry.rebind("DhtComm", stub);
+                registry.rebind("DhtComm", dhtstub);
+            }
+
+            CscComm cscstub = (CscComm) UnicastRemoteObject.exportObject(cscServer, 0);
+            try {
+                registry.bind("CscComm", cscstub);
+            } catch (AlreadyBoundException e) {
+                registry.rebind("CscComm", cscstub);
             }
 
             if (debug) System.out.println("DHT Server ready on " + port);
@@ -72,13 +80,18 @@ public class DhtServer implements DhtComm {
     public void stopServer() {
         try {
             registry.unbind("DhtComm");
+            registry.unbind("CscComm");
             UnicastRemoteObject.unexportObject(this, true);
+            UnicastRemoteObject.unexportObject(cscServer, true);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void acceptConnection(DhtPeerAddress source) {
+
+    // private-ring DhtComm part
+
+    private void acceptConnection(DhtPeerAddress source) throws IOException {
         try {
             if (PeerManager.allowLocalConnect && PeerManager.hasPeer(source)) {
                 // locally connected
@@ -87,14 +100,16 @@ public class DhtServer implements DhtComm {
                         source.getPort(), localPeer.localAddress.getUserID());
                 localPeer.getNeighbourState().addNeighbour(newSource);
             } else {
-                source.setRelative(localPeer.localAddress.getUserID());
                 String clientHost = RemoteServer.getClientHost();
+                System.out.println(clientHost); // todo: check if local/trusted
+                source.setRelative(localPeer.localAddress.getUserID());
                 // set host of source
                 source.setHost(clientHost);
                 localPeer.getNeighbourState().addNeighbour(source);
             }
-        } catch (ServerNotActiveException  | UnknownHostException e) {
-            // this is fine
+        } catch (ServerNotActiveException | UnknownHostException e) {
+            // disallow access
+            throw new IOException("Permission denied");
         }
     }
 
@@ -106,7 +121,7 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
-    public NeighbourState getNeighbourState(DhtPeerAddress source) {
+    public NeighbourState getNeighbourState(DhtPeerAddress source) throws IOException {
         if (debug) System.out.println("server getneighbourstate");
         acceptConnection(source);
         if (localPeer.isStable())
@@ -114,10 +129,7 @@ public class DhtServer implements DhtComm {
         else return null;
     }
 
-    @Override
-    public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
-            throws IOException {
-        acceptConnection(source);
+    Long doUpload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException {
         DhtFile transferFile = localPeer.getDhtStore().getFile(file);
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
@@ -132,9 +144,20 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
+    public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
+            throws IOException {
+        acceptConnection(source);
+        return doUpload(source, port, file);
+    }
+
+    @Override
     public Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
         // return value: 0 for ACCEPT, 1 for DECLINE and 2 for REDUNDANT
         acceptConnection(source);
+        return doDownload(source, port, file);
+    }
+
+    Integer doDownload(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
         file.owner.setRelative(localPeer.localAddress.getUserID());
         // only accept if owner is within predecessor range
         // or if I am between the current owner and the file, in which case I'll be the next owner
@@ -165,7 +188,8 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
-    public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files) {
+    public Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
+            throws IOException {
         // get a list of files with their owners. Return a list of file IDs associated with
         // bools describing whether they are stored locally. Update owners in the meantime
         // if necessary
@@ -182,13 +206,13 @@ public class DhtServer implements DhtComm {
     }
 
     @Override
-    public Boolean isAlive(DhtPeerAddress source) {
+    public Boolean isAlive(DhtPeerAddress source) throws IOException {
         acceptConnection(source);
         return true;
     }
 
     @Override
-    public Boolean checkUserID(DhtPeerAddress source, BigInteger userID) {
+    public Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws IOException {
         acceptConnection(source);
         return userID.equals(localPeer.localAddress.getUserID());
     }

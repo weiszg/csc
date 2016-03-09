@@ -17,11 +17,11 @@ public interface DhtComm extends Remote {
     // gets next hop towards target such that the process converges to the biggest address
     // that is strictly less than the target
     DoubleAddress nextHop(DhtPeerAddress source, BigInteger target) throws IOException;
-    NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException;
+    NeighbourState getNeighbourState(DhtPeerAddress source) throws IOException;
     Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException;
     Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException;
-    Boolean isAlive(DhtPeerAddress source) throws RemoteException;
-    Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws RemoteException;
+    Boolean isAlive(DhtPeerAddress source) throws IOException;
+    Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws IOException;
     Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException;
     String query(String input) throws RemoteException; // for debug purposes

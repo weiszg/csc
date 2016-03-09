@@ -35,7 +35,7 @@ public class LocalDhtCommWrapper implements DhtComm {
                 ((result.finger==null) ? null : new DhtPeerAddress(result.finger)));
     }
 
-    public NeighbourState getNeighbourState(DhtPeerAddress source) throws RemoteException {
+    public NeighbourState getNeighbourState(DhtPeerAddress source) throws IOException {
         NeighbourState result = comm.getNeighbourState(source);
         return new NeighbourState(result);
     }
@@ -48,11 +48,11 @@ public class LocalDhtCommWrapper implements DhtComm {
         return comm.download(source, port, cloneDhtFile(file));
     }
 
-    public Boolean isAlive(DhtPeerAddress source) throws RemoteException {
+    public Boolean isAlive(DhtPeerAddress source) throws IOException {
         return comm.isAlive(source);
     }
 
-    public Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws RemoteException {
+    public Boolean checkUserID(DhtPeerAddress source, BigInteger userID) throws IOException {
         return comm.checkUserID(source, userID);
     }
 

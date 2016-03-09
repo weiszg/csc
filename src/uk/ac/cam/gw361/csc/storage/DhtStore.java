@@ -20,7 +20,7 @@ public class DhtStore {
     // private folder used for storage
     private File myFolder;
 
-    public DhtStore(LocalPeer localPeer) {
+    public DhtStore(LocalPeer localPeer, boolean scan) {
         this.localPeer = localPeer;
         myFolder = new File(storeDir + localPeer.userName);
 
@@ -35,24 +35,27 @@ public class DhtStore {
             }
         }
 
-        // read contents of the folder
-        File[] listOfFiles = myFolder.listFiles();
-        for (File f : listOfFiles) {
-            if (f.isFile()) {
-                try {
-                    if (f.getName().endsWith(".signed")) {
-                        BigInteger key = new BigInteger(f.getName().substring(0,
-                                f.getName().length() - ".signed".length()));
-                        addFile(new SignedFile(key, f.length(), localPeer.localAddress,
-                                FileList.loadTimestamp(f)));
-                        if (debug) System.out.println("Signed file found " + f.getName());
-                    } else {
-                        BigInteger key = new BigInteger(f.getName());
-                        // the owner doesn't matter, replicas could/should be deleted
-                        addFile(new DhtFile(key, f.length(), localPeer.localAddress));
-                        if (debug) System.out.println("File found " + f.getName());
+        if (scan) {
+            // read contents of the folder
+            File[] listOfFiles = myFolder.listFiles();
+            for (File f : listOfFiles) {
+                if (f.isFile()) {
+                    try {
+                        if (f.getName().endsWith(".signed")) {
+                            BigInteger key = new BigInteger(f.getName().substring(0,
+                                    f.getName().length() - ".signed".length()));
+                            addFile(new SignedFile(key, f.length(), localPeer.localAddress,
+                                    FileList.loadTimestamp(f)));
+                            if (debug) System.out.println("Signed file found " + f.getName());
+                        } else {
+                            BigInteger key = new BigInteger(f.getName());
+                            // the owner doesn't matter, replicas could/should be deleted
+                            addFile(new DhtFile(key, f.length(), localPeer.localAddress));
+                            if (debug) System.out.println("File found " + f.getName());
+                        }
+                    } catch (NumberFormatException | IOException e) {
                     }
-                } catch (NumberFormatException | IOException e) { }
+                }
             }
         }
     }

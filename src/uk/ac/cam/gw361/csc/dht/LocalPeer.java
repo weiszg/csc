@@ -16,6 +16,7 @@ import java.util.*;
 
 public class LocalPeer {
     public final String userName;
+    private boolean cscOnly;
     final String fileListPath;
     private final BigInteger userID;
     public final DhtPeerAddress localAddress;
@@ -43,7 +44,8 @@ public class LocalPeer {
     public FileList fileList;
     private FileList lastQueriedFileList;
 
-    public LocalPeer(String userName, long stabiliseInterval) {
+    public LocalPeer(String userName, long stabiliseInterval, boolean cscOnly) {
+        this.cscOnly = cscOnly;
         int port = 8000;
         if (userName.contains(":")) {
             port = Integer.parseInt(userName.split(":")[1]);
@@ -56,17 +58,23 @@ public class LocalPeer {
         neighbourState = new NeighbourState(localAddress);
         fingerState = new FingerState(this);
 
-        dhtStore = new DhtStore(this);
         dhtClient = new DhtClient(this);
-        dhtServer = new DhtServer(this, port);
-        dhtServer.startServer();
         transferManager = new TransferManager(this);
-
         fileListPath = "./storage/" + userName + "/" + "MyFileList";
         loadKeys();
 
-        stabiliser = new Stabiliser(this, stabiliseInterval);
-        localAddress.print(System.out, "Started: ");
+        if (!cscOnly) {
+            dhtStore = new DhtStore(this, true);
+            dhtServer = new DhtServer(this, port);
+            dhtServer.startServer();
+            stabiliser = new Stabiliser(this, stabiliseInterval);
+            localAddress.print(System.out, "Started: ");
+        } else
+            dhtStore = new DhtStore(this, false);
+    }
+
+    public boolean isCscOnly() {
+        return cscOnly;
     }
 
     boolean isStable() { return stabiliser.isStable(); }
@@ -87,16 +95,34 @@ public class LocalPeer {
     }
 
     public synchronized void join(String remotePeerIP) {
-        // set join information of the Stabiliser
-        stabiliser.setJoin(remotePeerIP);
-        stabilise();
+        if (isCscOnly()) {
+            int port = 8000;
+            if (remotePeerIP.contains(":")) {
+                port = Integer.parseInt(remotePeerIP.split(":")[1]);
+                remotePeerIP = remotePeerIP.split(":")[0];
+            }
+
+            neighbourState.addNeighbour(new DhtPeerAddress(BigInteger.ONE,
+                    remotePeerIP, port, BigInteger.ZERO));
+
+            // try fetching my file list
+            try {
+                getFileList(userName, publicKey, true);
+            } catch (IOException e) {
+                System.out.println("No files uploaded yet");
+            }
+        } else {
+            // set join information of the Stabiliser
+            stabiliser.setJoin(remotePeerIP);
+            stabilise();
+        }
     }
 
     public DoubleAddress getNextLocalHop(BigInteger target) {
         DhtPeerAddress targetAddress =
                 new DhtPeerAddress(target, null, null, localAddress.getUserID());
         TreeSet<DhtPeerAddress> peers = neighbourState.getNeighbours();
-        peers.add(localAddress);
+        if (!isCscOnly()) peers.add(localAddress);
 
         DhtPeerAddress nextNeighbour = peers.lower(targetAddress);
         if (nextNeighbour == null) {
