@@ -50,7 +50,11 @@ public class DhtServer implements DhtComm {
             e.printStackTrace();
         } finally {
             registry = reg;
-            cscServer = new CscServer(localPeer, port, registry, this);
+            try {
+                cscServer = new CscServer(localPeer, this);
+            } catch (IOException e) {
+                System.err.println("Client-facing server failed to start: " + e.toString());
+            }
         }
     }
 
@@ -64,7 +68,7 @@ public class DhtServer implements DhtComm {
                 registry.rebind("DhtComm", dhtstub);
             }
 
-            CscComm cscstub = (CscComm) UnicastRemoteObject.exportObject(cscServer, 0);
+            CscComm cscstub = cscServer;
             try {
                 registry.bind("CscComm", cscstub);
             } catch (AlreadyBoundException e) {
@@ -101,7 +105,7 @@ public class DhtServer implements DhtComm {
                 localPeer.getNeighbourState().addNeighbour(newSource);
             } else {
                 String clientHost = RemoteServer.getClientHost();
-                System.out.println(clientHost); // todo: check if local/trusted
+                // todo: check if local/trusted
                 source.setRelative(localPeer.localAddress.getUserID());
                 // set host of source
                 source.setHost(clientHost);

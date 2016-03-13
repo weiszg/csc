@@ -11,8 +11,9 @@ import java.rmi.server.RMISocketFactory;
  */
 public class TimedRMISocketFactory extends RMISocketFactory {
     int timeout = 1000;
-    public Socket createSocket(String host, int port) throws IOException
-    {
+
+    @Override
+    public Socket createSocket(String host, int port) throws IOException {
         Socket socket = new Socket();
         socket.setSoTimeout(timeout);
         socket.setSoLinger(true, timeout);
@@ -21,9 +22,8 @@ public class TimedRMISocketFactory extends RMISocketFactory {
         return socket;
     }
 
-    public ServerSocket createServerSocket(int port)
-            throws IOException
-    {
+    @Override
+    public ServerSocket createServerSocket(int port) throws IOException {
         return new ServerSocket(port);
     }
 }

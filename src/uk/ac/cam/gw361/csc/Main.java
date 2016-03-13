@@ -14,6 +14,19 @@ import java.util.Scanner;
  */
 public class Main {
     public static void main(String[] args) {
+        // set RMI timeout properties
+        System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
+        System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
+
+        // set key/truststore
+        System.setProperty("javax.net.ssl.keyStore", "keystore");
+        System.setProperty("javax.net.ssl.keyStorePassword", "password");
+        // System.setProperty("javax.net.debug", "all");
+        System.setProperty("javax.net.ssl.trustStore", "truststore");
+        System.setProperty("javax.net.ssl.trustStorePassword", "password");
+
+
         // set proxy latency and bandwidth
         // PeerManager.setConnector(new ProxiedConnector(0, 100000));
 
@@ -30,13 +43,11 @@ public class Main {
     }
 
     private static void manualStart(String[] args) {
-        System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
-        System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
-        System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
         try {
             RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
         } catch (IOException e) {
             e.printStackTrace();
+            return;
         }
 
         String userName = null, host = null;
@@ -74,11 +85,15 @@ public class Main {
         }
 
         if (userName == null) {
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("username, host");
-            userName = scanner.next();
-            host = scanner.next();
-            if (host.equals("-")) host = null;
+            if (cscOnly) {
+                userName = "client";
+            } else {
+                Scanner scanner = new Scanner(System.in);
+                System.out.println("username, host");
+                userName = scanner.next();
+                host = scanner.next();
+                if (host.equals("-")) host = null;
+            }
         }
 
         LocalPeer localPeer = PeerManager.spawnPeer(userName, stabiliseInterval, cscOnly);

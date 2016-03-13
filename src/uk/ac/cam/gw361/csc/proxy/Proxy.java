@@ -150,8 +150,6 @@ class ProxySend extends Thread {
 
         long oldTime = System.nanoTime();
         LockSupport.parkNanos((millis + latencyDeviation) * 1000000);
-//        try { Thread.sleep(millis + latencyDeviation); }
-//        catch (InterruptedException e) { }
         long newTime = System.nanoTime();
 
         // update deviation measure
@@ -228,7 +226,7 @@ class ProxyRec extends Thread {
     }
 
     synchronized boolean addToBuffer(ForwardPacket p) {
-        if (buffer.size() >= proxy.maxBufferSize)
+        if (buffer.size() >= Proxy.maxBufferSize)
             return false;
 
         buffer.add(p);

@@ -2,25 +2,27 @@ package uk.ac.cam.gw361.csc.dht;
 
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 
+import javax.rmi.ssl.SslRMIClientSocketFactory;
+import javax.rmi.ssl.SslRMIServerSocketFactory;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 
 /**
  * Created by gellert on 09/03/2016.
  */
-public class CscServer implements CscComm {
+public class CscServer extends UnicastRemoteObject implements CscComm {
     private LocalPeer localPeer;
     private final boolean debug = false;
-    private final int port;
-    private final Registry registry;
     private final DhtServer server;
 
-    public CscServer(LocalPeer localPeer, int port, Registry registry, DhtServer server) {
-        this.port = port;
+    public CscServer(LocalPeer localPeer, DhtServer server)
+            throws IOException {
+        super(0, new SslRMIClientSocketFactory(), new SslRMIServerSocketFactory());
+
         this.localPeer = localPeer;
-        this.registry = registry;
         this.server = server;
     }
 
