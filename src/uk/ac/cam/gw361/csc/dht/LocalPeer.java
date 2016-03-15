@@ -5,6 +5,8 @@ import uk.ac.cam.gw361.csc.transfer.*;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
@@ -56,7 +58,12 @@ public class LocalPeer {
 
         this.userName = userName;
         userID = Hasher.hashString(userName);
-        localAddress = new DhtPeerAddress(userID, "localhost", port, userID);
+        String myHost = "localhost";
+        try {
+            myHost = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) { }
+
+        localAddress = new DhtPeerAddress(userID, myHost, port, userID);
         neighbourState = new NeighbourState(localAddress);
         fingerState = new FingerState(this);
 

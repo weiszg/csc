@@ -12,15 +12,12 @@ import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +29,7 @@ import java.util.Map;
 public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
+    private final boolean debugClient = false;
     private Map<DhtPeerAddress, Remote> connections = new HashMap<>();
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
@@ -101,9 +99,11 @@ public class DhtClient {
         }
     }
 
-    private Remote doConnect(DhtPeerAddress server)
-            throws ConnectionFailedException {
+    private Remote doConnect(DhtPeerAddress server) throws ConnectionFailedException {
         if (debug) server.print(System.out, "client connect: ");
+
+        Profiler profiler = null;
+        if (debugClient && localPeer.isCscOnly()) profiler = new Profiler(new Reporter(System.out));
 
         // cache lookup has to be synchronised
         Remote cached = null;
@@ -114,48 +114,53 @@ public class DhtClient {
             }
         }
 
-        if (cached != null) {
-            try {
-                if (!localPeer.isCscOnly()) {
-                    if (server.getUserID() != null)
-                        if (!((DhtComm) cached).checkUserID(localPeer.localAddress, server.getUserID()))
-                            throw new RemoteException();
-                        else if (!((DhtComm) cached).isAlive(localPeer.localAddress))
-                            throw new RemoteException();
-                } else {
-                    if (!((CscComm) cached).isAlive())
-                        throw new RemoteException();
-                }
-                return cached;
-            } catch (IOException e) {
-                connections.remove(server);
-                lastUsed.remove(server);
-            }
-        }
-
         try {
-            Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
-            Remote ret;
-            if (localPeer.isCscOnly())
-                ret = registry.lookup("CscComm");
-            else {
-                ret = registry.lookup("DhtComm");
-                if (server.getUserID() != null && !localPeer.isCscOnly()
-                        && !((DhtComm) ret).checkUserID(localPeer.localAddress, server.getUserID()))
-                    throw new ConnectionFailedException("UserID mismatch");
-            }
-
-            // cache the connection
-            synchronized (connections) {
-                if (server.getUserID() != null) {
-                    connections.put(server, ret);
-                    lastUsed.put(server, System.currentTimeMillis());
+            if (cached != null) {
+                try {
+                    if (!localPeer.isCscOnly()) {
+                        if (server.getUserID() != null)
+                            if (!((DhtComm) cached).checkUserID(localPeer.localAddress, server.getUserID()))
+                                throw new RemoteException();
+                            else if (!((DhtComm) cached).isAlive(localPeer.localAddress))
+                                throw new RemoteException();
+                    } else {
+                        if (!((CscComm) cached).isAlive())
+                            throw new RemoteException();
+                    }
+                    return cached;
+                } catch (IOException e) {
+                    connections.remove(server);
+                    lastUsed.remove(server);
                 }
             }
-            return ret;
-        } catch (IOException | NotBoundException e) {
-            if (debug) System.err.println("Client exception: " + e.toString());
-            throw new ConnectionFailedException(e.toString());
+
+            try {
+                Registry registry = LocateRegistry.getRegistry(server.getHost(), server.getPort());
+                Remote ret;
+                if (localPeer.isCscOnly())
+                    ret = registry.lookup("CscComm");
+                else {
+                    ret = registry.lookup("DhtComm");
+                    if (server.getUserID() != null && !localPeer.isCscOnly()
+                            && !((DhtComm) ret).checkUserID(localPeer.localAddress, server.getUserID()))
+                        throw new ConnectionFailedException("UserID mismatch");
+                }
+
+                // cache the connection
+                synchronized (connections) {
+                    if (server.getUserID() != null) {
+                        connections.put(server, ret);
+                        lastUsed.put(server, System.currentTimeMillis());
+                    }
+                }
+                return ret;
+            } catch (IOException | NotBoundException e) {
+                if (debug) System.err.println("Client exception: " + e.toString());
+                throw new ConnectionFailedException(e.toString());
+            }
+        } finally {
+            if (profiler != null)
+                profiler.end();
         }
     }
 
@@ -196,7 +201,15 @@ public class DhtClient {
         if (debug) System.out.println("client dolookup");
         if (localPeer.isCscOnly()) {
             CscComm cscomm = ((CscComm) connect(start));
-            return cscomm.lookup(target);
+            DhtPeerAddress result = cscomm.lookup(target);
+
+            // fix relatives and host names
+            DhtPeerAddress prevAddress = start.fingerAlive ? start.finger : start.neighbour;
+            result.setRelative(localPeer.localAddress.getUserID());
+            if (result.getHost().equals("localhost"))
+                result.setHost(prevAddress.getHost());
+
+            return result;
         }
 
         DoubleAddress nextHop = start, prevHop = null;

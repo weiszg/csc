@@ -13,6 +13,11 @@ public class Reporter {
     PrintStream out;
     boolean active = false;
 
+    public Reporter(PrintStream out) {
+        this.out = out;
+        active = true;
+    }
+
     public Reporter(String file) {
         try {
             out = new PrintStream(new FileOutputStream(file));
