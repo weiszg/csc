@@ -15,7 +15,7 @@ import java.util.Map;
 public class PeerManager {
     // localConnect defines whether peers are connected by normal function calls and without RMI
     // if both the caller and the callee live
-    static public boolean allowLocalConnect = true;
+    static public boolean allowLocalConnect = false;
 
     private static Map<DhtPeerAddress, LocalPeer> addressLookup = new HashMap<>();
     private static Map<Integer, LocalPeer> portLookup = new HashMap<>();

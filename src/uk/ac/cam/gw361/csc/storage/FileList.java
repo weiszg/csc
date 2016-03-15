@@ -115,7 +115,7 @@ public class FileList implements Serializable {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSA", "SUN");
             SecureRandom random = SecureRandom.getInstanceStrong();
             keyGen.initialize(1024, random);
-            KeyPair keyPair = keyGen.generateKeyPair();
+            KeyPair keyPair = keyGen.generateKeyPair();  // todo: ubuntu hangs here
             privateKey = keyPair.getPrivate();
             publicKey = keyPair.getPublic();
         } catch (NoSuchAlgorithmException | NoSuchProviderException e) {

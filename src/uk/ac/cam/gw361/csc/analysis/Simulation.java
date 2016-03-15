@@ -24,12 +24,26 @@ public class Simulation {
     static Process[] running = new Process[100];
     static int alive = 0;
     static int startPort = 8000;
+    static int max = 100;
+    static Integer seed = null;
+    static double speed = 1;
+    static String localHost;
+    static String hostEnd;
 
     public static void main(String[] args) {
         // set timeouts
         System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.handshakeTimeout", "1000");
         System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
+        try {
+            localHost = InetAddress.getLocalHost().getHostAddress();
+            hostEnd = localHost.substring(localHost.lastIndexOf(".") + 1);
+            System.out.println(hostEnd);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            localHost = "localhost";
+            hostEnd = localHost;
+        }
 
         // create output logs directory
         File myFolder = new File("./log");
@@ -39,23 +53,27 @@ public class Simulation {
                 System.err.println("creating folder failed");
         }
 
-        String seed;
         String path = "/Users/gellert/src/csc/out/production/csc/";
         boolean nodel = false;
         String init = null;
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("seed:");
-        seed = scanner.next();
 
         for (String arg : args) {
             if (arg.equals("nodel"))
                 nodel = true;
-            if (arg.startsWith("path="))
+            else if (arg.startsWith("path="))
                 path = arg.substring("path=".length());
-            if (arg.startsWith("init="))
+            else if (arg.startsWith("init="))
                 init = arg.substring("init=".length());
-            if (arg.startsWith("startPort="))
+            else if (arg.startsWith("startPort="))
                 startPort = Integer.parseInt(arg.substring("startPort=".length()));
+            else if (arg.startsWith("max="))
+                max = Integer.parseInt(arg.substring("max=".length()));
+            else if (arg.startsWith("speed="))
+                speed = Double.parseDouble(arg.substring("speed=".length()));
+            else if (arg.startsWith("seed="))
+                seed = Integer.parseInt(arg.substring("seed=".length()));
+            else
+                System.err.println("Unrecognised command: " + arg);
         }
 
         if (!nodel) {
@@ -78,12 +96,15 @@ public class Simulation {
         f.delete();
     }
 
-    private static void startSimulation(String seed, String path, String init) {
+    private static void startSimulation(Integer seed, String path, String init) {
         int min = 1;
-        int max = 100;
-        double scale = 500000;
+        double scale = 500000 / speed;
 
-        Random random = new Random(Long.parseLong(seed));
+        Random random;
+        if (seed != null)
+            random = new Random(seed);
+        else
+            random = new Random();
 
         if (init != null)
             running[0] = (startOne(0, init, path));
@@ -156,17 +177,11 @@ public class Simulation {
     }
 
     static Process startOne(Integer i, Integer connectTo, String path) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
-                    "username=" + (startPort + i) + ":" + (startPort + i),
-                    "host=" + InetAddress.getLocalHost().getHostAddress() + ":"
-                    + (startPort + connectTo));
-            pb.redirectOutput(new File("./log/" + i + ".out"));
-            return doStart(pb, path);
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-            return null;
-        }
+        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
+                "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
+                "host=" + localHost + ":" + (startPort + connectTo));
+        pb.redirectOutput(new File("./log/" + i + ".out"));
+        return doStart(pb, path);
     }
 
     static Process startOne(Integer i, String connectTo, String path) {
@@ -184,7 +199,7 @@ public class Simulation {
         pb.directory(new File(path));
         try {
             ret = pb.start();
-        } catch ( IOException e ) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         alive++;
@@ -204,8 +219,11 @@ public class Simulation {
 
 class SimulationCommandReader extends Thread {
     // create LocalPeer and DhtClient only for running queries
-    DhtClient client = new DhtClient(PeerManager.spawnPeer("simulator:9999", 1000000));
+    DhtClient client;
     public void run() {
+        client = new DhtClient(PeerManager.spawnPeer(
+                Simulation.hostEnd + "-simulator:9999", 1000000000));
+
         Scanner scanner = new Scanner(System.in);
         while (true) {
             String readStr = scanner.nextLine();

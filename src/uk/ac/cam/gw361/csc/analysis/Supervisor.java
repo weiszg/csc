@@ -22,8 +22,22 @@ public class Supervisor {
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
 
     public static void main(String[] args) {
-        for (String server : args) {
-            addConnection(server);
+        for (String arg : args) {
+            LinkedList<String> servers = new LinkedList<>();
+            if (arg.contains("-")) {
+                String[] input = arg.split("-");
+                String[] first = input[0].split(":");
+                Integer startPort = Integer.parseInt(first[1]);
+                Integer endPort = Integer.parseInt(input[1]);
+                for (int i=startPort; i<=endPort; i++) {
+                    servers.add(first[0] + ":" + i);
+                }
+            } else {
+                servers.add(arg);
+            }
+
+            for (String server : servers)
+                addConnection(server);
         }
 
         while (true) {
