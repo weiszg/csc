@@ -19,9 +19,14 @@ public class Stabiliser extends Thread {
     private boolean running = true;
     private String bootstrapPeer = null;
     private long lastStabilised = System.nanoTime() / 1000000;
+    private final HashMap<BigInteger, Integer> replicationDegree = new HashMap<>();
 
     boolean isStable() {
         return (System.nanoTime() / 1000000 - lastStabilised <= interval * 2);
+    }
+
+    long millisSinceStabilised() {
+        return System.nanoTime() / 1000000 - lastStabilised;
     }
 
     public Stabiliser(LocalPeer localPeer, Long interval) {
@@ -175,42 +180,52 @@ public class Stabiliser extends Thread {
         Set<BigInteger> doNotTransfer = new HashSet<>();
         HashMap<BigInteger, List<DhtPeerAddress>> transfers = new HashMap<>();
 
-        // first talk to neighbours to determine who has what, what needs to be replicated
-        for (DhtPeerAddress p : neighbours) {
-            try {
-                List<DhtFile> askFiles = new LinkedList<>();
-                // calculate which files to enquire about
-                for (DhtFile file : myFiles) {
-                    // we are only interested in replicating if peer is a predecessor
-                    // or if it is between us and the file
-                    if (localPeer.getNeighbourState().isPredecessor(p) ||
-                            p.isBetween(localPeer.localAddress,
-                                    new DhtPeerAddress(file.hash, null, null,
-                                            localPeer.localAddress.getUserID())))
-                        askFiles.add(file);
-                }
+        synchronized (replicationDegree) {
+            // reset replication degree
+            replicationDegree.clear();
 
-                // ask which files neighbour has
-                Map<BigInteger, Boolean> stored = localPeer.getClient().storingFiles(p, askFiles);
+            // first talk to neighbours to determine who has what, what needs to be replicated
+            for (DhtPeerAddress p : neighbours) {
+                try {
+                    List<DhtFile> askFiles = new LinkedList<>();
+                    // calculate which files to enquire about
+                    for (DhtFile file : myFiles) {
+                        // we are only interested in replicating if peer is a predecessor
+                        // or if it is between us and the file
+                        if (localPeer.getNeighbourState().isPredecessor(p) ||
+                                p.isBetween(localPeer.localAddress,
+                                        new DhtPeerAddress(file.hash, null, null,
+                                                localPeer.localAddress.getUserID())))
+                            askFiles.add(file);
+                    }
 
-                for (BigInteger file : stored.keySet()) {
-                    if (!stored.get(file)) {
-                        // add to transfers
-                        if (!transfers.containsKey(file)) {
-                            LinkedList<DhtPeerAddress> ll = new LinkedList<>();
-                            ll.add(p);
-                            transfers.put(file, ll);
-                        } else
-                            transfers.get(file).add(p);
-                    } else if (localPeer.getDhtStore().refreshResponsibility(file, p, false))
-                        // this means one of our successors has the file therefore
-                        // we are wrong in believing that we are the owners
-                        // hence prevent all transfers of this file and refresh responsibility
-                        doNotTransfer.add(file);
+                    // ask which files neighbour has
+                    Map<BigInteger, Boolean> stored = localPeer.getClient().storingFiles(p, askFiles);
+
+                    for (BigInteger file : stored.keySet()) {
+                        if (!stored.get(file)) {
+                            // add to transfers
+                            if (!transfers.containsKey(file)) {
+                                LinkedList<DhtPeerAddress> ll = new LinkedList<>();
+                                ll.add(p);
+                                transfers.put(file, ll);
+                            } else
+                                transfers.get(file).add(p);
+                        } else {
+                            // increase degree of replication
+                            replicationDegree.put(file, replicationDegree.getOrDefault(file, 0) + 1);
+
+                            if (localPeer.getDhtStore().refreshResponsibility(file, p, false))
+                                // this means one of our successors has the file therefore
+                                // we are wrong in believing that we are the owners
+                                // hence prevent all transfers of this file and refresh responsibility
+                                doNotTransfer.add(file);
+                        }
+                    }
+                } catch (IOException e) {
+                    // if a neighbour is not responding, the next synchronisation loop will take care
+                    if (debug) e.printStackTrace(System.out);
                 }
-            } catch (IOException e) {
-                // if a neighbour is not responding, the next synchronisation loop will take care
-                if (debug) e.printStackTrace(System.out);
             }
         }
 
@@ -231,4 +246,18 @@ public class Stabiliser extends Thread {
                 }
         }
     }
+
+    HashMap<BigInteger, Integer> getReplicationDegree() {
+        // returns the degree of replication for each file owned, -1 if unknown
+        HashMap<BigInteger, Integer> replications = new HashMap<>();
+        synchronized (replicationDegree) {
+            List<DhtFile> myFiles = localPeer.getDhtStore().
+                    getResponsibilitiesFor(localPeer.localAddress);
+            for (DhtFile file : myFiles) {
+                replications.put(file.hash, replicationDegree.getOrDefault(file.hash, -1));
+            }
+        }
+        return replications;
+    }
+
 }

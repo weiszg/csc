@@ -23,15 +23,17 @@ public class LocalPeer {
     private DhtServer dhtServer;
     private DhtClient dhtClient;
     private Stabiliser stabiliser;
-    public DhtClient getClient() { return dhtClient; }
-    public DhtServer getServer() { return dhtServer; }
     private DhtStore dhtStore;
-    public DhtStore getDhtStore() { return dhtStore; }
     private TransferManager transferManager;
-    public TransferManager getTransferManager() { return transferManager; }
-
     private FingerState fingerState;
     private NeighbourState neighbourState;
+
+    public DhtClient getClient() { return dhtClient; }
+    public DhtServer getServer() { return dhtServer; }
+    public DhtStore getDhtStore() { return dhtStore; }
+    public TransferManager getTransferManager() { return transferManager; }
+    public Stabiliser getStabiliser() { return stabiliser; }
+
     public synchronized NeighbourState getNeighbourState() { return neighbourState; }
     public synchronized FingerState getFingerState() { return fingerState; }
     public synchronized void setNeighbourState(NeighbourState newState) {

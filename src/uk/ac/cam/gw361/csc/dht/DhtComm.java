@@ -1,10 +1,12 @@
 package uk.ac.cam.gw361.csc.dht;
 
+import uk.ac.cam.gw361.csc.analysis.StateReport;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,4 +27,5 @@ public interface DhtComm extends Remote {
     Map<BigInteger, Boolean> storingFiles(DhtPeerAddress source, List<DhtFile> files)
             throws IOException;
     String query(String input) throws RemoteException; // for debug purposes
+    StateReport getStateReport() throws RemoteException;
 }

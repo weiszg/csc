@@ -1,5 +1,6 @@
 package uk.ac.cam.gw361.csc.dht;
 
+import uk.ac.cam.gw361.csc.analysis.StateReport;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 import uk.ac.cam.gw361.csc.transfer.InternalDownloadContinuation;
@@ -224,5 +225,14 @@ public class DhtServer implements DhtComm {
     @Override
     public String query(String input) {
         return localPeer.executeQuery(input);
+    }
+
+    @Override
+    public StateReport getStateReport() {
+        HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
+        return new StateReport(replication,
+                localPeer.getNeighbourState().getPredecessors().size(),
+                localPeer.getNeighbourState().getSuccessors().size(),
+                localPeer.getStabiliser().millisSinceStabilised());
     }
 }

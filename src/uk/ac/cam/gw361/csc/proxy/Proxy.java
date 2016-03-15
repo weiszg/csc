@@ -1,6 +1,5 @@
 package uk.ac.cam.gw361.csc.proxy;
 
-import sun.nio.ch.Net;
 import uk.ac.cam.gw361.csc.dht.PeerManager;
 
 import java.io.IOException;
