@@ -70,7 +70,6 @@ public class LocalPeer {
         dhtClient = new DhtClient(this);
         transferManager = new TransferManager(this);
         fileListPath = "./storage/" + userName + "/" + "MyFileList";
-        loadKeys();
 
         if (!cscOnly) {
             dhtStore = new DhtStore(this, true);
@@ -78,8 +77,10 @@ public class LocalPeer {
             dhtServer.startServer();
             stabiliser = new Stabiliser(this, stabiliseInterval);
             localAddress.print(System.out, "Started: ");
-        } else
+        } else {
             dhtStore = new DhtStore(this, false);
+            loadKeys();
+        }
     }
 
     public boolean isCscOnly() {
@@ -116,7 +117,7 @@ public class LocalPeer {
 
             // try fetching my file list
             try {
-                getFileList(userName, publicKey, true);
+                if (cscOnly) getFileList(userName, publicKey, true);
             } catch (IOException e) {
                 System.out.println("No files uploaded yet");
             }
@@ -258,11 +259,11 @@ public class LocalPeer {
         try {
             if (input.equals("nb")) {
                 getNeighbourState().print(printStream, "");
-            } else if (input.equals("fingers")) {
+            } else if (!cscOnly && input.equals("fingers")) {
                 getFingerState().print(printStream, "");
-            } else if (input.equals("files")) {
+            } else if (!cscOnly && input.equals("files")) {
                 getDhtStore().print(printStream, "");
-            } else if (input.equals("stabilise")) {
+            } else if (!cscOnly && input.equals("stabilise")) {
                 stabilise();
             } else if (input.startsWith("dle")) {
                 input = input.substring("dle ".length());
@@ -273,18 +274,18 @@ public class LocalPeer {
                 input = input.substring("ule ".length());
                 publishEntity(input);
                 System.out.println("upload started");
-            } else if (input.startsWith("files")) {
+            } else if (!cscOnly && input.startsWith("files")) {
                 input = input.substring("files ".length());
                 printStream.println("getting file list for user " + input);
                 getFileList(input, "./keys/" + input + "-public.key");
-            } else if (input.startsWith("dl")) {
+            } else if (cscOnly && input.startsWith("dl")) {
                 input = input.substring("dl ".length());
                 printStream.println("downloading " + input);
                 getFile(input);
-            } else if (input.startsWith("ul")) {
+            } else if (cscOnly && input.startsWith("ul")) {
                 input = input.substring("ul ".length());
                 publishFile(input);
-            } else if (input.contains(" ")) {
+            } else if (!cscOnly && input.contains(" ")) {
                 String[] splitStr = input.split(" ", 2);
                 int connectPort = Integer.parseInt(splitStr[0]);
                 DhtPeerAddress toConnect = new DhtPeerAddress(null, "localhost", connectPort, null);

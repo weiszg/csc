@@ -177,7 +177,7 @@ public class Simulation {
     }
 
     static Process startOne(Integer i, Integer connectTo, String path) {
-        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
+        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
                 "host=" + localHost + ":" + (startPort + connectTo));
         pb.redirectOutput(new File("./log/" + i + ".out"));
@@ -185,7 +185,7 @@ public class Simulation {
     }
 
     static Process startOne(Integer i, String connectTo, String path) {
-        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Main",
+        ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + (startPort + i) + ":" + (startPort + i),
                 "host=" + connectTo);
         pb.redirectOutput(new File("./log/" + i + ".out"));

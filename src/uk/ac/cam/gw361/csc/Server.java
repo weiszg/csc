@@ -7,12 +7,15 @@ import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
 
 import java.io.IOException;
 import java.rmi.server.RMISocketFactory;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 
 /**
  * Created by gellert on 01/11/2015.
  */
-public class Main {
+public class Server {
     public static void main(String[] args) {
         // set RMI timeout properties
         System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
@@ -26,23 +29,10 @@ public class Main {
         System.setProperty("javax.net.ssl.trustStore", "truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
-
-        // set proxy latency and bandwidth
-        // PeerManager.setConnector(new ProxiedConnector(0, 100000));
-
         manualStart(args);
-
-        /*Proxy proxy = new Proxy(8000, "192.30.252.129", 80, 0, 0, 1000000);
-        while (true) {
-            System.out.println("Rx: " + proxy.getInSpeed() + ", Tx: " + proxy.getOutSpeed() +
-                    ", on:" + proxy.isAlive());
-            try { Thread.sleep(1000); }
-            catch (InterruptedException e) { }
-        }*/
-        // normally: manualStart(args);
     }
 
-    private static void manualStart(String[] args) {
+    static void manualStart(String[] args) {
         try {
             RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
         } catch (IOException e) {
@@ -128,6 +118,19 @@ public class Main {
     }
 }
 
+class Client {
+    public static void main(String[] args) {
+        // set truststore
+        // System.setProperty("javax.net.debug", "all");
+        System.setProperty("javax.net.ssl.trustStore", "truststore");
+        System.setProperty("javax.net.ssl.trustStorePassword", "password");
+
+        List<String> oldArgs = Arrays.asList(args);
+        oldArgs.add("csconly");
+        Server.manualStart(((String[]) oldArgs.toArray()));
+    }
+
+}
 
 class CommandReader extends Thread {
     private static LocalPeer localPeer;
