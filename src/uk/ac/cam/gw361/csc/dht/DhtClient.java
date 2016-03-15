@@ -29,7 +29,7 @@ import java.util.Map;
 public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
-    private final boolean debugClient = false;
+    private final boolean debugClient = true;
     private Map<DhtPeerAddress, Remote> connections = new HashMap<>();
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections

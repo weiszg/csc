@@ -139,8 +139,8 @@ public class DhtServer implements DhtComm {
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
         Socket socket = new Socket();
-        socket.setSoTimeout(1000);
-        socket.connect(new InetSocketAddress(source.getHost(), port), 900);
+        socket.setSoTimeout(10000);
+        socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
 
         Thread uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
                 transferFile, new InternalUploadContinuation());
@@ -182,9 +182,9 @@ public class DhtServer implements DhtComm {
 
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.hash;
         Socket socket = new Socket();
-        socket.setSoTimeout(1000);
+        socket.setSoTimeout(10000);
 
-        socket.connect(new InetSocketAddress(source.getHost(), port), 900);
+        socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
 
         Thread downloader = new DirectTransfer(localPeer, source, socket, fileName, true, file,
                 new InternalDownloadContinuation());
@@ -230,9 +230,10 @@ public class DhtServer implements DhtComm {
     @Override
     public StateReport getStateReport() {
         HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
-        return new StateReport(replication,
+        StateReport report = new StateReport(replication,
                 localPeer.getNeighbourState().getPredecessors().size(),
                 localPeer.getNeighbourState().getSuccessors().size(),
                 localPeer.getStabiliser().millisSinceStabilised());
+        return report;
     }
 }

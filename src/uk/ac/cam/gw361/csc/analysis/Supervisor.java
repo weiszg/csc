@@ -9,6 +9,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
 /**
@@ -80,6 +81,9 @@ public class Supervisor {
     }
 
     private static void refreshState() {
+        LinkedList<String> reconnect = new LinkedList<>();
+        doubleOwnersCount = 0;
+        globalFiles.clear();
         for (Map.Entry<String, DhtComm> entry : connections.entrySet()) {
             try {
                 StateReport report = entry.getValue().getStateReport();
@@ -88,12 +92,11 @@ public class Supervisor {
                 report.lastStabilised = System.nanoTime() / 1000000 - report.lastStabilised;
 
                 // go through each responsible file and adjust global files
-                doubleOwnersCount = 0;
                 for (Map.Entry<BigInteger, Integer> repl : report.replicationDegree.entrySet()) {
                     GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
                             new GlobalFileData(0, 0));
                     fileData.ownerCount++;
-                    if (fileData.ownerCount == 2) doubleOwnersCount++;
+                    if (fileData.ownerCount > 1) doubleOwnersCount++;
                     fileData.replicationCount = Math.max(
                             fileData.replicationCount, repl.getValue());
                     globalFiles.put(repl.getKey(), fileData);
@@ -101,8 +104,13 @@ public class Supervisor {
 
                 state.put(entry.getKey(), report);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                System.out.println("refreshState error: " + e.toString());
+                reconnect.add(entry.getKey());
             }
+        }
+
+        for (String server : reconnect) {
+            addConnection(server);
         }
     }
 
@@ -115,7 +123,7 @@ public class Supervisor {
             connections.put(server, ret);
 
         } catch (RemoteException | NotBoundException e) {
-            e.printStackTrace();
+            System.out.println("addConnection error: " + e.toString());
         }
     }
 }

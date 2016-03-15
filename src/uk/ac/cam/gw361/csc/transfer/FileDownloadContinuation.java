@@ -117,7 +117,6 @@ public class FileDownloadContinuation extends TransferContinuation {
             } catch (IOException e) {
                 synchronized (this) { concurrentTransfers--; }
                 System.err.println("File download failed");
-                e.printStackTrace();
             }
         }
     }

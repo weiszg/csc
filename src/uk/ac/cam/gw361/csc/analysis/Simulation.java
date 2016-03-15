@@ -88,7 +88,7 @@ public class Simulation {
         if (init != null)
             running[0] = (startOne(0, init, path));
         else
-            running[0] = (startOne(0, 0, path));
+            running[0] = (startOne(0, -1, path));
 
         for (int i=1; i<max; i++)
             numberPool.add(i);
