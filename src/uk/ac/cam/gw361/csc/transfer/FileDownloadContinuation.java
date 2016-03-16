@@ -84,11 +84,10 @@ public class FileDownloadContinuation extends TransferContinuation {
                 }
             } else {
                 finishedBlocks++;
-                concurrentTransfers--;
-
                 System.out.println("Downloaded " +
                         finishedBlocks * FileMetadata.blockSize / (1024*1024) + "MB of "
                         + meta.blocks + "MB, threads: " + concurrentTransfers);
+                concurrentTransfers--;
 
                 // if done merge downloaded chunks
                 if (waitingChunks.isEmpty() && concurrentTransfers == 0) {

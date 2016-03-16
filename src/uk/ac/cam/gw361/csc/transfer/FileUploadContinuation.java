@@ -83,10 +83,10 @@ public class FileUploadContinuation extends TransferContinuation {
             } else {
                 if (concurrentTransfers > 0) {
                     // excludes special uploads such as FileList
+                    finishedBlocks++;
                     System.out.println("Uploaded " +
                             finishedBlocks * FileMetadata.blockSize / (1024*1024) + "MB of "
                             + meta.blocks + "MB, threads: " + concurrentTransfers);
-                    finishedBlocks++;
                     concurrentTransfers--;
                 }
 

@@ -328,6 +328,8 @@ public class DhtClient {
         try {
             TransferReply reply;
             if (localPeer.isCscOnly()) {
+                ft = new DirectTransfer(localPeer, peer, ((Socket) null), fileName, true,
+                        file, continuation);
                 reply = csccomm.upload(localPeer.localAddress.getHost(), file.hash);
             } else {
                 ServerSocket listener = createServerSocket(0);
@@ -423,21 +425,24 @@ public class DhtClient {
             TransferReply response;
 
             if (localPeer.isCscOnly()) {
+                ft = new DirectTransfer(localPeer, peer, ((Socket) null), fileName,
+                        false, file, continuation);
                 response = csccomm.download(localPeer.localAddress.getHost(), file);
             } else {
                 ServerSocket listener = createServerSocket(0);
-                ft = new DirectTransfer(localPeer, peer, listener, fileName, false, file, continuation);
+                ft = new DirectTransfer(localPeer, peer, listener, fileName,
+                        false, file, continuation);
                 ft.start();
 
                 response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
             }
 
-            if (response.primary.equals(1)) {
+            if (response.primary == 1) {
                 System.out.println("Out of range for receiver " + peer.getConnectAddress());
-                if (ft != null) ft.stopTransfer(false);
-            } else if (response.primary.equals(2)) {
+                ft.stopTransfer(false);
+            } else if (response.primary == 2) {
                 System.out.println("redundant: " + file.hash.toString());
-                if (ft != null) ft.stopTransfer(true);
+                ft.stopTransfer(true);
             } else { // else the transfer is on
                 if (localPeer.isCscOnly()) {  // we're in client mode, start transfer
                     Socket socket = createSocket();
@@ -449,7 +454,6 @@ public class DhtClient {
                     ft.start();
                 }
             }
-
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;
