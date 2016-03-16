@@ -5,6 +5,7 @@ import uk.ac.cam.gw361.csc.storage.DhtFile;
 import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 import uk.ac.cam.gw361.csc.transfer.InternalDownloadContinuation;
 import uk.ac.cam.gw361.csc.transfer.InternalUploadContinuation;
+import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
@@ -181,20 +182,25 @@ public class DhtServer implements DhtComm {
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
         Thread uploader;
+        // no continuation for cscOnly transfers
+        TransferContinuation continuation = useSSL ? null : new InternalDownloadContinuation();
+
         if (clientMode) {
             ServerSocket listener = createServerSocket(0, useSSL);
             uploader = new DirectTransfer(localPeer, source, listener, fileName, false,
-                    transferFile, new InternalUploadContinuation());
+                    transferFile, continuation);
+            uploader.start();
+            return new TransferReply(transferFile.size, listener.getLocalPort());
         } else {
             Socket socket = createSocket(useSSL);
             socket.setSoTimeout(10000);
             socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
 
             uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
-                    transferFile, new InternalUploadContinuation());
+                    transferFile, continuation);
+            uploader.start();
+            return new TransferReply(transferFile.size, null);
         }
-        uploader.start();
-        return new TransferReply(transferFile.size, null);
     }
 
     @Override

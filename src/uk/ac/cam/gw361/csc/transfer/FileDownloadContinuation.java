@@ -83,11 +83,12 @@ public class FileDownloadContinuation extends TransferContinuation {
                     System.out.println("Error processing metadata: " + e.toString());
                 }
             } else {
-                System.out.println("Downloaded " + finishedBlocks + "MB of "
-                        + meta.blocks + "MB, threads: " + concurrentTransfers);
-
                 finishedBlocks++;
                 concurrentTransfers--;
+
+                System.out.println("Downloaded " +
+                        finishedBlocks * FileMetadata.blockSize / (1024*1024) + "MB of "
+                        + meta.blocks + "MB, threads: " + concurrentTransfers);
 
                 // if done merge downloaded chunks
                 if (waitingChunks.isEmpty() && concurrentTransfers == 0) {

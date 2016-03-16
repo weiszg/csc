@@ -275,7 +275,7 @@ public class LocalPeer {
                 input = input.substring("ule ".length());
                 publishEntity(input);
                 System.out.println("upload started");
-            } else if (!cscOnly && input.startsWith("files")) {
+            } else if (cscOnly && input.startsWith("files")) {
                 input = input.substring("files ".length());
                 printStream.println("getting file list for user " + input);
                 getFileList(input, "./keys/" + input + "-public.key");
