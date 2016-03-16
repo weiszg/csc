@@ -125,9 +125,11 @@ class Client {
         System.setProperty("javax.net.ssl.trustStore", "truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
-        List<String> oldArgs = Arrays.asList(args);
+        List<String> oldArgs = new ArrayList<>(Arrays.asList(args));
         oldArgs.add("csconly");
-        Server.manualStart(((String[]) oldArgs.toArray()));
+        String[] newArgs = new String[oldArgs.size()];
+        newArgs = oldArgs.toArray(newArgs);
+        Server.manualStart(newArgs);
     }
 
 }

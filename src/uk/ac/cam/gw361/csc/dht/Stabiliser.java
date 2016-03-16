@@ -67,8 +67,9 @@ public class Stabiliser extends Thread {
             System.out.println(localPeer.localAddress.getConnectAddress()
                     + ": connected to DHT pool");
             try {
-                // try fetching my file list
-                localPeer.getFileList(localPeer.userName, localPeer.publicKey, true);
+                // try fetching my file list if I'm a client
+                if (localPeer.isCscOnly())
+                    localPeer.getFileList(localPeer.userName, localPeer.publicKey, true);
             } catch (IOException e) {
                 System.out.println("No files uploaded yet");
             }
@@ -76,6 +77,7 @@ public class Stabiliser extends Thread {
             System.err.println(localPeer.localAddress.getConnectAddress()
                     +  ": failed to connect to DHT pool, " + e.reason);
         } catch (IOException ioe) {
+            ioe.printStackTrace();
             System.err.println(localPeer.localAddress.getConnectAddress()
                     +  ": failed to connect to DHT pool, " + ioe.toString());
         }

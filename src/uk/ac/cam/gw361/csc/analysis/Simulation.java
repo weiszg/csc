@@ -111,7 +111,7 @@ public class Simulation {
         else
             running[0] = (startOne(0, -1, path));
 
-        for (int i=1; i<max; i++)
+        for (int i=1; i<=max; i++)
             numberPool.add(i);
 
         double nextDeath = 0;
@@ -151,17 +151,17 @@ public class Simulation {
                 if (!isRunning)
                     try { Thread.sleep(1000); } catch (InterruptedException e) { }
                 else {
-                    if (nextBirth == 0) {
+                    if (nextBirth == 0 && alive < max) {
                         Double r3 = random.nextDouble() * (numberPool.size());
                         int index = r3.intValue();
                         int port = numberPool.get(index);
                         numberPool.remove(index);
                         runningPool.add(port);
 
-                        System.out.println("Starting " + port + " alive: " + alive);
                         running[port] = (startOne(port, 0, path));
+                        System.out.println("Starting " + port + " alive: " + alive);
                     }
-                    if (nextDeath == 0) {
+                    if (nextDeath == 0 && alive > min) {
                         Double r3 = random.nextDouble() * runningPool.size();
                         int index = r3.intValue();
                         int port = runningPool.get(index);
@@ -184,10 +184,10 @@ public class Simulation {
         return doStart(pb, path);
     }
 
-    static Process startOne(Integer i, String connectTo, String path) {
+    static Process startOne(Integer i, String connectAddress, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
-                "username=" + (startPort + i) + ":" + (startPort + i),
-                "host=" + connectTo);
+                "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
+                "host=" + connectAddress);
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
@@ -233,7 +233,7 @@ class SimulationCommandReader extends Thread {
                         Simulation.isRunning = false;
                     }
                     for (Process p : Simulation.running)
-                        Simulation.endProcess(p);
+                        if (p != null) Simulation.endProcess(p);
                 } else if (readStr.equals("suspend")) {
                     synchronized (Simulation.lock) {
                         Simulation.isRunning = false;

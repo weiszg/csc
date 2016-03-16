@@ -22,7 +22,7 @@ public class LocalPeer {
     final String fileListPath;
     private final BigInteger userID;
     public final DhtPeerAddress localAddress;
-    private DhtServer dhtServer;
+    private DhtServer dhtServer, localDhtServer;
     private DhtClient dhtClient;
     private Stabiliser stabiliser;
     private DhtStore dhtStore;
@@ -31,7 +31,7 @@ public class LocalPeer {
     private NeighbourState neighbourState;
 
     public DhtClient getClient() { return dhtClient; }
-    public DhtServer getServer() { return dhtServer; }
+    public DhtServer getServer() { return localDhtServer; }
     public DhtStore getDhtStore() { return dhtStore; }
     public TransferManager getTransferManager() { return transferManager; }
     public Stabiliser getStabiliser() { return stabiliser; }
@@ -74,6 +74,7 @@ public class LocalPeer {
         if (!cscOnly) {
             dhtStore = new DhtStore(this, true);
             dhtServer = new DhtServer(this, port);
+            localDhtServer = new DhtServer(dhtServer, true);
             dhtServer.startServer();
             stabiliser = new Stabiliser(this, stabiliseInterval);
             localAddress.print(System.out, "Started: ");

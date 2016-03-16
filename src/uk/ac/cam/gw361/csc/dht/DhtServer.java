@@ -16,10 +16,7 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
-import java.rmi.server.ExportException;
-import java.rmi.server.RemoteServer;
-import java.rmi.server.ServerNotActiveException;
-import java.rmi.server.UnicastRemoteObject;
+import java.rmi.server.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +32,10 @@ public class DhtServer implements DhtComm {
     private final int port;
     private final Registry registry;
     private CscServer cscServer;
+    private final boolean localOnly;
 
     public DhtServer(LocalPeer localPeer, int port) {
+        this.localOnly = false;
         this.port = port;
         this.localPeer = localPeer;
         Registry reg = null;
@@ -57,6 +56,15 @@ public class DhtServer implements DhtComm {
                 System.err.println("Client-facing server failed to start: " + e.toString());
             }
         }
+    }
+
+    public DhtServer(DhtServer toCopy, boolean local) {
+        this.localPeer = toCopy.localPeer;
+        this.uploads = toCopy.uploads;
+        this.port = toCopy.port;
+        this.registry = toCopy.registry;
+        this.cscServer = toCopy.cscServer;
+        this.localOnly = local;
     }
 
     public void startServer() {
@@ -96,6 +104,13 @@ public class DhtServer implements DhtComm {
 
     // private-ring DhtComm part
 
+    private String getClientHost() throws ServerNotActiveException {
+        if (localOnly)
+            return localPeer.localAddress.getHost();
+        else
+            return RemoteServer.getClientHost();
+    }
+
     private void acceptConnection(DhtPeerAddress source) throws IOException {
         try {
             if (PeerManager.allowLocalConnect && PeerManager.hasPeer(source)) {
@@ -105,8 +120,14 @@ public class DhtServer implements DhtComm {
                         source.getPort(), localPeer.localAddress.getUserID());
                 localPeer.getNeighbourState().addNeighbour(newSource);
             } else {
-                String clientHost = RemoteServer.getClientHost();
+                String clientHost = getClientHost();
                 // todo: check if local/trusted
+                if (!clientHost.startsWith("192.168.1.") ||
+                        Integer.parseInt(clientHost.substring("192.168.1.".length())) < 107) {
+                    System.err.println("Denying request from " + clientHost);
+                    throw new ServerNotActiveException();
+
+                }
                 source.setRelative(localPeer.localAddress.getUserID());
                 // set host of source
                 source.setHost(clientHost);
@@ -114,6 +135,7 @@ public class DhtServer implements DhtComm {
             }
         } catch (ServerNotActiveException | UnknownHostException e) {
             // disallow access
+            e.printStackTrace();
             throw new IOException("Permission denied");
         }
     }

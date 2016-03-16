@@ -29,7 +29,7 @@ import java.util.Map;
 public class DhtClient {
     private LocalPeer localPeer;
     private final boolean debug = false;
-    private final boolean debugClient = true;
+    private final boolean debugClient = false;
     private Map<DhtPeerAddress, Remote> connections = new HashMap<>();
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
@@ -76,7 +76,7 @@ public class DhtClient {
     private Remote connect(DhtPeerAddress server) throws ConnectionFailedException {
         // don't connect to myself through RMI
         if (!localPeer.isCscOnly() && server.equals(localPeer.localAddress))
-            return localPeer.getServer();
+            return new LocalDhtCommWrapper(localPeer.getServer());
 
         if (!localPeer.isCscOnly() && PeerManager.allowLocalConnect) {
             if (server.getUserID() != null && PeerManager.hasPeer(server))
