@@ -75,11 +75,10 @@ public class Stabiliser extends Thread {
             }
         } catch (ConnectionFailedException e) {
             System.err.println(localPeer.localAddress.getConnectAddress()
-                    +  ": failed to connect to DHT pool, " + e.reason);
+                    +  ": failed to connect to DHT pool at " + bootstrapPeer + ": " + e.reason);
         } catch (IOException ioe) {
-            ioe.printStackTrace();
             System.err.println(localPeer.localAddress.getConnectAddress()
-                    +  ": failed to connect to DHT pool, " + ioe.toString());
+                +  ": failed to connect to DHT pool at " + bootstrapPeer + ": " + ioe.toString());
         }
     }
 

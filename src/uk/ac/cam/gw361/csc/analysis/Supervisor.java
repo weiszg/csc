@@ -1,6 +1,7 @@
 package uk.ac.cam.gw361.csc.analysis;
 
 import uk.ac.cam.gw361.csc.dht.DhtComm;
+import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -8,6 +9,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.RMISocketFactory;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -24,6 +26,13 @@ public class Supervisor {
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
 
     public static void main(String[] args) {
+        try {
+            RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
         for (String arg : args) {
             LinkedList<String> newServers = new LinkedList<>();
             if (arg.contains("-")) {
@@ -126,7 +135,7 @@ public class Supervisor {
                     GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
                             new GlobalFileData(0, 0));
                     fileData.ownerCount++;
-                    if (fileData.ownerCount > 1) doubleOwnersCount++;
+                    if (fileData.ownerCount == 2) doubleOwnersCount++;
                     fileData.replicationCount = Math.max(
                             fileData.replicationCount, repl.getValue());
                     globalFiles.put(repl.getKey(), fileData);
