@@ -12,7 +12,7 @@ import java.rmi.RemoteException;
  */
 public interface CscComm extends Remote {
     DhtPeerAddress lookup(BigInteger target) throws IOException;
-    Long upload(String host, Integer port, BigInteger file) throws IOException;
-    Integer download(String host, Integer port, DhtFile file) throws IOException;
+    TransferReply upload(String host, BigInteger file) throws IOException;
+    TransferReply download(String host, DhtFile file) throws IOException;
     Boolean isAlive() throws RemoteException;
 }

@@ -10,9 +10,15 @@ import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 import uk.ac.cam.gw361.csc.transfer.FileUploadContinuation;
 import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
+import javax.net.ServerSocketFactory;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -34,6 +40,8 @@ public class DhtClient {
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
     private Reporter connectReporter, lookupReporter;
+    private final ServerSocketFactory sslServerFactory = SSLServerSocketFactory.getDefault();
+    private final SocketFactory sslFactory = SSLSocketFactory.getDefault();
 
     public DhtClient(LocalPeer localPeer) {
         if (PeerManager.perfmon)
@@ -55,6 +63,22 @@ public class DhtClient {
                         localPeer.localAddress.getUserID()),
                 localPeer.localAddress.getUserID(), false, null);
         localPeer.getNeighbourState().addNeighbour(pred);
+    }
+
+    private ServerSocket createServerSocket(int port) throws IOException {
+        boolean useSSL = localPeer.isCscOnly();
+        if (useSSL)
+            return sslServerFactory.createServerSocket(port);
+        else
+            return new ServerSocket(port);
+    }
+
+    private Socket createSocket() throws IOException {
+        boolean useSSL = localPeer.isCscOnly();
+        if (useSSL)
+            return sslFactory.createSocket();
+        else
+            return new Socket();
     }
 
     private Remote connect(DoubleAddress server) throws ConnectionFailedException {
@@ -291,8 +315,7 @@ public class DhtClient {
     }
 
     private DirectTransfer doDownload(DhtPeerAddress peer, String fileName, DhtFile file,
-                                      TransferContinuation continuation)
-            throws IOException {
+                                      TransferContinuation continuation) throws IOException {
         if (debug) System.out.println("client download");
 
         DhtComm comm=null; CscComm csccomm=null;
@@ -303,20 +326,28 @@ public class DhtClient {
 
         DirectTransfer ft = null;
         try {
-            ServerSocket listener = new ServerSocket(0);
-            // the owner doesn't matter, the destination of the download could be a different folder
-            ft = new DirectTransfer(localPeer, peer, listener, fileName, true, file, continuation);
-            ft.start();
+            TransferReply reply;
+            if (localPeer.isCscOnly()) {
+                reply = csccomm.upload(localPeer.localAddress.getHost(), file.hash);
+            } else {
+                ServerSocket listener = createServerSocket(0);
+                // the owner doesn't matter, the destination of the download could be a different folder
+                ft = new DirectTransfer(localPeer, peer, listener, fileName, true,
+                        file, continuation);
+                ft.start();
+                reply = comm.upload(localPeer.localAddress, listener.getLocalPort(), file.hash);
+            }
 
-            Long size = null;
-            if (localPeer.isCscOnly())
-                size = csccomm.upload(localPeer.localAddress.getHost(),
-                        listener.getLocalPort(), file.hash);
-            else
-                size = comm.upload(localPeer.localAddress, listener.getLocalPort(), file.hash);
-
-            if (size == null)
+            if (reply.primary == null)
                 throw new IOException("Size null");
+            else if (localPeer.isCscOnly()) {  // client mode
+                Socket socket = createSocket();
+                socket.setSoTimeout(10000);
+                socket.connect(new InetSocketAddress(peer.getHost(), reply.port), 9000);
+                ft = new DirectTransfer(localPeer, peer, socket, fileName, true,
+                        file, continuation);
+                ft.start();
+            }
         } catch (IOException ioe) {
             if (ft != null)
                 ft.stopTransfer(false, false);
@@ -338,7 +369,8 @@ public class DhtClient {
         return ft;
     }
 
-    public DirectTransfer upload(String name, FileUploadContinuation continuation) throws IOException {
+    public DirectTransfer upload(String name, FileUploadContinuation continuation)
+            throws IOException {
         BigInteger fileHash = Hasher.hashFile(name);
         File file = new File(name);
         if (!file.exists())
@@ -386,28 +418,38 @@ public class DhtClient {
         else
             comm = ((DhtComm) connect(peer));
 
-        DirectTransfer ft;
+        DirectTransfer ft = null;
         try {
-            ServerSocket listener = new ServerSocket(0);
-            ft = new DirectTransfer(localPeer, peer, listener, fileName, false, file, continuation);
-            ft.start();
+            TransferReply response;
 
-            Integer response;
-            if (localPeer.isCscOnly())
-                response = csccomm.download(localPeer.localAddress.getHost(),
-                        listener.getLocalPort(), file);
-            else
+            if (localPeer.isCscOnly()) {
+                response = csccomm.download(localPeer.localAddress.getHost(), file);
+            } else {
+                ServerSocket listener = createServerSocket(0);
+                ft = new DirectTransfer(localPeer, peer, listener, fileName, false, file, continuation);
+                ft.start();
+
                 response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
-
-            if (response.equals(1)) {
-                System.out.println("Out of range for receiver " + peer.getConnectAddress());
-                ft.stopTransfer(false);
-            } else if (response.equals(2)) {
-                System.out.println("redundant: " + file.hash.toString());
-                ft.stopTransfer(true);
             }
-                // else the transfer is on
-                // track transfer with ft
+
+            if (response.primary.equals(1)) {
+                System.out.println("Out of range for receiver " + peer.getConnectAddress());
+                if (ft != null) ft.stopTransfer(false);
+            } else if (response.primary.equals(2)) {
+                System.out.println("redundant: " + file.hash.toString());
+                if (ft != null) ft.stopTransfer(true);
+            } else { // else the transfer is on
+                if (localPeer.isCscOnly()) {  // we're in client mode, start transfer
+                    Socket socket = createSocket();
+                    socket.setSoTimeout(10000);
+                    socket.connect(new InetSocketAddress(
+                            peer.getHost(), response.port), 9000);
+                    ft = new DirectTransfer(localPeer, peer, socket, fileName, false,
+                            file, continuation);
+                    ft.start();
+                }
+            }
+
         } catch (IOException ioe) {
             if (debug) ioe.printStackTrace();
             throw ioe;

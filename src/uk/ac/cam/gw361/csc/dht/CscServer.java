@@ -34,19 +34,17 @@ public class CscServer extends UnicastRemoteObject implements CscComm {
     }
 
     @Override
-    public Long upload(String host, Integer port, BigInteger file) throws IOException {
+    public TransferReply upload(String host, BigInteger file) throws IOException {
         // the DhtPeerAddress only matters for InternalUploadContinuations
         // which doesn't go through here
-        return server.doUpload(new DhtPeerAddress(BigInteger.ZERO, host, port,
-                        localPeer.localAddress.getUserID()),
-                port, file);
+        return server.doUpload(new DhtPeerAddress(BigInteger.ZERO, host, 0,
+                        localPeer.localAddress.getUserID()), null, file, true);
     }
 
     @Override
-    public Integer download(String host, Integer port, DhtFile file) throws IOException {
-        return server.doDownload(new DhtPeerAddress(BigInteger.ZERO, host, port,
-                        localPeer.localAddress.getUserID()),
-                port, file);
+    public TransferReply download(String host, DhtFile file) throws IOException {
+        return server.doDownload(new DhtPeerAddress(BigInteger.ZERO, host, 0,
+                        localPeer.localAddress.getUserID()), null, file, true);
     }
 
     @Override

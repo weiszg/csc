@@ -14,7 +14,7 @@ import java.util.*;
  * Created by gellert on 08/11/2015.
  */
 public class DhtRoutingTest {
-    static int peerCount = 200;
+    static int peerCount = 20;
     static int startPort = 10000;
     static int k;
     static TreeSet<DhtPeerAddress> addresses;

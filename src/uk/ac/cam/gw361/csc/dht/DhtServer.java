@@ -6,12 +6,13 @@ import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 import uk.ac.cam.gw361.csc.transfer.InternalDownloadContinuation;
 import uk.ac.cam.gw361.csc.transfer.InternalUploadContinuation;
 
+import javax.net.ServerSocketFactory;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.math.BigInteger;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
@@ -33,6 +34,8 @@ public class DhtServer implements DhtComm {
     private final Registry registry;
     private CscServer cscServer;
     private final boolean localOnly;
+    private final ServerSocketFactory sslServerFactory = SSLServerSocketFactory.getDefault();
+    private final SocketFactory sslFactory = SSLSocketFactory.getDefault();
 
     public DhtServer(LocalPeer localPeer, int port) {
         this.localOnly = false;
@@ -111,6 +114,10 @@ public class DhtServer implements DhtComm {
             return RemoteServer.getClientHost();
     }
 
+    private boolean allowedConnection(String host) {
+        return true;  // todo: implement DMZ policy
+    }
+
     private void acceptConnection(DhtPeerAddress source) throws IOException {
         try {
             if (PeerManager.allowLocalConnect && PeerManager.hasPeer(source)) {
@@ -122,12 +129,9 @@ public class DhtServer implements DhtComm {
             } else {
                 String clientHost = getClientHost();
                 // todo: check if local/trusted
-                if (!clientHost.startsWith("192.168.1.") ||
-                        Integer.parseInt(clientHost.substring("192.168.1.".length())) < 107) {
-                    System.err.println("Denying request from " + clientHost);
+                if (!allowedConnection(clientHost))
                     throw new ServerNotActiveException();
 
-                }
                 source.setRelative(localPeer.localAddress.getUserID());
                 // set host of source
                 source.setHost(clientHost);
@@ -138,6 +142,20 @@ public class DhtServer implements DhtComm {
             e.printStackTrace();
             throw new IOException("Permission denied");
         }
+    }
+
+    private ServerSocket createServerSocket(int port, boolean useSSL) throws IOException {
+        if (useSSL)
+            return sslServerFactory.createServerSocket(port);
+        else
+            return new ServerSocket(port);
+    }
+
+    private Socket createSocket(boolean useSSL) throws IOException {
+        if (useSSL)
+            return sslFactory.createSocket();
+        else
+            return new Socket();
     }
 
     @Override
@@ -156,35 +174,47 @@ public class DhtServer implements DhtComm {
         else return null;
     }
 
-    Long doUpload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException {
+    TransferReply doUpload(DhtPeerAddress source, Integer port, BigInteger file, boolean useSSL)
+            throws IOException {
+        boolean clientMode = (port == null);
         DhtFile transferFile = localPeer.getDhtStore().getFile(file);
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
-        Socket socket = new Socket();
-        socket.setSoTimeout(10000);
-        socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
+        Thread uploader;
+        if (clientMode) {
+            ServerSocket listener = createServerSocket(0, useSSL);
+            uploader = new DirectTransfer(localPeer, source, listener, fileName, false,
+                    transferFile, new InternalUploadContinuation());
+        } else {
+            Socket socket = createSocket(useSSL);
+            socket.setSoTimeout(10000);
+            socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
 
-        Thread uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
-                transferFile, new InternalUploadContinuation());
+            uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
+                    transferFile, new InternalUploadContinuation());
+        }
         uploader.start();
-        return transferFile.size;
+        return new TransferReply(transferFile.size, null);
     }
 
     @Override
-    public Long upload(DhtPeerAddress source, Integer port, BigInteger file)
+    public TransferReply upload(DhtPeerAddress source, Integer port, BigInteger file)
             throws IOException {
         acceptConnection(source);
-        return doUpload(source, port, file);
+        return doUpload(source, port, file, false);
     }
 
     @Override
-    public Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
+    public TransferReply download(DhtPeerAddress source, Integer port, DhtFile file)
+            throws IOException {
         // return value: 0 for ACCEPT, 1 for DECLINE and 2 for REDUNDANT
         acceptConnection(source);
-        return doDownload(source, port, file);
+        return doDownload(source, port, file, false);
     }
 
-    Integer doDownload(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
+    TransferReply doDownload(DhtPeerAddress source, Integer port, DhtFile file, boolean useSSL)
+            throws IOException {
+        boolean clientMode = (port == null);
         file.owner.setRelative(localPeer.localAddress.getUserID());
         // only accept if owner is within predecessor range
         // or if I am between the current owner and the file, in which case I'll be the next owner
@@ -195,23 +225,30 @@ public class DhtServer implements DhtComm {
                 !localPeer.getNeighbourState().getSuccessors().contains(file.owner)) {
             System.out.println("Refusing download from " + source.getConnectAddress()
                     + " with owner " + file.owner.getConnectAddress());
-            return 1;
+            return new TransferReply(1, null);
         } else if (localPeer.getDhtStore().hasFile(file))
-            return 2;
+            return new TransferReply(2, null);
 
         System.out.println("Storing file at " + localPeer.userName + "/" +
                 file.hash.toString());
 
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.hash;
-        Socket socket = new Socket();
-        socket.setSoTimeout(10000);
 
-        socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
-
-        Thread downloader = new DirectTransfer(localPeer, source, socket, fileName, true, file,
-                new InternalDownloadContinuation());
-        downloader.start();
-        return 0;
+        if (clientMode) {
+            ServerSocket listener = createServerSocket(0, useSSL);
+            Thread downloader = new DirectTransfer(localPeer, source, listener, fileName,
+                    true, file, new InternalDownloadContinuation());
+            downloader.start();
+            return new TransferReply(0, listener.getLocalPort());
+        } else {
+            Socket socket = createSocket(useSSL);
+            socket.setSoTimeout(10000);
+            socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
+            Thread downloader = new DirectTransfer(localPeer, source, socket, fileName,
+                    true, file, new InternalDownloadContinuation());
+            downloader.start();
+            return new TransferReply(0, null);
+        }
     }
 
     @Override

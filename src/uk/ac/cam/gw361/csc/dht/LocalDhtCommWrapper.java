@@ -45,12 +45,14 @@ public class LocalDhtCommWrapper implements DhtComm {
     }
 
     @Override
-    public Long upload(DhtPeerAddress source, Integer port, BigInteger file) throws IOException {
+    public TransferReply upload(DhtPeerAddress source, Integer port, BigInteger file)
+            throws IOException {
         return comm.upload(source, port, file);
     }
 
     @Override
-    public Integer download(DhtPeerAddress source, Integer port, DhtFile file) throws IOException {
+    public TransferReply download(DhtPeerAddress source, Integer port, DhtFile file)
+            throws IOException {
         return comm.download(source, port, cloneDhtFile(file));
     }
 
