@@ -167,7 +167,7 @@ public class DhtClient {
                     ret = registry.lookup("DhtComm");
                     if (server.getUserID() != null && !localPeer.isCscOnly()
                             && !((DhtComm) ret).checkUserID(localPeer.localAddress, server.getUserID()))
-                        throw new ConnectionFailedException("UserID mismatch");
+                        throw new ConnectionFailedException("UserID mismatch", server);
                 }
 
                 // cache the connection
@@ -180,7 +180,7 @@ public class DhtClient {
                 return ret;
             } catch (IOException | NotBoundException e) {
                 if (debug) System.err.println("Client exception: " + e.toString());
-                throw new ConnectionFailedException(e.toString());
+                throw new ConnectionFailedException(e.toString(), server);
             }
         } finally {
             if (profiler != null)
@@ -487,9 +487,17 @@ public class DhtClient {
 
 class ConnectionFailedException extends IOException {
     String reason;
+    DhtPeerAddress connectTo;
     ConnectionFailedException() {}
-    ConnectionFailedException(String reason) {
+    ConnectionFailedException(String reason, DhtPeerAddress connectTo) {
         this.reason = reason;
+        this.connectTo = connectTo;
+    }
+
+    @Override
+    public String toString() {
+        return "ConnectionFailedException: " + reason +
+                ", target: " + connectTo.getConnectAddress();
     }
 }
 

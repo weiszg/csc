@@ -128,7 +128,6 @@ class NamedUploadTask extends TransferTask {
             return transfer;
         } catch (IOException e) {
             System.out.println("Error executing DownloadTask: " + e.toString());
-            e.printStackTrace();
             return retryExecute(e);
         }
     }

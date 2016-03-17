@@ -160,7 +160,7 @@ public class Supervisor {
             connections.put(server, ret);
 
         } catch (RemoteException | NotBoundException e) {
-            // System.out.println("addConnection error: " + e.toString());
+            // System.out.println("failed to connect to " + server + ": " + e.toString());
         }
     }
 }
