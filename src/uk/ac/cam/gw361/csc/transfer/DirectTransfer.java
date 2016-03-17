@@ -29,6 +29,9 @@ public class DirectTransfer extends Thread {
     DhtFile transferFile;
     boolean isDownload;
     static boolean debug = false;
+    public static long ratelimit = 0;
+    static long lastTimestamp = 0;
+    static long bytesSent = 0;
 
     protected TransferTask originalTask;
     void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
@@ -110,6 +113,26 @@ public class DirectTransfer extends Thread {
                 + " - " + socket.getPort());
     }
 
+    private static void sleepMillis(long millis) {
+        if (millis < 0) return;
+        try { Thread.sleep(millis); } catch (InterruptedException e) { }
+    }
+
+    private synchronized static void limitedWrite(OutputStream outputStream, byte[] data, int length)
+            throws IOException {
+        if (ratelimit > 0) {
+            long time = System.currentTimeMillis();
+            if (bytesSent + length > ratelimit) {
+                sleepMillis(lastTimestamp + 1000 - time);
+                time = System.currentTimeMillis();
+                lastTimestamp = time;
+                bytesSent = 0;
+            }
+            bytesSent += length;
+        }
+        outputStream.write(data, 0, length);
+    }
+
     private void upload() throws IOException {
         byte[] data = new byte[8192];
         long totalWritten = 0;
@@ -121,7 +144,7 @@ public class DirectTransfer extends Thread {
                         + " - " + socket.getPort());
                 int bytesWritten;
                 while ((bytesWritten = bufferedInputStream.read(data, 0, data.length)) != -1) {
-                    outputStream.write(data, 0, bytesWritten);
+                    limitedWrite(outputStream, data, bytesWritten);
                     totalWritten += bytesWritten;
                     PeerManager.reportBytesSent(false, bytesWritten, true);
                 }

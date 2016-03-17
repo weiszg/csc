@@ -4,6 +4,7 @@ import uk.ac.cam.gw361.csc.dht.LocalPeer;
 import uk.ac.cam.gw361.csc.dht.PeerManager;
 import uk.ac.cam.gw361.csc.dht.ProxiedConnector;
 import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
+import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 
 import java.io.IOException;
 import java.rmi.server.RMISocketFactory;
@@ -60,6 +61,8 @@ public class Server {
                 proxyBytesPerSec = Integer.parseInt(arg.substring("proxyBytesPerSec=".length()));
             else if (arg.startsWith("proxyLatency"))
                 proxyLatency = Integer.parseInt(arg.substring("proxyLatency=".length()));
+            else if (arg.startsWith("ratelimit"))
+                DirectTransfer.ratelimit = 1024 * Long.parseLong(arg.substring("ratelimit=".length()));
             else if (arg.startsWith("perfmon"))
                 PeerManager.perfmon = true;
             else if (arg.startsWith("csconly"))

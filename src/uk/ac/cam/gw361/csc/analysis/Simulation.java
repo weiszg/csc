@@ -29,6 +29,7 @@ public class Simulation {
     static double speed = 1;
     static String localHost;
     static String hostEnd;
+    static String rateLimitArg = "ratelimit=0";
 
     public static void main(String[] args) {
         // set timeouts
@@ -72,6 +73,8 @@ public class Simulation {
                 speed = Double.parseDouble(arg.substring("speed=".length()));
             else if (arg.startsWith("seed="))
                 seed = Integer.parseInt(arg.substring("seed=".length()));
+            else if (arg.startsWith("ratelimit="))
+                rateLimitArg = arg;
             else
                 System.err.println("Unrecognised command: " + arg);
         }
@@ -179,7 +182,7 @@ public class Simulation {
     static Process startOne(Integer i, Integer connectTo, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + localHost + ":" + (startPort + connectTo));
+                "host=" + localHost + ":" + (startPort + connectTo), rateLimitArg);
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
@@ -187,7 +190,7 @@ public class Simulation {
     static Process startOne(Integer i, String connectAddress, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + connectAddress);
+                "host=" + connectAddress, rateLimitArg);
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
