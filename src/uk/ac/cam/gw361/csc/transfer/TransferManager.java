@@ -20,7 +20,8 @@ public class TransferManager extends Thread {
     LocalPeer localPeer;
     final LinkedList<TransferTask> requests = new LinkedList<>();
     final LinkedList<DirectTransfer> running = new LinkedList<>();
-    int maxConcurrentTransfers = 10;
+    int maxConcurrentTransfers = 20;
+    int maxQueueLength = 200;
 
     public TransferManager(LocalPeer localPeer) {
         this.localPeer = localPeer;
@@ -35,8 +36,12 @@ public class TransferManager extends Thread {
 
     private void addRequest(TransferTask task) {
         synchronized (requests) {
-            requests.add(task);
-            requests.notify();
+            if (requests.size() > maxQueueLength) {
+                System.out.println("Refusing request: queue full");
+            } else {
+                requests.add(task);
+                requests.notify();
+            }
         }
     }
 
