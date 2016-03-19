@@ -22,7 +22,7 @@ public class DirectTransfer extends Thread {
     Socket socket = null;
     ServerSocket ssocket = null;
     String targetName;
-    TransferContinuation continuation = null;
+    public TransferContinuation continuation = null;
     LocalPeer localPeer;
     DhtPeerAddress remotePeer;
     boolean stopped = false;

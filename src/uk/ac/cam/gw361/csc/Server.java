@@ -24,13 +24,21 @@ public class Server {
         System.setProperty("sun.rmi.transport.tcp.responseTimeout", "1000");
 
         // set key/truststore
-        System.setProperty("javax.net.ssl.keyStore", "keystore");
-        System.setProperty("javax.net.ssl.keyStorePassword", "password");
+        setKeyStore();
+        setTrustStore();
         // System.setProperty("javax.net.debug", "all");
-        System.setProperty("javax.net.ssl.trustStore", "truststore");
-        System.setProperty("javax.net.ssl.trustStorePassword", "password");
 
         manualStart(args);
+    }
+
+    public static void setKeyStore() {
+        System.setProperty("javax.net.ssl.keyStore", "keystore");
+        System.setProperty("javax.net.ssl.keyStorePassword", "password");
+    }
+
+    public static void setTrustStore() {
+        System.setProperty("javax.net.ssl.trustStore", "truststore");
+        System.setProperty("javax.net.ssl.trustStorePassword", "password");
     }
 
     static void manualStart(String[] args) {

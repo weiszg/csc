@@ -13,9 +13,9 @@ import java.math.BigInteger;
 
 public abstract class TransferTask {
     // indicates how many times to retry a transfer before giving up
-    int maxRetries = 5;
+    public static int maxRetries = 5;
     // how much to wait between retries
-    int waitRetry = 3000;
+    public static int waitRetry = 3000;
     
     int retries = 0;
     abstract DirectTransfer execute() throws IOException;

@@ -18,7 +18,7 @@ import java.util.*;
 
 public class LocalPeer {
     public final String userName;
-    private boolean cscOnly;
+    public boolean cscOnly;
     final String fileListPath;
     private final BigInteger userID;
     public final DhtPeerAddress localAddress;

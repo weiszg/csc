@@ -23,6 +23,8 @@ public class DhtRoutingTest {
 
     @BeforeClass
     public static void setUpBeforeClass() {
+        LocalPeerTest.setUpKeys();
+
         NeighbourState.k = 5;
         k = NeighbourState.k;
         addresses = new TreeSet<>();

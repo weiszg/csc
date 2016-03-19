@@ -143,12 +143,12 @@ public class DhtClient {
                 try {
                     if (!localPeer.isCscOnly()) {
                         if (server.getUserID() != null)
-                            if (!((DhtComm) cached).checkUserID(localPeer.localAddress, server.getUserID()))
+                            if (!(cached instanceof DhtComm) || !((DhtComm) cached).checkUserID(localPeer.localAddress, server.getUserID()))
                                 throw new RemoteException();
                             else if (!((DhtComm) cached).isAlive(localPeer.localAddress))
                                 throw new RemoteException();
                     } else {
-                        if (!((CscComm) cached).isAlive())
+                        if (!(cached instanceof CscComm) || !((CscComm) cached).isAlive())
                             throw new RemoteException();
                     }
                     return cached;

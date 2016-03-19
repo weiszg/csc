@@ -1,7 +1,9 @@
 package uk.ac.cam.gw361.csc;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import uk.ac.cam.gw361.csc.dht.LocalPeerTest;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 import uk.ac.cam.gw361.csc.dht.LocalPeer;
 import uk.ac.cam.gw361.csc.dht.NeighbourState;
@@ -14,6 +16,11 @@ import java.util.*;
  * Created by gellert on 11/12/2015.
  */
 public class DhtHandoffTest {
+
+    @BeforeClass
+    public static void setUpBeforeClass() {
+        LocalPeerTest.setUpKeys();
+    }
 
     @Test
     public void testHandoff() {
@@ -77,7 +84,13 @@ public class DhtHandoffTest {
         }
     }
 
-    void deleteFile(File f) {
+    private void deleteCreatedFiles(int numFiles) {
+        for (Integer i = 0; i < numFiles; i++) {
+            deleteFile(new File("test " + i + ".txt"));
+        }
+    }
+
+    public static void deleteFile(File f) {
         if (f.isDirectory()) {
             for (File c : f.listFiles())
                 deleteFile(c);
