@@ -41,13 +41,13 @@ public class FileUploadContinuation extends TransferContinuation {
         lastName = p.getFileName().toString();
 
         System.out.println("Copying file to upload directory");
-        splitFile(file);
+        splitFile(file, meta.blockSize);
         System.out.println("Copying finished");
     }
 
-    private void splitFile(String file) throws IOException {
+    private void splitFile(String file, int blockSize) throws IOException {
         int index = 0;
-        byte[] buffer = new byte[FileMetadata.blockSize];
+        byte[] buffer = new byte[blockSize];
 
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
             int bytesRead = 0; // bytesRead should always be blockSize for internal blocks
@@ -84,9 +84,10 @@ public class FileUploadContinuation extends TransferContinuation {
                 if (concurrentTransfers > 0) {
                     // excludes special uploads such as FileList
                     finishedBlocks++;
-                    System.out.println("Uploaded " +
-                            finishedBlocks * FileMetadata.blockSize / (1024*1024) + "MB of "
-                            + meta.blocks + "MB, threads: " + concurrentTransfers);
+                    System.out.println("Uploaded " + finishedBlocks + " chunks, " +
+                            finishedBlocks * meta.blockSize / (1024*1024) + "MB of "
+                            + meta.blocks * meta.blockSize / (1024*1024) + "MB, threads: "
+                            + concurrentTransfers);
                     concurrentTransfers--;
                 }
 

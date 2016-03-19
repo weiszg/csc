@@ -26,10 +26,11 @@ public class Simulation {
     static int startPort = 8000;
     static int max = 100;
     static Integer seed = null;
-    static double speed = 1;
+    static long mtbf = 100000;  // mtbf per node in ms
     static String localHost;
     static String hostEnd;
     static String rateLimitArg = "ratelimit=0";
+    static boolean freshStart = true;
 
     public static void main(String[] args) {
         // set timeouts
@@ -55,12 +56,14 @@ public class Simulation {
         }
 
         String path = "/Users/gellert/src/csc/out/production/csc/";
-        boolean nodel = false;
+        boolean nodel = true;
         String init = null;
 
         for (String arg : args) {
-            if (arg.equals("nodel"))
-                nodel = true;
+            if (arg.equals("del"))
+                nodel = false;
+            else if (arg.startsWith("nofreshstart"))
+                freshStart = false;
             else if (arg.startsWith("path="))
                 path = arg.substring("path=".length());
             else if (arg.startsWith("init="))
@@ -69,8 +72,8 @@ public class Simulation {
                 startPort = Integer.parseInt(arg.substring("startPort=".length()));
             else if (arg.startsWith("max="))
                 max = Integer.parseInt(arg.substring("max=".length()));
-            else if (arg.startsWith("speed="))
-                speed = Double.parseDouble(arg.substring("speed=".length()));
+            else if (arg.startsWith("mtbf="))
+                mtbf = Long.parseLong(arg.substring("mtbf=".length()));
             else if (arg.startsWith("seed="))
                 seed = Integer.parseInt(arg.substring("seed=".length()));
             else if (arg.startsWith("ratelimit="))
@@ -101,7 +104,6 @@ public class Simulation {
 
     private static void startSimulation(Integer seed, String path, String init) {
         int min = 1;
-        double scale = 500000 / speed;
 
         Random random;
         if (seed != null)
@@ -109,9 +111,8 @@ public class Simulation {
         else
             random = new Random();
 
-        if (init != null)
-            running[0] = (startOne(0, init, path));
-        else
+        // if no init provided, spawn a static LocalPeer to connect to
+        if (init == null)
             running[0] = (startOne(0, -1, path));
 
         for (int i=1; i<=max; i++)
@@ -123,11 +124,11 @@ public class Simulation {
         while (true) {
             if (nextDeath <= 0 && alive > min) {
                 Double r1 = random.nextDouble();
-                nextDeath = scale * Math.log(1 / r1);
+                nextDeath = mtbf * Math.log(1 / r1);
             }
             if (nextBirth <= 0 && alive < max) {
                 Double r2 = random.nextDouble();
-                nextBirth = scale * Math.log(1 / r2);
+                nextBirth = mtbf * Math.log(1 / r2);
             }
 
             if (nextDeath >= 0 && alive > min)
@@ -161,7 +162,11 @@ public class Simulation {
                         numberPool.remove(index);
                         runningPool.add(port);
 
-                        running[port] = (startOne(port, 0, path));
+                        if (init == null)
+                            running[port] = (startOne(port, 0, path));
+                        else
+                            running[port] = (startOne(port, init, path));
+
                         System.out.println("Starting " + port + " alive: " + alive);
                     }
                     if (nextDeath == 0 && alive > min) {
@@ -182,7 +187,8 @@ public class Simulation {
     static Process startOne(Integer i, Integer connectTo, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + localHost + ":" + (startPort + connectTo), rateLimitArg);
+                "host=" + localHost + ":" + (startPort + connectTo), rateLimitArg,
+                freshStart ? "freshStart" : "");
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
@@ -190,7 +196,8 @@ public class Simulation {
     static Process startOne(Integer i, String connectAddress, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + connectAddress, rateLimitArg);
+                "host=" + connectAddress, rateLimitArg,
+                freshStart ? "freshStart" : "");
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }

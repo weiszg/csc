@@ -30,11 +30,12 @@ public class PeerManager {
     public static boolean perfmon = false;
 
     public static LocalPeer spawnPeer(String userName, long stabiliseInterval) {
-        return spawnPeer(userName, stabiliseInterval, false);
+        return spawnPeer(userName, stabiliseInterval, false, false);
     }
 
-    public static LocalPeer spawnPeer(String userName, long stabiliseInterval, boolean cscOnly) {
-        LocalPeer localPeer = new LocalPeer(userName, stabiliseInterval, cscOnly);
+    public static LocalPeer spawnPeer(String userName, long stabiliseInterval,
+                                      boolean cscOnly, boolean freshStart) {
+        LocalPeer localPeer = new LocalPeer(userName, stabiliseInterval, cscOnly, freshStart);
         addressLookup.put(localPeer.localAddress, localPeer);
         portLookup.put(localPeer.localAddress.getPort(), localPeer);
         return localPeer;

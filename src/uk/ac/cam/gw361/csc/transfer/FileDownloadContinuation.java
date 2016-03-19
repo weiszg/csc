@@ -33,9 +33,9 @@ public class FileDownloadContinuation extends TransferContinuation {
         }
     }
 
-    private void mergeFile() throws IOException {
+    private void mergeFile(int blockSize) throws IOException {
         int index = 0;
-        byte[] buffer = new byte[FileMetadata.blockSize];
+        byte[] buffer = new byte[blockSize];
 
         try (FileOutputStream fos = new FileOutputStream(transferDir + fileName)) {
             try (BufferedOutputStream bos = new BufferedOutputStream(fos)) {
@@ -84,15 +84,16 @@ public class FileDownloadContinuation extends TransferContinuation {
                 }
             } else {
                 finishedBlocks++;
-                System.out.println("Downloaded " +
-                        finishedBlocks * FileMetadata.blockSize / (1024*1024) + "MB of "
-                        + meta.blocks + "MB, threads: " + concurrentTransfers);
+                System.out.println("Downloaded " + finishedBlocks + " chunks, " +
+                        finishedBlocks * meta.blockSize / (1024*1024) + "MB of "
+                        + meta.blocks * meta.blockSize / (1024*1024) + "MB, threads: "
+                        + concurrentTransfers);
                 concurrentTransfers--;
 
                 // if done merge downloaded chunks
                 if (waitingChunks.isEmpty() && concurrentTransfers == 0) {
                     try {
-                        mergeFile();
+                        mergeFile(meta.blockSize);
                         System.out.println("Merging succesful, download complete");
                     } catch (IOException e) {
                         System.err.println("Merging failed: " + e.toString());

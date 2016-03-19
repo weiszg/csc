@@ -48,7 +48,7 @@ public class LocalPeer {
     public FileList fileList;
     private FileList lastQueriedFileList;
 
-    public LocalPeer(String userName, long stabiliseInterval, boolean cscOnly) {
+    public LocalPeer(String userName, long stabiliseInterval, boolean cscOnly, boolean freshStart) {
         this.cscOnly = cscOnly;
         int port = 8000;
         if (userName.contains(":")) {
@@ -72,7 +72,7 @@ public class LocalPeer {
         fileListPath = "./storage/" + userName + "/" + "MyFileList";
 
         if (!cscOnly) {
-            dhtStore = new DhtStore(this, true);
+            dhtStore = new DhtStore(this, !freshStart);
             dhtServer = new DhtServer(this, port);
             localDhtServer = new DhtServer(dhtServer, true);
             dhtServer.startServer();
@@ -200,10 +200,15 @@ public class LocalPeer {
     }
 
     public DirectTransfer publishFile(String fileName) throws IOException {
+        // use default blockSize of 1 MB
+        return publishFile(fileName, 128*1024); // try 128kb
+    }
+
+    public DirectTransfer publishFile(String fileName, int blockSize) throws IOException {
         FileUploadContinuation.createDir();
         Path p = Paths.get(fileName);
         String lastName = p.getFileName().toString();
-        FileMetadata meta = new FileMetadata(fileName, lastName);
+        FileMetadata meta = new FileMetadata(fileName, lastName, blockSize);
 
         String metaLocation = FileUploadContinuation.transferDir + lastName + ".meta";
 

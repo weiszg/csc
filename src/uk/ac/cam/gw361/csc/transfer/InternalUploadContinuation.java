@@ -8,8 +8,10 @@ public class InternalUploadContinuation extends TransferContinuation {
     @Override
     public void notifyFinished(DirectTransfer finishedTransfer) {
         // upload complete, refresh responsibility for the file
-        finishedTransfer.localPeer.getDhtStore().refreshResponsibility(
-                finishedTransfer.transferFile.hash, finishedTransfer.remotePeer, false);
+
+        // actually, wait until they stabilise with you for this
+        //finishedTransfer.localPeer.getDhtStore().refreshResponsibility(
+        //        finishedTransfer.transferFile.hash, finishedTransfer.remotePeer, false);
     }
 
     @Override

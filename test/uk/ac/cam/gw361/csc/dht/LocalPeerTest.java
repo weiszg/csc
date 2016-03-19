@@ -49,7 +49,7 @@ public class LocalPeerTest {
 
         serverPeer = PeerManager.spawnPeer("node1:12001", 100000000);
         otherPeer = PeerManager.spawnPeer("node2:12002", 100000000);
-        clientPeer = PeerManager.spawnPeer("client:12003", 100000000, true);
+        clientPeer = PeerManager.spawnPeer("client:12003", 100000000, true, true);
 
         serverPeer.join(otherPeer.localAddress.getConnectAddress());
         clientPeer.join(serverPeer.localAddress.getConnectAddress());

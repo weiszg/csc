@@ -52,7 +52,7 @@ public class Server {
         String userName = null, host = null;
         int count = 1, stabiliseInterval = 5000;
         boolean proxied = false; int proxyBytesPerSec = 100000; int proxyLatency = 0;
-        boolean cscOnly = false;
+        boolean cscOnly = false, freshStart = false;
 
         for (String arg : args) {
             if (arg.startsWith("username="))
@@ -75,6 +75,8 @@ public class Server {
                 PeerManager.perfmon = true;
             else if (arg.startsWith("csconly"))
                 cscOnly = true;
+            else if (arg.startsWith("freshStart"))  // delete previous storage data
+                freshStart = true;
             else
                 System.err.println("argument couldn't be recognised: " + arg);
 
@@ -97,7 +99,8 @@ public class Server {
             }
         }
 
-        LocalPeer localPeer = PeerManager.spawnPeer(userName, stabiliseInterval, cscOnly);
+        LocalPeer localPeer = PeerManager.spawnPeer(userName, stabiliseInterval,
+                cscOnly, freshStart);
         if (host != null) {
             localPeer.join(host);
         }

@@ -9,13 +9,14 @@ import java.util.TreeMap;
  * Created by gellert on 13/12/2015.
  */
 public class FileMetadata implements Serializable {
-    public static final int blockSize = 1024*1024;
+    public final int blockSize;
     private ArrayList<BigInteger> hashes;
     public final long length;
     public final int blocks;
     final String fileName;
 
-    public FileMetadata(String filePath, String fileName) throws IOException {
+    public FileMetadata(String filePath, String fileName, int blockSize) throws IOException {
+        this.blockSize = blockSize;
         this.fileName = fileName;
         File f = new File(filePath);
         length = f.length();

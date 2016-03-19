@@ -24,6 +24,11 @@ public class Supervisor {
     private static TreeMap<String, StateReport> state = new TreeMap<>();
     private static HashMap<BigInteger, GlobalFileData> globalFiles = new HashMap<>();
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
+    private static int fosterct = 0;  // how many files have no owners
+    private static int births = 0;  // how many new peers
+    private static int deaths = 0;  // how many peers disappeared
+    private static Reporter reporter = new Reporter("filect.csv");
+    private static final boolean printFiles = false;
 
     public static void main(String[] args) {
         try {
@@ -52,6 +57,7 @@ public class Supervisor {
         }
 
         while (true) {
+            clearState();
             establishConnections();
             refreshState();
             printLines();
@@ -76,20 +82,34 @@ public class Supervisor {
                 alive++;
             }
         }
+
+        if (printFiles) {
+            // print individual file status
+            System.out.println("File ID -> owner count * max tracked replication count, " +
+                    "real replication count :");
+            for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
+                System.out.println(entry.getKey().toString() + " -> " +
+                        entry.getValue().ownerCount + " * " +
+                        entry.getValue().trackedReplicationCount + ", " +
+                        entry.getValue().realReplicationCount);
+            }
+        }
+
         System.out.println("Peers alive: " + alive);
 
         // print global file status
-        System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Total file count: " + globalFiles.size());
-        // print individual file status
-        System.out.println("File ID -> owner count * max tracked replication count, " +
-                "real replication count :");
-        for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
-            System.out.println(entry.getKey().toString() + " -> " +
-                    entry.getValue().ownerCount + " * " +
-                    entry.getValue().trackedReplicationCount + ", " +
-                    entry.getValue().realReplicationCount);
-        }
+        System.out.println("Foster files count: " + fosterct);
+        System.out.println("Double-owned file count: " + doubleOwnersCount);
+        System.out.println("Births / deaths: " + births + " / " + deaths);
+
+        reporter.report(new String[]{String.valueOf(System.currentTimeMillis()),
+                String.valueOf(globalFiles.size()),
+                String.valueOf(fosterct),
+                String.valueOf(alive),
+                String.valueOf(births),
+                String.valueOf(deaths)});
+        reporter.flush();
     }
 
     private static void printLines() {
@@ -122,10 +142,15 @@ public class Supervisor {
         }
     }
 
-    private static void refreshState() {
+    private static void clearState() {
         doubleOwnersCount = 0;
         globalFiles.clear();
         state.clear();
+        births = 0;
+        deaths = 0;
+    }
+
+    private static void refreshState() {
         LinkedList<String> toRemove = new LinkedList<>();
         long time = System.nanoTime();
 
@@ -154,7 +179,7 @@ public class Supervisor {
                     for (BigInteger file : report.filesStored) {
                         GlobalFileData fileData = globalFiles.getOrDefault(file,
                                 new GlobalFileData(0, 0, 0));
-                        fileData.trackedReplicationCount++;
+                        fileData.realReplicationCount++;
                         globalFiles.put(file, fileData);
                     }
 
@@ -162,7 +187,14 @@ public class Supervisor {
                 }
             } catch (RemoteException e) {
                 toRemove.add(entry.getKey());
+                deaths++;
             }
+        }
+
+        fosterct = 0;
+        for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
+            if (entry.getValue().ownerCount == 0)
+                fosterct++;
         }
 
         for (String remove : toRemove)
@@ -176,6 +208,7 @@ public class Supervisor {
                     Integer.parseInt(splitServer[1]));
             DhtComm ret  = ((DhtComm) registry.lookup("DhtComm"));
             connections.put(server, ret);
+            births++;
 
         } catch (RemoteException | NotBoundException e) {
             // System.out.println("failed to connect to " + server + ": " + e.toString());
