@@ -183,6 +183,10 @@ public class DhtStore {
         return respFiles;
     }
 
+    public synchronized HashSet<BigInteger> getStoredFiles() {
+        return new HashSet<>(files.keySet());
+    }
+
     public synchronized void print(PrintStream out, String beginning) {
         for (BigInteger file : files.keySet()) {
             out.print(beginning);

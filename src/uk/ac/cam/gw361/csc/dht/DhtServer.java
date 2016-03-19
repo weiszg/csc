@@ -295,7 +295,10 @@ public class DhtServer implements DhtComm {
     @Override
     public StateReport getStateReport() {
         HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
-        StateReport report = new StateReport(replication,
+
+        StateReport report = new StateReport(
+                localPeer.getDhtStore().getStoredFiles(),
+                replication,
                 localPeer.getNeighbourState().getPredecessors().size(),
                 localPeer.getNeighbourState().getSuccessors().size(),
                 localPeer.getStabiliser().millisSinceStabilised());

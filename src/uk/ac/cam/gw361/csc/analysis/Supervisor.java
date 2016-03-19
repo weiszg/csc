@@ -82,10 +82,13 @@ public class Supervisor {
         System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Total file count: " + globalFiles.size());
         // print individual file status
-        System.out.println("File ID -> owner count * max replication count:");
+        System.out.println("File ID -> owner count * max tracked replication count, " +
+                "real replication count :");
         for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
             System.out.println(entry.getKey().toString() + " -> " +
-                    entry.getValue().ownerCount + " * " + entry.getValue().replicationCount);
+                    entry.getValue().ownerCount + " * " +
+                    entry.getValue().trackedReplicationCount + ", " +
+                    entry.getValue().realReplicationCount);
         }
     }
 
@@ -122,7 +125,10 @@ public class Supervisor {
     private static void refreshState() {
         doubleOwnersCount = 0;
         globalFiles.clear();
+        state.clear();
         LinkedList<String> toRemove = new LinkedList<>();
+        long time = System.nanoTime();
+
         for (Map.Entry<String, DhtComm> entry : connections.entrySet()) {
             try {
                 StateReport report = entry.getValue().getStateReport();
@@ -130,18 +136,30 @@ public class Supervisor {
                 // adjust time delta
                 report.lastStabilised = System.nanoTime() / 1000000 - report.lastStabilised;
 
-                // go through each responsible file and adjust global files
-                for (Map.Entry<BigInteger, Integer> repl : report.replicationDegree.entrySet()) {
-                    GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
-                            new GlobalFileData(0, 0));
-                    fileData.ownerCount++;
-                    if (fileData.ownerCount == 2) doubleOwnersCount++;
-                    fileData.replicationCount = Math.max(
-                            fileData.replicationCount, repl.getValue());
-                    globalFiles.put(repl.getKey(), fileData);
-                }
+                Long age = time / 1000000 - report.lastStabilised;
+                // only use state if fresh
+                if (age <= 10000) {
+                    // go through each responsible file and adjust global files
+                    for (Map.Entry<BigInteger, Integer> repl : report.replicationDegree.entrySet()) {
+                        GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
+                                new GlobalFileData(0, 0, 0));
+                        fileData.ownerCount++;
+                        if (fileData.ownerCount == 2) doubleOwnersCount++;
+                        fileData.trackedReplicationCount = Math.max(
+                                fileData.trackedReplicationCount, repl.getValue());
+                        globalFiles.put(repl.getKey(), fileData);
+                    }
 
-                state.put(entry.getKey(), report);
+                    // count total number of peers storing each file
+                    for (BigInteger file : report.filesStored) {
+                        GlobalFileData fileData = globalFiles.getOrDefault(file,
+                                new GlobalFileData(0, 0, 0));
+                        fileData.trackedReplicationCount++;
+                        globalFiles.put(file, fileData);
+                    }
+
+                    state.put(entry.getKey(), report);
+                }
             } catch (RemoteException e) {
                 toRemove.add(entry.getKey());
             }
@@ -166,9 +184,10 @@ public class Supervisor {
 }
 
 class GlobalFileData {
-    int ownerCount, replicationCount;
-    GlobalFileData(int ownerCount, int replicationCount) {
+    int ownerCount, trackedReplicationCount, realReplicationCount;
+    GlobalFileData(int ownerCount, int trackedReplicationCount, int realReplicationCount) {
         this.ownerCount = ownerCount;
-        this.replicationCount = replicationCount;
+        this.trackedReplicationCount = trackedReplicationCount;
+        this.realReplicationCount = realReplicationCount;
     }
 }
