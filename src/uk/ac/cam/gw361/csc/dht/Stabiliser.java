@@ -1,7 +1,6 @@
 package uk.ac.cam.gw361.csc.dht;
 
 import uk.ac.cam.gw361.csc.storage.DhtFile;
-import uk.ac.cam.gw361.csc.transfer.DirectTransfer;
 import uk.ac.cam.gw361.csc.transfer.InternalUploadContinuation;
 
 import java.io.IOException;
@@ -154,7 +153,7 @@ public class Stabiliser extends Thread {
         if (debug) System.out.println("Stabilised replicas");
         localPeer.getDhtStore().vacuum();
         if (debug) System.out.println("Vacuumed DhtStore");
-        localPeer.getClient().vacuumConnectionCace();
+        localPeer.getClient().vacuumConnectionCache();
         if (debug) System.out.println("Vacuumed connection cache");
 
         if (debug) System.out.println("stabilised");
@@ -175,9 +174,9 @@ public class Stabiliser extends Thread {
     }
 
     private void stabiliseReplicas() {
-        List<DhtFile> myFiles = localPeer.getDhtStore().
-                getResponsibilitiesFor(localPeer.localAddress);
-        Set<DhtPeerAddress> neighbours = localPeer.getNeighbourState().getNeighbours();
+        Set<DhtFile> storedFiles = localPeer.getDhtStore().getStoredFiles();
+        TreeSet<DhtPeerAddress> neighbours = localPeer.getNeighbourState().getNeighbours();
+        DhtPeerAddress immediateSuccessor = localPeer.getNeighbourState().getImmediateSuccessor();
         Set<BigInteger> doNotTransfer = new HashSet<>();
         HashMap<BigInteger, List<DhtPeerAddress>> transfers = new HashMap<>();
 
@@ -190,14 +189,35 @@ public class Stabiliser extends Thread {
                 try {
                     List<DhtFile> askFiles = new LinkedList<>();
                     // calculate which files to enquire about
-                    for (DhtFile file : myFiles) {
-                        // we are only interested in replicating if peer is a predecessor
-                        // or if it is between us and the file
-                        if (localPeer.getNeighbourState().isPredecessor(p) ||
-                                p.isBetween(localPeer.localAddress,
-                                        new DhtPeerAddress(file.hash, null, null,
-                                                localPeer.localAddress.getUserID())))
-                            askFiles.add(file);
+                    for (DhtFile file : storedFiles) {
+                        if (file.owner.equals(localPeer.localAddress)) {
+                            // we are RESPONSIBLE for this file!
+                            // we are only interested in replicating if peer is a predecessor
+                            // or if it is between us and the file
+                            if (localPeer.getNeighbourState().isPredecessor(p) ||
+                                    p.isBetween(localPeer.localAddress,
+                                            new DhtPeerAddress(file.hash, null, null,
+                                                    localPeer.localAddress.getUserID())))
+                                askFiles.add(file);
+                        } else if (p.equals(immediateSuccessor)) {
+                            // we are not responsible for this file
+                            // however, we're talking to p, the immediate successor and either
+                            // a) p >= hash of file
+                            //     in which case we are wrong and should be responsible
+                            // b) or p too has to replicate the file but might not
+                            //    if the owner is overwhelmed
+                            // let's make sure!
+                            if (p.isBetween(localPeer.localAddress,
+                                    new DhtPeerAddress(file.hash, null, null,
+                                            localPeer.localAddress.getUserID()))) {
+                                // scenario b)
+                                askFiles.add(file);
+                            } else {
+                                // scenario a)
+                                localPeer.getDhtStore().refreshResponsibility(
+                                        file.hash, localPeer.localAddress, true);
+                            }
+                        }
                     }
 
                     // ask which files neighbour has

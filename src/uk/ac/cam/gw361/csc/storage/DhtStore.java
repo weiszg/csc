@@ -23,6 +23,7 @@ public class DhtStore {
     public DhtStore(LocalPeer localPeer, boolean scan) {
         this.localPeer = localPeer;
         myFolder = new File(storeDir + localPeer.userName);
+        if (!scan) deleteFolder(myFolder);
 
         if (!myFolder.exists()) {
             File storageFolder = new File(storeDir);
@@ -58,6 +59,23 @@ public class DhtStore {
                 }
             }
         }
+    }
+
+    public static boolean deleteFolder(File directory) {
+        if (directory.exists()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (int i=0; i<files.length; i++) {
+                    if (files[i].isDirectory()) {
+                        deleteFolder(files[i]);
+                    }
+                    else {
+                        files[i].delete();
+                    }
+                }
+            }
+        }
+        return (directory.delete());
     }
 
     public synchronized DhtFile getFile(BigInteger file) throws IOException {

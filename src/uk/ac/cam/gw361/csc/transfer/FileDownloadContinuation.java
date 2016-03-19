@@ -12,7 +12,7 @@ import java.util.TreeMap;
  */
 public class FileDownloadContinuation extends TransferContinuation {
     public static String transferDir = "./downloads/";
-    static int maxConcurrentTransfers = 5;
+    static int maxConcurrentTransfers = 100;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;

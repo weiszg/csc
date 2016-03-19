@@ -71,6 +71,8 @@ public class Server {
                 proxyLatency = Integer.parseInt(arg.substring("proxyLatency=".length()));
             else if (arg.startsWith("ratelimit"))
                 DirectTransfer.ratelimit = 1024 * Long.parseLong(arg.substring("ratelimit=".length()));
+            else if (arg.startsWith("count"))
+                count = Integer.parseInt(arg.substring("count=".length()));
             else if (arg.startsWith("perfmon"))
                 PeerManager.perfmon = true;
             else if (arg.startsWith("csconly"))
@@ -79,7 +81,6 @@ public class Server {
                 freshStart = true;
             else
                 System.err.println("argument couldn't be recognised: " + arg);
-
         }
 
         if (proxied) {
@@ -109,10 +110,9 @@ public class Server {
         for (int i=1; i<count; i++) {
             //try { Thread.sleep(1000); } catch (InterruptedException ie) {}
             String un = userName.split(":")[0];
-            extraPeer[i-1] = PeerManager.spawnPeer(un + "-" + i + ":" + (8000 + i), 5000);
-            if (host != null) {
-                extraPeer[i-1].join(localPeer.localAddress.getConnectAddress());
-            }
+            extraPeer[i-1] = PeerManager.spawnPeer(un + "-" + i + ":" + (8000 + i),
+                    stabiliseInterval, false, freshStart);
+            extraPeer[i-1].join(localPeer.localAddress.getConnectAddress());
         }
 
         Thread commandReader = new CommandReader(localPeer);

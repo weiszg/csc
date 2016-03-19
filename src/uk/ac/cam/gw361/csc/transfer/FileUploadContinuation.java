@@ -14,7 +14,7 @@ import java.util.TreeMap;
  */
 public class FileUploadContinuation extends TransferContinuation {
     public static String transferDir = "./uploads/";
-    static int maxConcurrentTransfers = 5;
+    static int maxConcurrentTransfers = 100;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;

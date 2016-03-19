@@ -362,7 +362,8 @@ public class DhtClient {
     public DirectTransfer upload(DhtPeerAddress target, BigInteger file,
                               TransferContinuation continuation) throws IOException {
         if (!localPeer.getDhtStore().containsFile(file))
-            throw new IOException("File not found");
+            throw new IOException("File not found for upload: " + file.toString() + " at " +
+            localPeer.localAddress.getConnectAddress());
         String fileName = localPeer.getDhtStore().getFolder() + "/" + file.toString();
 
         DhtFile dbFile = localPeer.getDhtStore().getFile(file);
@@ -461,7 +462,7 @@ public class DhtClient {
         return ft;
     }
 
-    void vacuumConnectionCace() {
+    void vacuumConnectionCache() {
         LinkedList<DhtPeerAddress> evict = new LinkedList<>();
         synchronized (connections) {
             for (Map.Entry<DhtPeerAddress, Long> e : lastUsed.entrySet()) {

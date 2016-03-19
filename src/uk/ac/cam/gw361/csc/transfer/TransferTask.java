@@ -89,7 +89,7 @@ class UploadTask extends TransferTask {
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
-            System.out.println("Error executing DownloadTask: " + e.toString());
+            System.out.println("Error executing UploadTask: " + e.toString());
             return retryExecute(e);
         }
     }
@@ -127,7 +127,7 @@ class NamedUploadTask extends TransferTask {
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
-            System.out.println("Error executing DownloadTask: " + e.toString());
+            System.out.println("Error executing NamedUploadTask: " + e.toString());
             return retryExecute(e);
         }
     }
@@ -169,7 +169,7 @@ class SignedUploadTask extends TransferTask {
             transfer.setOriginalTask(this);
             return transfer;
         } catch (IOException e) {
-            System.out.println("Error executing DownloadTask: " + e.toString());
+            System.out.println("Error executing SignedUploadTask: " + e.toString());
             return retryExecute(e);
         }
     }

@@ -39,7 +39,7 @@ public class FileList implements Serializable {
         return files.get(file);
     }
 
-    public static boolean checkTimestamp(String file, Long timestamp) {
+    public static boolean checkTimestamp(File file, Long timestamp) {
         // check whether the public timestamp of a signed file equals to the provided timestamp
         // for downloads we accept any timestamp by setting timestamp to null
         if (timestamp == null) return true;

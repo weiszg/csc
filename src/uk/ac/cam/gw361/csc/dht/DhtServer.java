@@ -222,17 +222,9 @@ public class DhtServer implements DhtComm {
             throws IOException {
         boolean clientMode = (port == null);
         file.owner.setRelative(localPeer.localAddress.getUserID());
-        // only accept if owner is within predecessor range
-        // or if I am between the current owner and the file, in which case I'll be the next owner
-        if (!file.owner.equals(localPeer.localAddress) &&
-                !localPeer.localAddress.isBetween(file.owner,
-                        new DhtPeerAddress(file.hash, null, null,
-                                localPeer.localAddress.getUserID())) &&
-                !localPeer.getNeighbourState().getSuccessors().contains(file.owner)) {
-            System.out.println("Refusing download from " + source.getConnectAddress()
-                    + " with owner " + file.owner.getConnectAddress());
-            return new TransferReply(1, null);
-        } else if (localPeer.getDhtStore().hasFile(file))
+        
+        // do not accept if I already have the file
+        if (localPeer.getDhtStore().hasFile(file))
             return new TransferReply(2, null);
 
         System.out.println("Storing file at " + localPeer.userName + "/" +

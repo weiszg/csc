@@ -32,6 +32,7 @@ public class DirectTransfer extends Thread {
     public static long ratelimit = 0;
     static long lastTimestamp = 0;
     static long bytesSent = 0;
+    File tempFile;
 
     protected TransferTask originalTask;
     void setOriginalTask(TransferTask originalTask) { this.originalTask = originalTask; }
@@ -73,9 +74,11 @@ public class DirectTransfer extends Thread {
             throw new IOException("No such algorithm");
         }
 
+        tempFile = File.createTempFile("csc-dl-part", ".tmp");
+        tempFile.deleteOnExit();
 
         try (
-                FileOutputStream os = new FileOutputStream(targetName + ".part");
+                FileOutputStream os = new FileOutputStream(tempFile);
                 BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(os)
         ) {
             InputStream inputStream = socket.getInputStream();
@@ -103,7 +106,7 @@ public class DirectTransfer extends Thread {
         if (transferFile instanceof SignedFile) {
             // further checks are necessary to ensure that the public timestamp of the downloaded
             // data corresponds to the advertised timestamp
-            if (!FileList.checkTimestamp(targetName + ".part",
+            if (!FileList.checkTimestamp(tempFile,
                     ((SignedFile) transferFile).timestamp)) {
                 throw new IOException("Timestamp mismatch!");
             }
@@ -122,8 +125,8 @@ public class DirectTransfer extends Thread {
             throws IOException {
         if (ratelimit > 0) {
             long time = System.currentTimeMillis();
-            if (bytesSent + length > ratelimit) {
-                sleepMillis(lastTimestamp + 1000 - time);
+            if (bytesSent + length > ratelimit / 2) {
+                sleepMillis(lastTimestamp + 500 - time);
                 time = System.currentTimeMillis();
                 lastTimestamp = time;
                 bytesSent = 0;
@@ -167,17 +170,13 @@ public class DirectTransfer extends Thread {
             if (isDownload)
                 if (success) {
                     // solidify download
-                    try {
-                        Files.move(new File(targetName + ".part").toPath(),
-                                new File(targetName).toPath(),
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException e) {
-                        System.err.println("Unable to rename " + targetName + ": " + e.toString());
-                        success = false;
-                    }
+                    File targetFile = new File(targetName);
+                    if (targetFile.exists()) targetFile.delete();
+                    tempFile.renameTo(targetFile);
                 } else {
                     // clean up
-                    new File(targetName + ".part").delete();
+                    if (tempFile != null)
+                        tempFile.delete();
                 }
 
             if (callContinuation && continuation != null)
