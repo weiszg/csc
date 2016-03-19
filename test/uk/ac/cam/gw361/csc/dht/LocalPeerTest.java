@@ -68,7 +68,7 @@ public class LocalPeerTest {
     public void testGetFileList() throws IOException {
         exception.expect(IOException.class);
         try {
-            DirectTransfer ft = clientPeer.getFileList("nonexistent", "./keys/client-public.key");
+            clientPeer.getFileList("nonexistent", "./keys/client-public.key");
         } catch (IOException e) {
             Assert.assertTrue(e.toString().startsWith("java.io.IOException: File not found"));
             throw e;
@@ -83,19 +83,13 @@ public class LocalPeerTest {
         writer.println(text);
         writer.close();
 
-        DirectTransfer ft = clientPeer.publishFile("test.txt");
-        Assert.assertTrue(ft.isAlive());
-        Assert.assertTrue(ft.continuation instanceof FileUploadContinuation);
-        ft.stopTransfer(true);
-        ((FileUploadContinuation) ft.continuation).notifyFinished(ft);
+        clientPeer.publishFile("test.txt");
 
         (new File("test.txt")).delete();
 
         try { Thread.sleep(500); } catch (InterruptedException e) { }
         // signed file list should be uploaded
-        ft = clientPeer.getFileList("client", "./keys/client-public.key");
-        Assert.assertTrue(ft.isAlive());
-        Assert.assertTrue(ft.continuation instanceof FileListDownloadContinuation);
+        clientPeer.getFileList("client", "./keys/client-public.key");
     }
 
 }

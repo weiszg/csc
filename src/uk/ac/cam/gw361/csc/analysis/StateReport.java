@@ -1,5 +1,7 @@
 package uk.ac.cam.gw361.csc.analysis;
 
+import uk.ac.cam.gw361.csc.storage.DhtFile;
+
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -10,11 +12,11 @@ import java.util.HashSet;
  */
 public class StateReport implements Serializable {
     HashMap<BigInteger, Integer> replicationDegree;
-    HashSet<BigInteger> filesStored;
+    HashSet<DhtFile> filesStored;
     int predecessorLength, successorLength;
     long lastStabilised;
 
-    public StateReport(HashSet<BigInteger> filesStored,
+    public StateReport(HashSet<DhtFile> filesStored,
                        HashMap<BigInteger, Integer> replicationDegree,
                        int predecessorLength, int successorLength,
                        long lastStabilised) {

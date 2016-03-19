@@ -69,6 +69,7 @@ public class LocalPeer {
 
         dhtClient = new DhtClient(this);
         transferManager = new TransferManager(this);
+        transferManager.start();
         fileListPath = "./storage/" + userName + "/" + "MyFileList";
 
         if (!cscOnly) {
@@ -150,61 +151,60 @@ public class LocalPeer {
         return new DoubleAddress(nextNeighbour, nextFinger);
     }
 
-    public DirectTransfer getEntity(BigInteger file) throws IOException {
-        return transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
+    public void getEntity(BigInteger file) throws IOException {
+        transferManager.download(FileDownloadContinuation.transferDir + file.toString(),
                 file, true, null, true);
     }
 
-    public DirectTransfer publishEntity(String file) throws IOException {
-        return transferManager.upload(file, null);
+    public void publishEntity(String file) throws IOException {
+        transferManager.upload(file, null);
     }
 
-    public DirectTransfer getFileList(String user, String publicKeyLoc) throws IOException {
+    public void getFileList(String user, String publicKeyLoc) throws IOException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(publicKeyLoc))) {
             Object myobj = ois.readObject();
             if (!(myobj instanceof PublicKey)) {
                 System.err.println("Not a valid public key");
-                return null;
+                return;
             }
             PublicKey publicKey = (PublicKey) myobj;
-            return getFileList(user, publicKey, false);
+            getFileList(user, publicKey, false);
         } catch (ClassNotFoundException e) {
             System.err.println(e.toString());
-            return null;
         }
     }
 
-    DirectTransfer getFileList(String user, PublicKey publicKey, boolean own)
+    void getFileList(String user, PublicKey publicKey, boolean own)
             throws IOException {
         BigInteger ID = Hasher.hashString(user);
         FileDownloadContinuation.createDir();
         String fileName = FileListDownloadContinuation.transferDir + ID.toString() + ".files";
         // retry unless querying for own FileList (that might not exist)
-        return transferManager.download(fileName, ID, false,
+        transferManager.download(fileName, ID, false,
                 new FileListDownloadContinuation(fileName, publicKey, own), !own);
     }
 
-    public DirectTransfer getFile(String fileName) throws IOException {
+    public void getFile(String fileName) throws IOException {
         if (lastQueriedFileList == null || lastQueriedFileList.get(fileName) == null) {
             System.err.println("File not found");
-            return null;
+            return;
         }
         BigInteger fileMeta = lastQueriedFileList.get(fileName);
-        return getFile(fileName, fileMeta);
+        getFile(fileName, fileMeta);
     }
 
-    public DirectTransfer getFile(String fileName, BigInteger fileMeta) throws IOException {
+    public void getFile(String fileName, BigInteger fileMeta) throws IOException {
         FileDownloadContinuation.createDir();
-        return transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
+        transferManager.download(FileDownloadContinuation.transferDir + fileName + ".meta",
                 fileMeta, true, new FileDownloadContinuation(fileName), true);
     }
 
-    public DirectTransfer publishFile(String fileName) throws IOException {
+    public void publishFile(String fileName) throws IOException {
         // use default blockSize of 1 MB
-        return publishFile(fileName, 128*1024); // try 128kb
+        publishFile(fileName, 128*1024); // try 128kb
     }
 
-    public DirectTransfer publishFile(String fileName, int blockSize) throws IOException {
+    public void publishFile(String fileName, int blockSize) throws IOException {
         FileUploadContinuation.createDir();
         Path p = Paths.get(fileName);
         String lastName = p.getFileName().toString();
@@ -217,7 +217,7 @@ public class LocalPeer {
         }
 
         FileUploadContinuation continuation = new FileUploadContinuation(fileName, meta);
-        return transferManager.upload(FileUploadContinuation.transferDir + lastName + ".meta",
+        transferManager.upload(FileUploadContinuation.transferDir + lastName + ".meta",
                 continuation);
     }
 
@@ -228,8 +228,6 @@ public class LocalPeer {
         }
     }
 
-    public synchronized void notifyTransferCompleted(DirectTransfer ft, boolean success) {
-    }
 
     public synchronized String saveFileList() {
         try {

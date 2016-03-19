@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc.analysis;
 
 import uk.ac.cam.gw361.csc.dht.DhtComm;
 import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
+import uk.ac.cam.gw361.csc.storage.DhtFile;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -176,11 +177,11 @@ public class Supervisor {
                     }
 
                     // count total number of peers storing each file
-                    for (BigInteger file : report.filesStored) {
-                        GlobalFileData fileData = globalFiles.getOrDefault(file,
+                    for (DhtFile file : report.filesStored) {
+                        GlobalFileData fileData = globalFiles.getOrDefault(file.hash,
                                 new GlobalFileData(0, 0, 0));
                         fileData.realReplicationCount++;
-                        globalFiles.put(file, fileData);
+                        globalFiles.put(file.hash, fileData);
                     }
 
                     state.put(entry.getKey(), report);
@@ -193,8 +194,16 @@ public class Supervisor {
 
         fosterct = 0;
         for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
-            if (entry.getValue().ownerCount == 0)
+            if (entry.getValue().ownerCount == 0) {
+                /*for (Map.Entry<String, StateReport> report : state.entrySet()) {
+                    for (DhtFile file : report.getValue().filesStored)
+                        if (file.hash.equals(entry.getKey())) {
+                            System.err.println("Error at " + report.getKey() + ", thinks owner=" +
+                                    file.owner.getConnectAddress());
+                        }
+                }*/
                 fosterct++;
+            }
         }
 
         for (String remove : toRemove)

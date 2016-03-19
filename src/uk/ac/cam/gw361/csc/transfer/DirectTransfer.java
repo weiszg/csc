@@ -186,8 +186,8 @@ public class DirectTransfer extends Thread {
                 } else {
                     continuation.notifyFailed(this);
                 }
-            localPeer.notifyTransferCompleted(this, success);
         }
+        localPeer.getTransferManager().notifyTransferCompleted(this, success);
     }
 
     public void run() {
@@ -216,7 +216,12 @@ public class DirectTransfer extends Thread {
         }
         finally {
             try { if (socket != null) socket.close(); }
-            catch (IOException ioe) { if (!stopped) ioe.printStackTrace(System.out); }
+            catch (IOException ioe) {
+                if (!stopped) {
+                    ioe.printStackTrace(System.out);
+                    localPeer.getTransferManager().notifyTransferCompleted(this, false);
+                }
+            }
         }
     }
 }
