@@ -15,8 +15,6 @@ public class DhtStore {
     private LocalPeer localPeer;
     // files and their properties stored locally
     private HashMap<BigInteger, DhtFile> files = new HashMap<>();
-    // per-owner replicas we store locally
-    private HashMap<DhtPeerAddress, HashSet<BigInteger>> responsibilities = new HashMap<>();
     // private folder used for storage
     private File myFolder;
 
@@ -91,8 +89,6 @@ public class DhtStore {
         if (!files.containsKey(file))
             System.out.println("File didn't even exist " + file.toString());
         else {
-            DhtFile dhtFile = files.get(file);
-            removeResponsibility(dhtFile);
             files.remove(file);
         }
         File toRemove = new File(myFolder.getPath() + "/" + file.toString());
@@ -101,26 +97,6 @@ public class DhtStore {
 
     public synchronized void addFile(DhtFile file) {
         files.put(file.hash, file);
-        addResponsibility(file);
-    }
-
-    private void addResponsibility(DhtFile file) {
-        if (responsibilities.containsKey(file.owner))
-            responsibilities.get(file.owner).add(file.hash);
-        else {
-            HashSet<BigInteger> ll = new HashSet<>();
-            ll.add(file.hash);
-            responsibilities.put(file.owner, ll);
-        }
-    }
-
-    private void removeResponsibility(DhtFile file) {
-        if (responsibilities.containsKey(file.owner)) {
-            Set<BigInteger> respFiles = responsibilities.get(file.owner);
-            respFiles.remove(file.hash);
-            if (respFiles.isEmpty())
-                responsibilities.remove(file.owner);
-        }
     }
 
     public synchronized Long getLength(BigInteger file) throws IOException {
@@ -159,9 +135,7 @@ public class DhtStore {
             if (!oldFile.owner.equals(owner) && (force || owner.isBetween(oldFile.owner,
                     new DhtPeerAddress(file, null, null, localPeer.localAddress.getUserID())))) {
                 // remove old responsibility association
-                removeResponsibility(oldFile);
                 oldFile.owner = owner;
-                addResponsibility(oldFile);
                 return true;
             }
         }
@@ -177,7 +151,7 @@ public class DhtStore {
                 // check timestamp
                 Date now = new Date();
                 long ageSeconds = (now.getTime() - file.lastQueried.getTime()) / 1000;
-                if (ageSeconds > 30)
+                if (ageSeconds > 10)
                     toRemove.add(fileHash);
             }
         }
@@ -187,22 +161,23 @@ public class DhtStore {
     }
 
     public synchronized List<DhtFile> getResponsibilitiesFor(DhtPeerAddress peer) {
-        List<BigInteger> fileHashes;
-        if (responsibilities.containsKey(peer))
-            fileHashes = new LinkedList<>(responsibilities.get(peer));
-        else
-            fileHashes = new LinkedList<>();
+        return getResponsibilitiesFor(new HashSet<>(
+                Arrays.asList(peer)));
+    }
+
+    public synchronized List<DhtFile> getResponsibilitiesFor(HashSet<DhtPeerAddress> peers) {
         List<DhtFile> respFiles = new LinkedList<>();
 
-        for (BigInteger hash : fileHashes)
-            if (files.containsKey(hash))
-                respFiles.add(files.get(hash));
+        for (DhtFile file : files.values()) {
+            if (peers.contains(file.owner))
+                respFiles.add(file);
+        }
 
         return respFiles;
     }
 
-    public synchronized HashSet<DhtFile> getStoredFiles() {
-        return new HashSet<>(files.values());
+    public synchronized HashMap<BigInteger, DhtFile> getStoredFiles() {
+        return new HashMap<>(files);
     }
 
     public synchronized void print(PrintStream out, String beginning) {

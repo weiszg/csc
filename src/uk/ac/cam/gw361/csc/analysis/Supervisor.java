@@ -11,10 +11,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMISocketFactory;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Created by gellert on 14/03/2016.
@@ -26,10 +23,12 @@ public class Supervisor {
     private static HashMap<BigInteger, GlobalFileData> globalFiles = new HashMap<>();
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
     private static int fosterct = 0;  // how many files have no owners
+    private static int replicatedct = 0;  // how many files are well replicated
     private static int births = 0;  // how many new peers
     private static int deaths = 0;  // how many peers disappeared
     private static Reporter reporter = new Reporter("filect.csv");
     private static final boolean printFiles = false;
+    private static final boolean debugDoubleOwned = false;
 
     public static void main(String[] args) {
         try {
@@ -100,6 +99,7 @@ public class Supervisor {
 
         // print global file status
         System.out.println("Total file count: " + globalFiles.size());
+        System.out.println("Well replicated file count: " + replicatedct);
         System.out.println("Foster files count: " + fosterct);
         System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Births / deaths: " + births + " / " + deaths);
@@ -170,7 +170,13 @@ public class Supervisor {
                         GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
                                 new GlobalFileData(0, 0, 0));
                         fileData.ownerCount++;
-                        if (fileData.ownerCount == 2) doubleOwnersCount++;
+                        fileData.owners.add(entry.getKey());
+                        if (fileData.ownerCount == 2) {
+                            doubleOwnersCount++;
+                            if (debugDoubleOwned)
+                                System.out.println("file " + repl.getKey() + " double-owned by " +
+                            fileData.owners.get(0) + " and " + fileData.owners.get(1));
+                        }
                         fileData.trackedReplicationCount = Math.max(
                                 fileData.trackedReplicationCount, repl.getValue());
                         globalFiles.put(repl.getKey(), fileData);
@@ -193,6 +199,7 @@ public class Supervisor {
         }
 
         fosterct = 0;
+        replicatedct = 0;
         for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
             if (entry.getValue().ownerCount == 0) {
                 /*for (Map.Entry<String, StateReport> report : state.entrySet()) {
@@ -204,6 +211,8 @@ public class Supervisor {
                 }*/
                 fosterct++;
             }
+            if (entry.getValue().realReplicationCount >= 3)
+                replicatedct++;
         }
 
         for (String remove : toRemove)
@@ -227,9 +236,15 @@ public class Supervisor {
 
 class GlobalFileData {
     int ownerCount, trackedReplicationCount, realReplicationCount;
+    List<String> owners = new LinkedList<String>();
+
     GlobalFileData(int ownerCount, int trackedReplicationCount, int realReplicationCount) {
         this.ownerCount = ownerCount;
         this.trackedReplicationCount = trackedReplicationCount;
         this.realReplicationCount = realReplicationCount;
+    }
+
+    void addOwner(String owner) {
+        owners.add(owner);
     }
 }

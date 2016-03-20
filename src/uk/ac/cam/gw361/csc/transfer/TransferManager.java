@@ -8,6 +8,7 @@ import uk.ac.cam.gw361.csc.storage.SignedFile;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.TreeSet;
 
@@ -22,10 +23,12 @@ public class TransferManager extends Thread {
     LocalPeer localPeer;
     final TreeSet<TransferRequest> requests = new TreeSet<>();
     final LinkedList<DirectTransfer> running = new LinkedList<>();
+    //final HashSet<BigInteger> filesInProgress = new HashSet<>();
     int maxConcurrentTransfers = 20;
     int maxQueueLength = 200;
     boolean offloadEnabled = false;
     boolean debug = false;
+    long queueFullCt = 0;
 
 
     public TransferManager(LocalPeer localPeer) {
@@ -45,7 +48,9 @@ public class TransferManager extends Thread {
     private void addRequest(TransferTask task) throws IOException {
         synchronized (requests) {
             if (requests.size() > maxQueueLength) {
-                System.err.println("Refusing request: queue full");
+                if (queueFullCt % 100 == 0)
+                    System.err.println("Refusing request: queue full");
+                queueFullCt++;
             } else if (offloadEnabled &&
                     running.size() < maxConcurrentTransfers) {
                 // execute this right away

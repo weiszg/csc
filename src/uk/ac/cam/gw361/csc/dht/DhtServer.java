@@ -20,6 +20,7 @@ import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -289,7 +290,7 @@ public class DhtServer implements DhtComm {
         HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
 
         StateReport report = new StateReport(
-                localPeer.getDhtStore().getStoredFiles(),
+                new HashSet<>(localPeer.getDhtStore().getStoredFiles().values()),
                 replication,
                 localPeer.getNeighbourState().getPredecessors().size(),
                 localPeer.getNeighbourState().getSuccessors().size(),

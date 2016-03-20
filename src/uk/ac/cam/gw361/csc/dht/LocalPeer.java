@@ -201,7 +201,7 @@ public class LocalPeer {
 
     public void publishFile(String fileName) throws IOException {
         // use default blockSize of 1 MB
-        publishFile(fileName, 128*1024); // try 128kb
+        publishFile(fileName, 10*1024*1024); // try 10M
     }
 
     public void publishFile(String fileName, int blockSize) throws IOException {

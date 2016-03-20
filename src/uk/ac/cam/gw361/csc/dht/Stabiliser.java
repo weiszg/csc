@@ -106,7 +106,7 @@ public class Stabiliser extends Thread {
         NeighbourState newState = new NeighbourState(localPeer.localAddress);
         Set<DhtPeerAddress> candidates = localPeer.getNeighbourState().getNeighbours();
         Set<DhtPeerAddress> asked = new HashSet<>();
-        Set<DhtPeerAddress> failingPeers = new HashSet<>();
+        HashSet<DhtPeerAddress> failingPeers = new HashSet<>();
 
         if (candidates.size() == 0) {
             // disconnected, try reconnecting
@@ -159,22 +159,20 @@ public class Stabiliser extends Thread {
         if (debug) System.out.println("stabilised");
     }
 
-    private void migrateResponsibilities(Set<DhtPeerAddress> failingPeers) {
+    private void migrateResponsibilities(HashSet<DhtPeerAddress> failingPeers) {
         // set all foster file's responsibility to me for the time being
         // stabiliseReplicas will communicate with successors to establish who the real owner is
-        for (DhtPeerAddress peer : failingPeers) {
-            List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(peer);
+        List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(failingPeers);
 
-            for (DhtFile file : fosterFiles)
-            // assume we are responsible for all foster files
-            // if this is not the case, stabilisation will take care
-                localPeer.getDhtStore().refreshResponsibility(file.hash,
-                        localPeer.localAddress, true);
-        }
+        for (DhtFile file : fosterFiles)
+        // assume we are responsible for all foster files
+        // if this is not the case, stabilisation will take care
+            localPeer.getDhtStore().refreshResponsibility(file.hash,
+                    localPeer.localAddress, true);
     }
 
     private void stabiliseReplicas() {
-        Set<DhtFile> storedFiles = localPeer.getDhtStore().getStoredFiles();
+        HashMap<BigInteger, DhtFile> storedFiles = localPeer.getDhtStore().getStoredFiles();
         TreeSet<DhtPeerAddress> neighbours = localPeer.getNeighbourState().getNeighbours();
         DhtPeerAddress immediateSuccessor = localPeer.getNeighbourState().getImmediateSuccessor();
         Set<BigInteger> doNotTransfer = new HashSet<>();
@@ -189,7 +187,7 @@ public class Stabiliser extends Thread {
                 try {
                     List<DhtFile> askFiles = new LinkedList<>();
                     // calculate which files to enquire about
-                    for (DhtFile file : storedFiles) {
+                    for (DhtFile file : storedFiles.values()) {
                         if (file.owner.equals(localPeer.localAddress)) {
                             // we are RESPONSIBLE for this file!
                             // we are only interested in replicating if peer is a predecessor
@@ -197,8 +195,14 @@ public class Stabiliser extends Thread {
                             if (localPeer.getNeighbourState().isPredecessor(p) ||
                                     p.isBetween(localPeer.localAddress,
                                             new DhtPeerAddress(file.hash, null, null,
-                                                    localPeer.localAddress.getUserID())))
+                                                    localPeer.localAddress.getUserID()))) {
+                                if (debug)
+                                    System.out.println("c) " + localPeer.localAddress.getConnectAddress() + "" +
+                                        " ask " + p.getConnectAddress() + " about " +
+                                        file.hash.toString());
+
                                 askFiles.add(file);
+                            }
                         } else if (p.equals(immediateSuccessor)) {
                             // we are not responsible for this file
                             // however, we're talking to p, the immediate successor and either
@@ -211,9 +215,17 @@ public class Stabiliser extends Thread {
                                     new DhtPeerAddress(file.hash, null, null,
                                             localPeer.localAddress.getUserID()))) {
                                 // scenario b)
+                                if (debug)
+                                    System.out.println("b) " + localPeer.localAddress.getConnectAddress() + "" +
+                                        " ask " + p.getConnectAddress() + " about " +
+                                        file.hash.toString());
+
                                 askFiles.add(file);
                             } else {
                                 // scenario a)
+                                if (debug)
+                                    System.out.println("a)");
+
                                 localPeer.getDhtStore().refreshResponsibility(
                                         file.hash, localPeer.localAddress, true);
                             }
@@ -232,7 +244,7 @@ public class Stabiliser extends Thread {
                                 transfers.put(file, ll);
                             } else
                                 transfers.get(file).add(p);
-                        } else {
+                        } else if (storedFiles.get(file).owner.equals(localPeer.localAddress)) {
                             // increase degree of replication
                             replicationDegree.put(file, replicationDegree.getOrDefault(file, 0) + 1);
 
