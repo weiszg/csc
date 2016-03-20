@@ -12,7 +12,7 @@ import java.util.TreeMap;
  */
 public class FileDownloadContinuation extends TransferContinuation {
     public static String transferDir = "./downloads/";
-    static int maxConcurrentTransfers = 100;
+    static int maxConcurrentTransfers = 10;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
@@ -123,11 +123,8 @@ public class FileDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public DirectTransfer notifyFailed(DirectTransfer transfer) {
+    public void notifyFailed(DirectTransfer transfer) {
         System.out.println("File chunk download failed");
-        DirectTransfer newTransfer = super.notifyFailed(transfer);
-        if (newTransfer == null)
-            synchronized (this) { concurrentTransfers--; }
-        return newTransfer;
+        super.notifyFailed(transfer);
     }
 }

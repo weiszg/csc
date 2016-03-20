@@ -13,7 +13,7 @@ import java.math.BigInteger;
 
 public abstract class TransferTask {
     // indicates how many times to retry a transfer before giving up
-    public static int maxRetries = 5;
+    public static int maxRetries = 100;
     // how much to wait between retries
     public static int waitRetry = 3000;
     
@@ -48,15 +48,15 @@ class DownloadTask extends TransferTask {
             return transfer;
         } catch (IOException e) {
             System.out.println("Error executing DownloadTask: " + e.toString());
-            return retryExecute(e);
+            retryExecute(e);
+            return null;
         }
     }
 
-    private DirectTransfer retryExecute(IOException e) throws IOException {
+    private void retryExecute(IOException e) throws IOException {
         if (retry && retries < maxRetries) {
             System.out.println("Retrying " + fileName + " in " + waitRetry / 1000 + "s");
-            try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
-            return execute();
+            localPeer.getTransferManager().queueTask(this, waitRetry);
         } else {
             System.out.println("Starting the execution of transfer " + file.hash.toString()
                     + " failed, giving up.");
@@ -90,15 +90,15 @@ class UploadTask extends TransferTask {
             return transfer;
         } catch (IOException e) {
             System.out.println("Error executing UploadTask: " + e.toString());
-            return retryExecute(e);
+            retryExecute(e);
+            return null;
         }
     }
 
-    private DirectTransfer retryExecute(IOException e) throws IOException {
+    private void retryExecute(IOException e) throws IOException {
         if (retry && retries < maxRetries) {
             System.out.println("Retrying " + fileHash.toString() + " in " + waitRetry / 1000 + "s");
-            try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
-            return execute();
+            localPeer.getTransferManager().queueTask(this, waitRetry);
         } else {
             System.out.println("Starting the execution of transfer " + fileHash.toString()
                     + " failed, giving up.");
@@ -128,15 +128,15 @@ class NamedUploadTask extends TransferTask {
             return transfer;
         } catch (IOException e) {
             System.out.println("Error executing NamedUploadTask: " + e.toString());
-            return retryExecute(e);
+            retryExecute(e);
+            return null;
         }
     }
 
-    private DirectTransfer retryExecute(IOException e) throws IOException {
+    private void retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
             System.out.println("Retrying " + name + " in " + waitRetry / 1000 + "s");
-            try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
-            return execute();
+            localPeer.getTransferManager().queueTask(this, waitRetry);
         } else {
             System.out.println("Starting the execution of transfer " + name
                     + " failed, giving up.");
@@ -170,15 +170,15 @@ class SignedUploadTask extends TransferTask {
             return transfer;
         } catch (IOException e) {
             System.out.println("Error executing SignedUploadTask: " + e.toString());
-            return retryExecute(e);
+            retryExecute(e);
+            return null;
         }
     }
 
-    private DirectTransfer retryExecute(IOException e) throws IOException {
+    private void retryExecute(IOException e) throws IOException {
         if (retries < maxRetries) {
             System.out.println("Retrying " + name + " in " + waitRetry / 1000 + "s");
-            try { Thread.sleep(waitRetry); } catch (InterruptedException ie) { }
-            return execute();
+            localPeer.getTransferManager().queueTask(this, waitRetry);
         } else {
             System.out.println("Starting the execution of transfer " + name
                     + " failed, giving up.");

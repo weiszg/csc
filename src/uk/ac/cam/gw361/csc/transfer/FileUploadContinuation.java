@@ -14,7 +14,7 @@ import java.util.TreeMap;
  */
 public class FileUploadContinuation extends TransferContinuation {
     public static String transferDir = "./uploads/";
-    static int maxConcurrentTransfers = 100;
+    static int maxConcurrentTransfers = 10;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
@@ -136,11 +136,8 @@ public class FileUploadContinuation extends TransferContinuation {
     }
 
     @Override
-    public DirectTransfer notifyFailed(DirectTransfer transfer) {
+    public void notifyFailed(DirectTransfer transfer) {
         System.out.println("File chunk upload failed");
-        DirectTransfer newTransfer = super.notifyFailed(transfer);
-        if (newTransfer == null)
-            synchronized (this) { concurrentTransfers--; }
-        return newTransfer;
+        super.notifyFailed(transfer);
     }
 }

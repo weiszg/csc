@@ -26,8 +26,7 @@ public class InternalDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public DirectTransfer notifyFailed(DirectTransfer directTransfer) {
+    public void notifyFailed(DirectTransfer directTransfer) {
         // this is fine, we're always in server mode
-        return null;
     }
 }

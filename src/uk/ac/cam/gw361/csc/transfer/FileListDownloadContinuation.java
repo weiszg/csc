@@ -37,8 +37,8 @@ public class FileListDownloadContinuation extends TransferContinuation {
     }
 
     @Override
-    public DirectTransfer notifyFailed(DirectTransfer transfer) {
+    public void notifyFailed(DirectTransfer transfer) {
         System.out.println("File list download failed");
-        return super.notifyFailed(transfer);
+        super.notifyFailed(transfer);
     }
 }

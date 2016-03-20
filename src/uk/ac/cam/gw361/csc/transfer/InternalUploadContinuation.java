@@ -15,9 +15,9 @@ public class InternalUploadContinuation extends TransferContinuation {
     }
 
     @Override
-    public DirectTransfer notifyFailed(DirectTransfer directTransfer) {
+    public void notifyFailed(DirectTransfer directTransfer) {
         // this is fine, we're either the client for the uploads
         // or if we are the server, stabiliser takes care of retries
-        return null;
+
     }
 }
