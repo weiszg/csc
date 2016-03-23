@@ -30,7 +30,7 @@ public class Supervisor extends Thread {
     private static Reporter reporter = new Reporter("filect.csv");
     private static final boolean printFiles = false;
     private static final boolean debugDoubleOwned = false;
-    public static long timeBetweenRefresh = 1000;
+    public static long timeBetweenRefresh = 500;
     static float kbpsUp = 0, kbpsDown = 0;
 
     public static void main(String[] args) {
