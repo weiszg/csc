@@ -66,7 +66,6 @@ public class LocalPeerTest {
 
     @Test
     public void testGetFileList() throws IOException {
-        exception.expect(IOException.class);
         try {
             clientPeer.getFileList("nonexistent", "./keys/client-public.key");
         } catch (IOException e) {

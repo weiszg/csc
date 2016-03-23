@@ -147,7 +147,7 @@ public class Stabiliser extends Thread {
         if (debug) System.out.println("Updating fingers");
         localPeer.getFingerState().update();
         if (debug) System.out.println("Set new state");
-        migrateResponsibilities(failingPeers);
+        migrateResponsibilities();
         if (debug) System.out.println("Migrated responsibilities");
         stabiliseReplicas();
         if (debug) System.out.println("Stabilised replicas");
@@ -159,16 +159,17 @@ public class Stabiliser extends Thread {
         if (debug) System.out.println("stabilised");
     }
 
-    private void migrateResponsibilities(HashSet<DhtPeerAddress> failingPeers) {
-        // set all foster file's responsibility to me for the time being
-        // stabiliseReplicas will communicate with successors to establish who the real owner is
-        List<DhtFile> fosterFiles = localPeer.getDhtStore().getResponsibilitiesFor(failingPeers);
+    private void migrateResponsibilities() {
+        // set all responsibilities to the neighbour that is closest and still available
+        // stabiliseReplicas will resolve these hypotheses with them
 
-        for (DhtFile file : fosterFiles)
-        // assume we are responsible for all foster files
-        // if this is not the case, stabilisation will take care
-            localPeer.getDhtStore().refreshResponsibility(file.hash,
-                    localPeer.localAddress, true);
+        for (Map.Entry<BigInteger, DhtFile> file :
+                localPeer.getDhtStore().getStoredFiles().entrySet()) {
+            // find the neighbour most responsible for this file
+            // we might be wrong but stabilisation will take care
+            DhtPeerAddress newOwner = localPeer.getNextLocalHop(file.getKey()).neighbour;
+            file.getValue().owner = newOwner;
+        }
     }
 
     private void stabiliseReplicas() {
@@ -203,7 +204,7 @@ public class Stabiliser extends Thread {
 
                                 askFiles.add(file);
                             }
-                        } else if (p.equals(immediateSuccessor)) {
+                        } else if (p.equals(immediateSuccessor) || p.equals(file.owner)) {
                             // we are not responsible for this file
                             // however, we're talking to p, the immediate successor and either
                             // a) p >= hash of file
