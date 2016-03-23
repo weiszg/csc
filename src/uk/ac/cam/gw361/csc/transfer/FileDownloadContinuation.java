@@ -12,7 +12,7 @@ import java.util.TreeMap;
  */
 public class FileDownloadContinuation extends TransferContinuation {
     public static String transferDir = "./downloads/";
-    static int maxConcurrentTransfers = 10;
+    static int maxConcurrentTransfers = 5;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
@@ -95,6 +95,7 @@ public class FileDownloadContinuation extends TransferContinuation {
                     try {
                         mergeFile(meta.blockSize);
                         System.out.println("Merging succesful, download complete");
+                        localPeer.notifyDone(fileName);
                     } catch (IOException e) {
                         System.err.println("Merging failed: " + e.toString());
                     }

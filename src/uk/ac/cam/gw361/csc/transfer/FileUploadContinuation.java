@@ -14,10 +14,11 @@ import java.util.TreeMap;
  */
 public class FileUploadContinuation extends TransferContinuation {
     public static String transferDir = "./uploads/";
-    static int maxConcurrentTransfers = 10;
+    static int maxConcurrentTransfers = 5;
     int concurrentTransfers = 0;
     private boolean first = true;
     private int finishedBlocks = 0;
+    private String fileName;
     private String lastName;
     private boolean fileListUpdated = false;
     private BigInteger metaHash;
@@ -35,6 +36,7 @@ public class FileUploadContinuation extends TransferContinuation {
 
     public FileUploadContinuation(String file, FileMetadata meta) throws IOException {
         this.meta = meta;
+        this.fileName = file;
         waitingChunks = meta.getChunks();
 
         Path p = Paths.get(file);
@@ -112,6 +114,7 @@ public class FileUploadContinuation extends TransferContinuation {
                             removeFile(transferDir + lastName + "." + i);
 
                         System.out.println("Done.");
+                        localPeer.notifyDone(fileName);
                     }
                 }
             }

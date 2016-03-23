@@ -29,6 +29,7 @@ public class LocalPeer {
     private TransferManager transferManager;
     private FingerState fingerState;
     private NeighbourState neighbourState;
+    private List<TransferObserver> transferObservers = new LinkedList<>();
 
     public DhtClient getClient() { return dhtClient; }
     public DhtServer getServer() { return localDhtServer; }
@@ -221,6 +222,15 @@ public class LocalPeer {
                 continuation);
     }
 
+    public void subscribeTransfers(TransferObserver o) {
+        transferObservers.add(o);
+    }
+
+    public void notifyDone(String fileName) {
+        for (TransferObserver o : transferObservers)
+            o.notifyFinished(fileName);
+    }
+
     void replicate(DhtFile file) throws IOException {
         List<DhtPeerAddress> predecessors = neighbourState.getPredecessors();
         for (DhtPeerAddress p : predecessors) {
@@ -269,6 +279,9 @@ public class LocalPeer {
                 getDhtStore().print(printStream, "");
             } else if (!cscOnly && input.equals("stabilise")) {
                 stabilise();
+            } else if (!cscOnly && input.equals("rmall")) {
+                dhtStore = new DhtStore(this, false);
+                printStream.println("Removed all blocks");
             } else if (input.startsWith("dle")) {
                 input = input.substring("dle ".length());
                 BigInteger target = new BigInteger(input);

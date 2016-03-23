@@ -42,6 +42,7 @@ public class DhtClient {
     private Reporter connectReporter, lookupReporter;
     private final ServerSocketFactory sslServerFactory = SSLServerSocketFactory.getDefault();
     private final SocketFactory sslFactory = SSLSocketFactory.getDefault();
+    public boolean disableCaching = false;
 
     public DhtClient(LocalPeer localPeer) {
         if (PeerManager.perfmon)
@@ -131,10 +132,12 @@ public class DhtClient {
 
         // cache lookup has to be synchronised
         Remote cached = null;
-        synchronized (connections) {
-            if (server.getUserID() != null && connections.containsKey(server)) {
-                cached = connections.get(server);
-                lastUsed.put(server, System.currentTimeMillis());
+        if (!disableCaching) {
+            synchronized (connections) {
+                if (server.getUserID() != null && connections.containsKey(server)) {
+                    cached = connections.get(server);
+                    lastUsed.put(server, System.currentTimeMillis());
+                }
             }
         }
 
@@ -329,13 +332,13 @@ public class DhtClient {
             TransferReply reply;
             if (localPeer.isCscOnly()) {
                 ft = new DirectTransfer(localPeer, peer, ((Socket) null), fileName, true,
-                        file, continuation);
+                        file, continuation, localPeer.isCscOnly());
                 reply = csccomm.upload(localPeer.localAddress.getHost(), file.hash);
             } else {
                 ServerSocket listener = createServerSocket(0);
                 // the owner doesn't matter, the destination of the download could be a different folder
                 ft = new DirectTransfer(localPeer, peer, listener, fileName, true,
-                        file, continuation);
+                        file, continuation, localPeer.isCscOnly());
                 ft.start();
                 reply = comm.upload(localPeer.localAddress, listener.getLocalPort(), file.hash);
             }
@@ -344,10 +347,10 @@ public class DhtClient {
                 throw new IOException("Size null");
             else if (localPeer.isCscOnly()) {  // client mode
                 Socket socket = createSocket();
-                socket.setSoTimeout(10000);
-                socket.connect(new InetSocketAddress(peer.getHost(), reply.port), 9000);
+                socket.setSoTimeout(60000);
+                socket.connect(new InetSocketAddress(peer.getHost(), reply.port), 3000);
                 ft = new DirectTransfer(localPeer, peer, socket, fileName, true,
-                        file, continuation);
+                        file, continuation, localPeer.isCscOnly());
                 ft.start();
             }
         } catch (IOException ioe) {
@@ -427,12 +430,12 @@ public class DhtClient {
 
             if (localPeer.isCscOnly()) {
                 ft = new DirectTransfer(localPeer, peer, ((Socket) null), fileName,
-                        false, file, continuation);
+                        false, file, continuation, localPeer.isCscOnly());
                 response = csccomm.download(localPeer.localAddress.getHost(), file);
             } else {
                 ServerSocket listener = createServerSocket(0);
                 ft = new DirectTransfer(localPeer, peer, listener, fileName,
-                        false, file, continuation);
+                        false, file, continuation, localPeer.isCscOnly());
                 ft.start();
 
                 response = comm.download(localPeer.localAddress, listener.getLocalPort(), file);
@@ -447,11 +450,11 @@ public class DhtClient {
             } else { // else the transfer is on
                 if (localPeer.isCscOnly()) {  // we're in client mode, start transfer
                     Socket socket = createSocket();
-                    socket.setSoTimeout(10000);
+                    socket.setSoTimeout(60000);
                     socket.connect(new InetSocketAddress(
-                            peer.getHost(), response.port), 9000);
+                            peer.getHost(), response.port), 3000);
                     ft = new DirectTransfer(localPeer, peer, socket, fileName, false,
-                            file, continuation);
+                            file, continuation, localPeer.isCscOnly());
                     ft.start();
                 }
             }

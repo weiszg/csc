@@ -33,6 +33,7 @@ public class FileListDownloadContinuation extends TransferContinuation {
             if (own)
                 localPeer.fileList = fileList;
             localPeer.setLastQueriedFileList(fileList);
+            localPeer.notifyDone(fileName);
         }
     }
 

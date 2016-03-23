@@ -24,8 +24,8 @@ public class TransferManager extends Thread {
     final TreeSet<TransferRequest> requests = new TreeSet<>();
     final LinkedList<DirectTransfer> running = new LinkedList<>();
     //final HashSet<BigInteger> filesInProgress = new HashSet<>();
-    int maxConcurrentTransfers = 20;
-    int maxQueueLength = 200;
+    int maxConcurrentTransfers = 5;
+    int maxQueueLength = 10;
     boolean offloadEnabled = false;
     boolean debug = false;
     long queueFullCt = 0;

@@ -29,9 +29,8 @@ public class DirectTransfer extends Thread {
     DhtFile transferFile;
     boolean isDownload;
     static boolean debug = false;
-    public static long ratelimit = 0;
-    static long lastTimestamp = 0;
-    static long bytesSent = 0;
+    public final static Limiter externalLimiter = new Limiter(), internalLimiter = new Limiter();
+    public final Limiter myLimiter;
     File tempFile;
 
     protected TransferTask originalTask;
@@ -39,7 +38,7 @@ public class DirectTransfer extends Thread {
 
     public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, ServerSocket socket,
                           String targetName, boolean isDownload, DhtFile transferFile,
-                          TransferContinuation continuation) {
+                          TransferContinuation continuation, boolean externalDomain) {
         // server mode
         this.remotePeer = remotePeer;
         this.localPeer = localPeer;
@@ -48,11 +47,12 @@ public class DirectTransfer extends Thread {
         this.targetName = targetName;
         this.isDownload = isDownload;
         this.continuation = continuation;
+        myLimiter = externalDomain ? externalLimiter : internalLimiter;
     }
 
     public DirectTransfer(LocalPeer localPeer, DhtPeerAddress remotePeer, Socket socket,
                           String targetName, boolean isDownload, DhtFile transferFile,
-                          TransferContinuation continuation) {
+                          TransferContinuation continuation, boolean externalDomain) {
         // client mode
         this.remotePeer = remotePeer;
         this.localPeer = localPeer;
@@ -61,6 +61,7 @@ public class DirectTransfer extends Thread {
         this.targetName = targetName;
         this.isDownload = isDownload;
         this.continuation = continuation;
+        myLimiter = externalDomain ? externalLimiter : internalLimiter;
     }
 
     private void download() throws IOException {
@@ -84,7 +85,7 @@ public class DirectTransfer extends Thread {
             InputStream inputStream = socket.getInputStream();
 
             int bytesRead;
-            while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
+            while ((bytesRead = myLimiter.limitedRead(inputStream, data, 0, data.length)) != -1) {
                 bufferedOutputStream.write(data, 0, bytesRead);
                 digest.update(data, 0, bytesRead);
                 totalRead += bytesRead;
@@ -116,26 +117,6 @@ public class DirectTransfer extends Thread {
                 + " - " + socket.getPort());
     }
 
-    private static void sleepMillis(long millis) {
-        if (millis < 0) return;
-        try { Thread.sleep(millis); } catch (InterruptedException e) { }
-    }
-
-    private synchronized static void limitedWrite(OutputStream outputStream, byte[] data, int length)
-            throws IOException {
-        if (ratelimit > 0) {
-            long time = System.currentTimeMillis();
-            if (bytesSent + length > ratelimit / 2) {
-                sleepMillis(lastTimestamp + 500 - time);
-                time = System.currentTimeMillis();
-                lastTimestamp = time;
-                bytesSent = 0;
-            }
-            bytesSent += length;
-        }
-        outputStream.write(data, 0, length);
-    }
-
     private void upload() throws IOException {
         byte[] data = new byte[8192];
         long totalWritten = 0;
@@ -147,7 +128,7 @@ public class DirectTransfer extends Thread {
                         + " - " + socket.getPort());
                 int bytesWritten;
                 while ((bytesWritten = bufferedInputStream.read(data, 0, data.length)) != -1) {
-                    limitedWrite(outputStream, data, bytesWritten);
+                    myLimiter.limitedWrite(outputStream, data, bytesWritten);
                     totalWritten += bytesWritten;
                     PeerManager.reportBytesSent(false, bytesWritten, true);
                 }

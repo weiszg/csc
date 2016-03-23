@@ -189,16 +189,16 @@ public class DhtServer implements DhtComm {
         if (clientMode) {
             ServerSocket listener = createServerSocket(0, useSSL);
             uploader = new DirectTransfer(localPeer, source, listener, fileName, false,
-                    transferFile, continuation);
+                    transferFile, continuation, useSSL);
             uploader.start();
             return new TransferReply(transferFile.size, listener.getLocalPort());
         } else {
             Socket socket = createSocket(useSSL);
-            socket.setSoTimeout(10000);
-            socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
+            socket.setSoTimeout(60000);
+            socket.connect(new InetSocketAddress(source.getHost(), port), 3000);
 
             uploader = new DirectTransfer(localPeer, source, socket, fileName, false,
-                    transferFile, continuation);
+                    transferFile, continuation, useSSL);
             uploader.start();
             return new TransferReply(transferFile.size, null);
         }
@@ -236,15 +236,15 @@ public class DhtServer implements DhtComm {
         if (clientMode) {
             ServerSocket listener = createServerSocket(0, useSSL);
             Thread downloader = new DirectTransfer(localPeer, source, listener, fileName,
-                    true, file, new InternalDownloadContinuation());
+                    true, file, new InternalDownloadContinuation(), useSSL);
             downloader.start();
             return new TransferReply(0, listener.getLocalPort());
         } else {
             Socket socket = createSocket(useSSL);
-            socket.setSoTimeout(10000);
-            socket.connect(new InetSocketAddress(source.getHost(), port), 9000);
+            socket.setSoTimeout(60000);
+            socket.connect(new InetSocketAddress(source.getHost(), port), 3000);
             Thread downloader = new DirectTransfer(localPeer, source, socket, fileName,
-                    true, file, new InternalDownloadContinuation());
+                    true, file, new InternalDownloadContinuation(), useSSL);
             downloader.start();
             return new TransferReply(0, null);
         }
@@ -288,13 +288,20 @@ public class DhtServer implements DhtComm {
     @Override
     public StateReport getStateReport() {
         HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
+        long time = System.currentTimeMillis();
+        long upTimestamp = DirectTransfer.externalLimiter.lastSendTimestamp;
+        long downTimestamp = DirectTransfer.externalLimiter.lastRecTimestamp;
+        long upBytes = (upTimestamp < time - 1000) ? 0 : DirectTransfer.externalLimiter.bytesSent;
+        long downBytes = (downTimestamp < time - 1000) ? 0 : DirectTransfer.externalLimiter.bytesReceived;
 
         StateReport report = new StateReport(
                 new HashSet<>(localPeer.getDhtStore().getStoredFiles().values()),
                 replication,
                 localPeer.getNeighbourState().getPredecessors().size(),
                 localPeer.getNeighbourState().getSuccessors().size(),
-                localPeer.getStabiliser().millisSinceStabilised());
+                localPeer.getStabiliser().millisSinceStabilised(),
+                (float)upBytes / (50 + time - upTimestamp),
+                (float)downBytes / (50 + time - downTimestamp));
         return report;
     }
 }

@@ -17,6 +17,9 @@ import java.util.Scanner;
  * Created by gellert on 01/11/2015.
  */
 public class Server {
+    public static LocalPeer localPeer;
+    public static LocalPeer[] extraPeer;
+
     public static void main(String[] args) {
         // set RMI timeout properties
         System.setProperty("sun.rmi.transport.proxy.connectTimeout", "1000");
@@ -69,8 +72,12 @@ public class Server {
                 proxyBytesPerSec = Integer.parseInt(arg.substring("proxyBytesPerSec=".length()));
             else if (arg.startsWith("proxyLatency"))
                 proxyLatency = Integer.parseInt(arg.substring("proxyLatency=".length()));
-            else if (arg.startsWith("ratelimit"))
-                DirectTransfer.ratelimit = 1024 * Long.parseLong(arg.substring("ratelimit=".length()));
+            else if (arg.startsWith("intratelimit"))
+                DirectTransfer.internalLimiter.ratelimit =
+                        1024 * Long.parseLong(arg.substring("intratelimit=".length()));
+            else if (arg.startsWith("extratelimit"))
+                DirectTransfer.externalLimiter.ratelimit =
+                        1024 * Long.parseLong(arg.substring("extratelimit=".length()));
             else if (arg.startsWith("count"))
                 count = Integer.parseInt(arg.substring("count=".length()));
             else if (arg.startsWith("perfmon"))
@@ -100,19 +107,23 @@ public class Server {
             }
         }
 
-        LocalPeer localPeer = PeerManager.spawnPeer(userName, stabiliseInterval,
+        localPeer = PeerManager.spawnPeer(userName, stabiliseInterval,
                 cscOnly, freshStart);
         if (host != null) {
             localPeer.join(host);
         }
 
-        LocalPeer[] extraPeer = count>1 ? new LocalPeer[count-1] : null;
-        for (int i=1; i<count; i++) {
-            //try { Thread.sleep(1000); } catch (InterruptedException ie) {}
-            String un = userName.split(":")[0];
-            extraPeer[i-1] = PeerManager.spawnPeer(un + "-" + i + ":" + (8000 + i),
-                    stabiliseInterval, false, freshStart);
-            extraPeer[i-1].join(localPeer.localAddress.getConnectAddress());
+        if (count > 1) {
+            System.out.println("Waiting 10s before spawning others");
+            try { Thread.sleep(10000); } catch (InterruptedException e) { }
+            extraPeer = new LocalPeer[count - 1];
+            for (int i = 1; i < count; i++) {
+                //try { Thread.sleep(1000); } catch (InterruptedException ie) {}
+                String un = userName.split(":")[0];
+                extraPeer[i - 1] = PeerManager.spawnPeer(un + "-" + i + ":" + (8000 + i),
+                        stabiliseInterval, false, freshStart);
+                extraPeer[i - 1].join(localPeer.localAddress.getConnectAddress());
+            }
         }
 
         Thread commandReader = new CommandReader(localPeer);
@@ -130,22 +141,6 @@ public class Server {
 
         System.out.println("done");
     }
-}
-
-class Client {
-    public static void main(String[] args) {
-        // set truststore
-        // System.setProperty("javax.net.debug", "all");
-        System.setProperty("javax.net.ssl.trustStore", "truststore");
-        System.setProperty("javax.net.ssl.trustStorePassword", "password");
-
-        List<String> oldArgs = new ArrayList<>(Arrays.asList(args));
-        oldArgs.add("csconly");
-        String[] newArgs = new String[oldArgs.size()];
-        newArgs = oldArgs.toArray(newArgs);
-        Server.manualStart(newArgs);
-    }
-
 }
 
 class CommandReader extends Thread {

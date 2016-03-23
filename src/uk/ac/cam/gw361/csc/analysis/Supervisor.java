@@ -1,6 +1,7 @@
 package uk.ac.cam.gw361.csc.analysis;
 
 import uk.ac.cam.gw361.csc.dht.DhtComm;
+import uk.ac.cam.gw361.csc.dht.LocalPeer;
 import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 
@@ -16,29 +17,38 @@ import java.util.*;
 /**
  * Created by gellert on 14/03/2016.
  */
-public class Supervisor {
+public class Supervisor extends Thread {
     private static LinkedList<String> servers = new LinkedList<>();
-    private static HashMap<String, DhtComm> connections = new HashMap<>();
+    private static final HashMap<String, DhtComm> connections = new HashMap<>();
     private static TreeMap<String, StateReport> state = new TreeMap<>();
-    private static HashMap<BigInteger, GlobalFileData> globalFiles = new HashMap<>();
+    static HashMap<BigInteger, GlobalFileData> globalFiles = new HashMap<>();
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
     private static int fosterct = 0;  // how many files have no owners
-    private static int replicatedct = 0;  // how many files are well replicated
+    static int replicatedct = 0;  // how many files are well replicated
     private static int births = 0;  // how many new peers
     private static int deaths = 0;  // how many peers disappeared
     private static Reporter reporter = new Reporter("filect.csv");
     private static final boolean printFiles = false;
     private static final boolean debugDoubleOwned = false;
+    public static long timeBetweenRefresh = 1000;
+    static float kbpsUp = 0, kbpsDown = 0;
 
     public static void main(String[] args) {
         try {
             RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
         } catch (IOException e) {
-            e.printStackTrace();
-            return;
+            System.out.println(e.toString());
         }
 
-        for (String arg : args) {
+        Supervisor supervisor = new Supervisor(args);
+        supervisor.start();
+
+        CommandReader commandReader = new CommandReader();
+        commandReader.start();
+    }
+
+    Supervisor(String[] serverAddresses) {
+        for (String arg : serverAddresses) {
             LinkedList<String> newServers = new LinkedList<>();
             if (arg.contains("-")) {
                 String[] input = arg.split("-");
@@ -55,17 +65,25 @@ public class Supervisor {
             for (String server : newServers)
                 servers.add(server);
         }
+    }
 
+    public void run() {
         while (true) {
-            clearState();
-            establishConnections();
-            refreshState();
-            printLines();
-            printState();
+            synchronized (connections) {
+                refresh();
+                printLines();
+                printState();
+            }
             try {
-                Thread.sleep(500);
+                Thread.sleep(timeBetweenRefresh);
             } catch (InterruptedException ie) {}
         }
+    }
+
+    public static synchronized void refresh() {
+        clearState();
+        establishConnections();
+        refreshState();
     }
 
     private static void printState() {
@@ -103,6 +121,7 @@ public class Supervisor {
         System.out.println("Foster files count: " + fosterct);
         System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Births / deaths: " + births + " / " + deaths);
+        System.out.println("Aggregate up / down kbps: " + kbpsUp + " / " + kbpsDown);
 
         reporter.report(new String[]{String.valueOf(System.currentTimeMillis()),
                 String.valueOf(globalFiles.size()),
@@ -149,6 +168,8 @@ public class Supervisor {
         state.clear();
         births = 0;
         deaths = 0;
+        kbpsUp = 0;
+        kbpsDown = 0;
     }
 
     private static void refreshState() {
@@ -190,10 +211,14 @@ public class Supervisor {
                         globalFiles.put(file.hash, fileData);
                     }
 
+                    kbpsUp += report.upspeed;
+                    kbpsDown += report.downspeed;
+
                     state.put(entry.getKey(), report);
                 }
             } catch (RemoteException e) {
                 toRemove.add(entry.getKey());
+                //System.out.println(e.toString());
                 deaths++;
             }
         }
@@ -229,14 +254,27 @@ public class Supervisor {
             births++;
 
         } catch (RemoteException | NotBoundException e) {
+            //System.out.println("addConnection " + server + " " + e.toString());
             // System.out.println("failed to connect to " + server + ": " + e.toString());
         }
     }
+
+    static String executeQuery(String query) {
+        int success = 0;
+        for (Map.Entry<String, DhtComm> entry : connections.entrySet()) {
+            try {
+                String result = entry.getValue().query(query);
+                success++;
+            } catch (IOException e) { }
+        }
+        return "Successfully executed on " + success + " peers";
+    }
+
 }
 
 class GlobalFileData {
     int ownerCount, trackedReplicationCount, realReplicationCount;
-    List<String> owners = new LinkedList<String>();
+    List<String> owners = new LinkedList<>();
 
     GlobalFileData(int ownerCount, int trackedReplicationCount, int realReplicationCount) {
         this.ownerCount = ownerCount;
@@ -246,5 +284,20 @@ class GlobalFileData {
 
     void addOwner(String owner) {
         owners.add(owner);
+    }
+}
+
+
+class CommandReader extends Thread {
+    public void run() {
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            String readStr = scanner.nextLine();
+            try {
+                System.out.println(Supervisor.executeQuery(readStr));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
