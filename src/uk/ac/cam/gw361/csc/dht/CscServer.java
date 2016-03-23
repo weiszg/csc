@@ -7,7 +7,6 @@ import javax.rmi.ssl.SslRMIServerSocketFactory;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.rmi.RemoteException;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
 /**
@@ -17,10 +16,13 @@ public class CscServer extends UnicastRemoteObject implements CscComm {
     private LocalPeer localPeer;
     private final boolean debug = false;
     private final DhtServer server;
+    SslRMIServerSocketFactory sss;
 
-    public CscServer(LocalPeer localPeer, DhtServer server)
-            throws IOException {
-        super(0, new SslRMIClientSocketFactory(), new SslRMIServerSocketFactory());
+    public CscServer(LocalPeer localPeer, DhtServer server) throws IOException {
+        super(0, new SslRMIClientSocketFactory(),
+                new SslRMIServerSocketFactory(null,
+                        new String[] {"TLSv1.2"},
+                        false));
 
         this.localPeer = localPeer;
         this.server = server;

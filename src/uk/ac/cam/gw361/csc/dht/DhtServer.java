@@ -9,6 +9,7 @@ import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
@@ -19,6 +20,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.*;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -39,7 +43,8 @@ public class DhtServer implements DhtComm {
     private final ServerSocketFactory sslServerFactory = SSLServerSocketFactory.getDefault();
     private final SocketFactory sslFactory = SSLSocketFactory.getDefault();
 
-    public DhtServer(LocalPeer localPeer, int port) {
+    public DhtServer(LocalPeer localPeer, int port)
+            throws NoSuchAlgorithmException, NoSuchProviderException, KeyManagementException {
         this.localOnly = false;
         this.port = port;
         this.localPeer = localPeer;
@@ -56,6 +61,8 @@ public class DhtServer implements DhtComm {
         } finally {
             registry = reg;
             try {
+                SSLContext secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
+                secureContext.init(null, null, null);
                 cscServer = new CscServer(localPeer, this);
             } catch (IOException e) {
                 System.err.println("Client-facing server failed to start: " + e.toString());

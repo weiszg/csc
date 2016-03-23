@@ -44,8 +44,9 @@ public class DhtClient {
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
     private Reporter connectReporter, lookupReporter;
+    final SSLContext secureContext;
     private final ServerSocketFactory sslServerFactory;
-    private final SocketFactory sslFactory;
+    final SocketFactory sslFactory;
     public boolean disableCaching = false;
 
     public DhtClient(LocalPeer localPeer) throws NoSuchAlgorithmException, NoSuchProviderException,
@@ -55,7 +56,7 @@ public class DhtClient {
         if (PeerManager.perfmon)
             lookupReporter = new Reporter("lookupLatency.csv");
 
-        SSLContext secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
+        secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
         secureContext.init(null, null, null);
         sslFactory = secureContext.getSocketFactory();
         sslServerFactory = secureContext.getServerSocketFactory();

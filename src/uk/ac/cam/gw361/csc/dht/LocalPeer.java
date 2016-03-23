@@ -71,24 +71,24 @@ public class LocalPeer {
 
         try {
             dhtClient = new DhtClient(this);
+
+            transferManager = new TransferManager(this);
+            transferManager.start();
+
+            if (!cscOnly) {
+                dhtStore = new DhtStore(this, !freshStart);
+                dhtServer = new DhtServer(this, port);
+                localDhtServer = new DhtServer(dhtServer, true);
+                dhtServer.startServer();
+                stabiliser = new Stabiliser(this, stabiliseInterval);
+                localAddress.print(System.out, "Started: ");
+            } else {
+                dhtStore = new DhtStore(this, false);
+                loadKeys();
+            }
         } catch (NoSuchAlgorithmException | NoSuchProviderException | KeyManagementException e) {
             e.printStackTrace();
             System.err.println("Insufficient security support");
-            return;
-        }
-        transferManager = new TransferManager(this);
-        transferManager.start();
-
-        if (!cscOnly) {
-            dhtStore = new DhtStore(this, !freshStart);
-            dhtServer = new DhtServer(this, port);
-            localDhtServer = new DhtServer(dhtServer, true);
-            dhtServer.startServer();
-            stabiliser = new Stabiliser(this, stabiliseInterval);
-            localAddress.print(System.out, "Started: ");
-        } else {
-            dhtStore = new DhtStore(this, false);
-            loadKeys();
         }
     }
 

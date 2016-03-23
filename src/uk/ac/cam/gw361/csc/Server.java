@@ -42,6 +42,7 @@ public class Server {
     public static void setTrustStore() {
         System.setProperty("javax.net.ssl.trustStore", "truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
+        System.setProperty("javax.rmi.ssl.client.enabledProtocols", "TLSv1.2");
     }
 
     static void manualStart(String[] args) {

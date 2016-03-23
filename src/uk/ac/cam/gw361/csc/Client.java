@@ -13,6 +13,7 @@ public class Client {
         // System.setProperty("javax.net.debug", "all");
         System.setProperty("javax.net.ssl.trustStore", "truststore");
         System.setProperty("javax.net.ssl.trustStorePassword", "password");
+        // System.setProperty("javax.net.debug", "all");
 
         List<String> oldArgs = new ArrayList<>(Arrays.asList(args));
         oldArgs.add("csconly");
