@@ -232,7 +232,9 @@ public class DhtServer implements DhtComm {
         file.owner.setRelative(localPeer.localAddress.getUserID());
         
         // do not accept if I already have the file
-        if (localPeer.getDhtStore().hasFile(file))
+        // or if a download with the same hash is in progress
+        if (localPeer.getDhtStore().hasFile(file) ||
+                localPeer.getTransferManager().hasExclusiveHash(file.hash))
             return new TransferReply(2, null);
 
         System.out.println("Storing file at " + localPeer.userName + "/" +

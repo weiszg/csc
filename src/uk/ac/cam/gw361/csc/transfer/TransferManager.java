@@ -35,6 +35,35 @@ public class TransferManager extends Thread {
         this.localPeer = localPeer;
     }
 
+    public boolean hasExclusiveHash(BigInteger hash) {
+        synchronized (requests) {
+            for (DirectTransfer transfer : running) {
+                if (hash.equals(transfer.transferFile.hash))
+                    return true;
+            }
+
+            for (TransferRequest request : requests) {
+                if (hash.equals(request.task.getExclusiveHash()))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isExclusive(TransferTask task) {
+        if (task.getExclusiveHash() == null)
+            return true;
+
+        synchronized (requests) {
+            for (TransferRequest request : requests) {
+                if (task.getExclusiveHash().equals(request.task.getExclusiveHash()))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     public void notifyTransferCompleted(DirectTransfer ft, boolean success) {
         // server-mode transfers aren't tracked here so it's fine if running doesn't have ft
         synchronized (requests) {
@@ -47,6 +76,9 @@ public class TransferManager extends Thread {
 
     private void addRequest(TransferTask task) throws IOException {
         synchronized (requests) {
+            if (!isExclusive(task))
+                return;
+
             if (requests.size() > maxQueueLength) {
                 if (queueFullCt % 100 == 0)
                     System.err.println("Refusing request: queue full");
@@ -68,6 +100,9 @@ public class TransferManager extends Thread {
 
     public void queueTask(TransferTask task, int wait) {
         synchronized (requests) {
+            if (!isExclusive(task))
+                return;
+
             requests.add(new TransferRequest(task, System.currentTimeMillis() + wait));
             if (debug) System.out.println("queueTask " + requests.size() + " " + running.size());
         }

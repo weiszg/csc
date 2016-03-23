@@ -16,9 +16,13 @@ public abstract class TransferTask {
     public static int maxRetries = 100;
     // how much to wait between retries
     public static int waitRetry = 3000;
-    
     int retries = 0;
+
     abstract DirectTransfer execute() throws IOException;
+
+    public BigInteger getExclusiveHash() {
+        return null;
+    }
 }
 
 class DownloadTask extends TransferTask {
@@ -62,6 +66,11 @@ class DownloadTask extends TransferTask {
                     + " failed, giving up.");
             throw e;
         }
+    }
+
+    @Override
+    public BigInteger getExclusiveHash() {
+        return file.hash;
     }
 }
 
