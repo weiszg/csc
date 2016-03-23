@@ -73,6 +73,15 @@ public class TransferManager extends Thread {
         }
     }
 
+    public void stopAll() {
+        synchronized (requests) {
+            requests.clear();
+            for (DirectTransfer transfer : running) {
+                transfer.stopTransfer(false);
+            }
+        }
+    }
+
     public void run() {
         while (true) {
             TransferTask task = null;

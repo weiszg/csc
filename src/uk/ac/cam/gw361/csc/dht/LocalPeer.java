@@ -281,6 +281,7 @@ public class LocalPeer {
                 stabilise();
             } else if (!cscOnly && input.equals("rmall")) {
                 dhtStore = new DhtStore(this, false);
+                transferManager.stopAll();
                 printStream.println("Removed all blocks");
             } else if (input.startsWith("dle")) {
                 input = input.substring("dle ".length());
