@@ -67,11 +67,17 @@ public class LocalPeer {
         localAddress = new DhtPeerAddress(userID, myHost, port, userID);
         neighbourState = new NeighbourState(localAddress);
         fingerState = new FingerState(this);
+        fileListPath = "./storage/" + userName + "/" + "MyFileList";
 
-        dhtClient = new DhtClient(this);
+        try {
+            dhtClient = new DhtClient(this);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | KeyManagementException e) {
+            e.printStackTrace();
+            System.err.println("Insufficient security support");
+            return;
+        }
         transferManager = new TransferManager(this);
         transferManager.start();
-        fileListPath = "./storage/" + userName + "/" + "MyFileList";
 
         if (!cscOnly) {
             dhtStore = new DhtStore(this, !freshStart);

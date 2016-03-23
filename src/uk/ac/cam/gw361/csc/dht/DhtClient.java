@@ -12,6 +12,7 @@ import uk.ac.cam.gw361.csc.transfer.TransferContinuation;
 
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
@@ -24,6 +25,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,15 +44,21 @@ public class DhtClient {
     private Map<DhtPeerAddress, Long> lastUsed = new HashMap<>();
     private long cacheTime = 10000;  // how long to cache connections
     private Reporter connectReporter, lookupReporter;
-    private final ServerSocketFactory sslServerFactory = SSLServerSocketFactory.getDefault();
-    private final SocketFactory sslFactory = SSLSocketFactory.getDefault();
+    private final ServerSocketFactory sslServerFactory;
+    private final SocketFactory sslFactory;
     public boolean disableCaching = false;
 
-    public DhtClient(LocalPeer localPeer) {
+    public DhtClient(LocalPeer localPeer) throws NoSuchAlgorithmException, NoSuchProviderException,
+            KeyManagementException{
         if (PeerManager.perfmon)
             connectReporter = new Reporter("connectLatency.csv");
         if (PeerManager.perfmon)
             lookupReporter = new Reporter("lookupLatency.csv");
+
+        SSLContext secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
+        secureContext.init(null, null, null);
+        sslFactory = secureContext.getSocketFactory();
+        sslServerFactory = secureContext.getServerSocketFactory();
 
         this.localPeer = localPeer;
     }

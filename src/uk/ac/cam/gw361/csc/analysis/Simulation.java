@@ -12,6 +12,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Scanner;
@@ -231,8 +234,14 @@ class SimulationCommandReader extends Thread {
     // create LocalPeer and DhtClient only for running queries
     DhtClient client;
     public void run() {
-        client = new DhtClient(PeerManager.spawnPeer(
-                Simulation.hostEnd + "-simulator:9999", 1000000000));
+        try {
+            client = new DhtClient(PeerManager.spawnPeer(
+                    Simulation.hostEnd + "-simulator:9999", 1000000000));
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | KeyManagementException e) {
+            e.printStackTrace();
+            System.err.println("Insufficient security support");
+            return;
+        }
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
