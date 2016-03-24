@@ -72,6 +72,16 @@ public class NeighbourState implements Serializable {
         return predecessors.contains(peer);
     }
 
+    public synchronized int getDistance(DhtPeerAddress peer) {
+        if (predecessors.contains(peer)) {
+            return predecessors.tailSet(peer).size();
+        } else if (successors.contains(peer)) {
+            return successors.headSet(peer).size() + 1;
+        } else {
+            return 9999;
+        }
+    }
+
     public NeighbourState(DhtPeerAddress localAddress,
                           TreeSet<DhtPeerAddress> successors,
                           TreeSet<DhtPeerAddress> predecessors) {

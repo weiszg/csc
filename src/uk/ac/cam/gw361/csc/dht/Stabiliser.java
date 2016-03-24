@@ -177,7 +177,7 @@ public class Stabiliser extends Thread {
         TreeSet<DhtPeerAddress> neighbours = localPeer.getNeighbourState().getNeighbours();
         DhtPeerAddress immediateSuccessor = localPeer.getNeighbourState().getImmediateSuccessor();
         Set<BigInteger> doNotTransfer = new HashSet<>();
-        HashMap<BigInteger, List<DhtPeerAddress>> transfers = new HashMap<>();
+        TreeSet<ReplicationTask> transfers = new TreeSet<>();
 
         synchronized (replicationDegree) {
             // reset replication degree
@@ -185,6 +185,15 @@ public class Stabiliser extends Thread {
 
             // first talk to neighbours to determine who has what, what needs to be replicated
             for (DhtPeerAddress p : neighbours) {
+                // establish priority
+                int priority;
+                if (localPeer.getNeighbourState().isPredecessor(p)) {
+                    priority = localPeer.getNeighbourState().getDistance(p);
+                    if (priority > 1) priority++;
+                } else {
+                    priority = 2;
+                }
+
                 try {
                     List<DhtFile> askFiles = new LinkedList<>();
                     // calculate which files to enquire about
@@ -239,12 +248,8 @@ public class Stabiliser extends Thread {
                     for (BigInteger file : stored.keySet()) {
                         if (!stored.get(file)) {
                             // add to transfers
-                            if (!transfers.containsKey(file)) {
-                                LinkedList<DhtPeerAddress> ll = new LinkedList<>();
-                                ll.add(p);
-                                transfers.put(file, ll);
-                            } else
-                                transfers.get(file).add(p);
+                            transfers.add(new ReplicationTask(priority, file, p));
+
                         } else if (storedFiles.get(file).owner.equals(localPeer.localAddress)) {
                             // increase degree of replication
                             replicationDegree.put(file, replicationDegree.getOrDefault(file, 0) + 1);
@@ -264,20 +269,20 @@ public class Stabiliser extends Thread {
         }
 
         // do all the transfers
-        for (BigInteger file : transfers.keySet()) {
-            if (!doNotTransfer.contains(file))
-                for (DhtPeerAddress remotePeer : transfers.get(file)) {
-                    try {
-                        localPeer.getTransferManager().upload(
-                                remotePeer, file, new InternalUploadContinuation(), false);
-                        // when transfer finishes, make it the new owner if is between me and file
-                    } catch (IOException e) {
-                        // no replication to failing link, the link will be deleted when
-                        // we synchronize next
-                        System.out.println("Failed auto-transferring " + file.toString() +
-                                           " to " + remotePeer.getConnectAddress());
-                    }
+        for (ReplicationTask task : transfers) {
+            if (!doNotTransfer.contains(task.file)) {
+                try {
+                    localPeer.getTransferManager().upload(
+                            task.target, task.file,
+                            new InternalUploadContinuation(), false);
+                    // when transfer finishes, make it the new owner if is between me and file
+                } catch (IOException e) {
+                    // no replication to failing link, the link will be deleted when
+                    // we synchronize next
+                    System.out.println("Failed auto-transferring " + task.file.toString() +
+                            " to " + task.target.getConnectAddress());
                 }
+            }
         }
     }
 
@@ -294,4 +299,25 @@ public class Stabiliser extends Thread {
         return replications;
     }
 
+}
+
+class ReplicationTask implements Comparable<ReplicationTask> {
+    int priority;
+    BigInteger file;
+    DhtPeerAddress target;
+
+    ReplicationTask(int priority, BigInteger file, DhtPeerAddress target) {
+        this.priority = priority;
+        this.target = target;
+        this.file = file;
+    }
+
+    @Override
+    public int compareTo(ReplicationTask other) {
+        if (priority == other.priority) {
+            return (file.hashCode() + target.getUserID().hashCode()
+                    - other.file.hashCode() - other.target.getUserID().hashCode());
+        } else
+            return priority - other.priority;
+    }
 }
