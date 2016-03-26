@@ -24,7 +24,7 @@ public class Simulation {
     static LinkedList<Integer> runningPool = new LinkedList<>();
     static final Boolean lock = false;
     static boolean isRunning = true;
-    static Process[] running = new Process[100];
+    static Process[] running = new Process[1000];
     static int alive = 0;
     static int startPort = 8000;
     static int max = 100;
@@ -32,7 +32,8 @@ public class Simulation {
     static long mtbf = 100000;  // mtbf per node in ms
     static String localHost;
     static String hostEnd;
-    static String rateLimitArg = "ratelimit=0";
+    static String extRateLimitArg = "extratelimit=0";
+    static String intRateLimitArg = "intratelimit=0";
     static boolean freshStart = true;
 
     public static void main(String[] args) {
@@ -79,8 +80,10 @@ public class Simulation {
                 mtbf = Long.parseLong(arg.substring("mtbf=".length()));
             else if (arg.startsWith("seed="))
                 seed = Integer.parseInt(arg.substring("seed=".length()));
-            else if (arg.startsWith("ratelimit="))
-                rateLimitArg = arg;
+            else if (arg.startsWith("extratelimit="))
+                extRateLimitArg = arg;
+            else if (arg.startsWith("intratelimit="))
+                intRateLimitArg = arg;
             else
                 System.err.println("Unrecognised command: " + arg);
         }
@@ -190,7 +193,8 @@ public class Simulation {
     static Process startOne(Integer i, Integer connectTo, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + localHost + ":" + (startPort + connectTo), rateLimitArg,
+                "host=" + localHost + ":" + (startPort + connectTo),
+                extRateLimitArg, intRateLimitArg,
                 freshStart ? "freshStart" : "");
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
@@ -199,7 +203,8 @@ public class Simulation {
     static Process startOne(Integer i, String connectAddress, String path) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
-                "host=" + connectAddress, rateLimitArg,
+                "host=" + connectAddress,
+                extRateLimitArg, intRateLimitArg,
                 freshStart ? "freshStart" : "");
         pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
