@@ -56,8 +56,8 @@ public class DhtClient {
         if (PeerManager.perfmon)
             lookupReporter = new Reporter("lookupLatency.csv");
 
-        secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
-        secureContext.init(null, null, null);
+        secureContext = SSLContext.getDefault();
+        // secureContext.init(null, null, null);  // default initialised automatically
         sslFactory = secureContext.getSocketFactory();
         sslServerFactory = secureContext.getServerSocketFactory();
 

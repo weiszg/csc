@@ -229,7 +229,7 @@ public class Simulation {
     }
 
     static synchronized void endProcess(Process process) {
-        process.destroyForcibly();
+        process.destroy();
         alive--;
     }
 }

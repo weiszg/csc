@@ -188,8 +188,9 @@ public class Supervisor extends Thread {
                 if (age <= 10000) {
                     // go through each responsible file and adjust global files
                     for (Map.Entry<BigInteger, Integer> repl : report.replicationDegree.entrySet()) {
-                        GlobalFileData fileData = globalFiles.getOrDefault(repl.getKey(),
-                                new GlobalFileData(0, 0, 0));
+                        GlobalFileData fileData = globalFiles.get(repl.getKey());
+                        if (fileData == null) fileData = new GlobalFileData(0, 0, 0);
+
                         fileData.ownerCount++;
                         fileData.owners.add(entry.getKey());
                         if (fileData.ownerCount == 2) {
@@ -205,8 +206,9 @@ public class Supervisor extends Thread {
 
                     // count total number of peers storing each file
                     for (DhtFile file : report.filesStored) {
-                        GlobalFileData fileData = globalFiles.getOrDefault(file.hash,
-                                new GlobalFileData(0, 0, 0));
+                        GlobalFileData fileData = globalFiles.get(file.hash);
+                        if (fileData == null) fileData = new GlobalFileData(0, 0, 0);
+
                         fileData.realReplicationCount++;
                         globalFiles.put(file.hash, fileData);
                     }

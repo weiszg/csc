@@ -252,7 +252,9 @@ public class Stabiliser extends Thread {
 
                         } else if (storedFiles.get(file).owner.equals(localPeer.localAddress)) {
                             // increase degree of replication
-                            replicationDegree.put(file, replicationDegree.getOrDefault(file, 0) + 1);
+                            Integer degree = replicationDegree.get(file);
+                            if (degree == null) degree = 0;
+                            replicationDegree.put(file, degree + 1);
 
                             if (localPeer.getDhtStore().refreshResponsibility(file, p, false))
                                 // this means one of our successors has the file therefore
@@ -293,7 +295,9 @@ public class Stabiliser extends Thread {
             List<DhtFile> myFiles = localPeer.getDhtStore().
                     getResponsibilitiesFor(localPeer.localAddress);
             for (DhtFile file : myFiles) {
-                replications.put(file.hash, replicationDegree.getOrDefault(file.hash, -1));
+                Integer degree = replications.get(file.hash);
+                if (degree == null) degree = -1;
+                replications.put(file.hash, degree);
             }
         }
         return replications;

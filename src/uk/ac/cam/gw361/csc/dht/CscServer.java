@@ -21,7 +21,7 @@ public class CscServer extends UnicastRemoteObject implements CscComm {
     public CscServer(LocalPeer localPeer, DhtServer server) throws IOException {
         super(0, new SslRMIClientSocketFactory(),
                 new SslRMIServerSocketFactory(null,
-                        new String[] {"TLSv1.2"},
+                        new String[] {"TLSv1.2", "TLSv1.1", "TLSv1"},
                         false));
 
         this.localPeer = localPeer;

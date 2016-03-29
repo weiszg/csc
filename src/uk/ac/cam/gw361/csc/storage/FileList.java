@@ -112,13 +112,21 @@ public class FileList implements Serializable {
         PrivateKey privateKey = null;
         PublicKey publicKey = null;
         try {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSA", "SUN");
-            SecureRandom random = SecureRandom.getInstanceStrong();
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSA");
+            SecureRandom random;
+            try {
+                random = SecureRandom.getInstance("NativePRNGBlocking");
+                System.out.println("Creating new keys with a blocking source of randomness...");
+            } catch (NoSuchAlgorithmException e) {
+                // falling back to SHA1PRNG
+                random = SecureRandom.getInstance("SHA1PRNG");
+            }
             keyGen.initialize(1024, random);
-            KeyPair keyPair = keyGen.generateKeyPair();  // todo: ubuntu hangs here
+            KeyPair keyPair = keyGen.generateKeyPair();
             privateKey = keyPair.getPrivate();
             publicKey = keyPair.getPublic();
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            System.out.println("Created new keys");
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
 
@@ -143,11 +151,11 @@ public class FileList implements Serializable {
     public SignedFileList getSignedVersion(PrivateKey privateKey) throws IOException {
         Signature dsa;
         try {
-            dsa = Signature.getInstance("SHA256withDSA", "SUN");
+            dsa = Signature.getInstance("SHA256withDSA");
             SignedObject so = new SignedObject(this, privateKey, dsa);
             SignedFileList sf = new SignedFileList(so, lastModified);
             return sf;
-        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException |
+        } catch (NoSuchAlgorithmException | InvalidKeyException |
                 SignatureException | IOException e) {
             throw new IOException(e.toString());
         }
@@ -157,7 +165,7 @@ public class FileList implements Serializable {
             throws SignatureMismatchException, IOException {
         Signature dsa;
         try {
-            dsa = Signature.getInstance("SHA256withDSA", "SUN");
+            dsa = Signature.getInstance("SHA256withDSA");
             if (debug) System.out.println(publicKey.toString());
 
             SignedObject so = sf.getSignedObject();
@@ -176,7 +184,7 @@ public class FileList implements Serializable {
                 }
                 else throw new SignatureMismatchException();
             } else throw new SignatureMismatchException();
-        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException |
+        } catch (NoSuchAlgorithmException | InvalidKeyException |
                 SignatureException | IOException | ClassNotFoundException e) {
             throw new IOException(e.toString());
         }

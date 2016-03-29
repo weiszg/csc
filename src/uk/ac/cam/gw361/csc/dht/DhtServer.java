@@ -61,8 +61,8 @@ public class DhtServer implements DhtComm {
         } finally {
             registry = reg;
             try {
-                SSLContext secureContext = SSLContext.getInstance("TLSv1.2", "SunJSSE");
-                secureContext.init(null, null, null);
+                // SSLContext secureContext = SSLContext.getDefault();
+                // secureContext.init(null, null, null);  // default context initialised automatically
                 cscServer = new CscServer(localPeer, this);
             } catch (IOException e) {
                 System.err.println("Client-facing server failed to start: " + e.toString());
