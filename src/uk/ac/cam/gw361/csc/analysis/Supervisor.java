@@ -2,6 +2,7 @@ package uk.ac.cam.gw361.csc.analysis;
 
 import uk.ac.cam.gw361.csc.dht.DhtComm;
 import uk.ac.cam.gw361.csc.dht.LocalPeer;
+import uk.ac.cam.gw361.csc.dht.NeighbourState;
 import uk.ac.cam.gw361.csc.dht.TimedRMISocketFactory;
 import uk.ac.cam.gw361.csc.storage.DhtFile;
 
@@ -24,7 +25,8 @@ public class Supervisor extends Thread {
     static HashMap<BigInteger, GlobalFileData> globalFiles = new HashMap<>();
     private static int doubleOwnersCount = 0;  // how many files have multiple owners
     private static int fosterct = 0;  // how many files have no owners
-    static int replicatedct = 0;  // how many files are well replicated
+    static int replicatedct = 0;  // how many files are well-replicated
+    static int overReplicatedct = 0;  // how many files are over-replicated
     private static int births = 0;  // how many new peers
     private static int deaths = 0;  // how many peers disappeared
     private static Reporter reporter = new Reporter("filect.csv");
@@ -89,6 +91,8 @@ public class Supervisor extends Thread {
     private static void printState() {
         // print individual peer status
         int alive = 0;
+        int destabilisedct = 0;
+
         for (Map.Entry<String, StateReport> entry : state.entrySet()) {
             Long age = System.nanoTime() / 1000000 - entry.getValue().lastStabilised;
             // if too old, assume dead
@@ -98,6 +102,9 @@ public class Supervisor extends Thread {
                         " succ: " + entry.getValue().successorLength +
                         " age (ms): " + age.toString());
                 alive++;
+                if (entry.getValue().predecessorLength < NeighbourState.k ||
+                        entry.getValue().successorLength < NeighbourState.k)
+                    destabilisedct++;
             }
         }
 
@@ -114,10 +121,12 @@ public class Supervisor extends Thread {
         }
 
         System.out.println("Peers alive: " + alive);
+        System.out.println("Peers with destabilised NeighbourState: " + destabilisedct);
 
         // print global file status
         System.out.println("Total file count: " + globalFiles.size());
-        System.out.println("Well replicated file count: " + replicatedct);
+        System.out.println("Well-replicated file count: " + replicatedct);
+        System.out.println("Over-replicated file count: " + overReplicatedct);
         System.out.println("Foster files count: " + fosterct);
         System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Births / deaths: " + births + " / " + deaths);
@@ -227,6 +236,7 @@ public class Supervisor extends Thread {
 
         fosterct = 0;
         replicatedct = 0;
+        overReplicatedct = 0;
         for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
             if (entry.getValue().ownerCount == 0) {
                 /*for (Map.Entry<String, StateReport> report : state.entrySet()) {
@@ -238,8 +248,10 @@ public class Supervisor extends Thread {
                 }*/
                 fosterct++;
             }
-            if (entry.getValue().realReplicationCount >= 3)
+            if (entry.getValue().realReplicationCount >= NeighbourState.k)
                 replicatedct++;
+            if (entry.getValue().realReplicationCount > NeighbourState.k)
+                overReplicatedct++;
         }
 
         for (String remove : toRemove)
