@@ -158,7 +158,7 @@ class CommandReader extends Thread {
             try {
                 System.out.println(localPeer.executeQuery(readStr));
             } catch (Exception e) {
-                e.printStackTrace();
+                e.printStackTrace(System.out);
             }
         }
     }

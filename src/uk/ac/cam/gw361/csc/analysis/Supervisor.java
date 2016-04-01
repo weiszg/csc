@@ -29,8 +29,11 @@ public class Supervisor extends Thread {
     static int overReplicatedct = 0;  // how many files are over-replicated
     private static int births = 0;  // how many new peers
     private static int deaths = 0;  // how many peers disappeared
+    private static Map<Integer, Integer> replReportct = new HashMap<>();
     private static Reporter reporter = new Reporter("filect.csv");
+    private static Reporter replReporter = new Reporter("replct.csv");
     private static final boolean printFiles = false;
+    private static final boolean printPeers = false;
     private static final boolean debugDoubleOwned = false;
     public static long timeBetweenRefresh = 500;
     static float kbpsUp = 0, kbpsDown = 0;
@@ -97,10 +100,12 @@ public class Supervisor extends Thread {
             Long age = System.nanoTime() / 1000000 - entry.getValue().lastStabilised;
             // if too old, assume dead
             if (age <= 10000) {
-                System.out.println(entry.getKey() + " ---" +
-                        " pred: " + entry.getValue().predecessorLength +
-                        " succ: " + entry.getValue().successorLength +
-                        " age (ms): " + age.toString());
+                if (printPeers) {
+                    System.out.println(entry.getKey() + " ---" +
+                            " pred: " + entry.getValue().predecessorLength +
+                            " succ: " + entry.getValue().successorLength +
+                            " age (ms): " + age.toString());
+                }
                 alive++;
                 if (entry.getValue().predecessorLength < NeighbourState.k ||
                         entry.getValue().successorLength < NeighbourState.k)
@@ -248,11 +253,25 @@ public class Supervisor extends Thread {
                 }*/
                 fosterct++;
             }
-            if (entry.getValue().realReplicationCount >= NeighbourState.k)
+            if (entry.getValue().realReplicationCount >= NeighbourState.k + 1)
                 replicatedct++;
-            if (entry.getValue().realReplicationCount > NeighbourState.k)
+            if (entry.getValue().realReplicationCount > NeighbourState.k + 1)
                 overReplicatedct++;
+
+            int replicationReportedValue = Math.min(NeighbourState.k + 1,
+                    entry.getValue().realReplicationCount);
+            Integer soFar = replReportct.get(replicationReportedValue);
+            if (soFar == null) soFar = 0;
+            soFar++;
+            replReportct.put(replicationReportedValue, soFar);
         }
+
+        replReporter.restart();
+        for (Map.Entry<Integer, Integer> r : replReportct.entrySet()) {
+            replReporter.report(new String[]{String.valueOf(r.getKey()),
+                    String.valueOf(r.getValue())});
+        }
+        replReporter.flush();
 
         for (String remove : toRemove)
             connections.remove(remove);

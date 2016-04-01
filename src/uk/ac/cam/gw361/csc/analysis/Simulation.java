@@ -127,6 +127,14 @@ public class Simulation {
         double nextDeath = 0;
         double nextBirth = 0;
 
+        for (int i=0; i<max/2; i++) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+            }
+            startRandomOne(init, path, random);
+        }
+
         while (true) {
             if (nextDeath <= 0 && alive > min) {
                 Double r1 = random.nextDouble();
@@ -162,18 +170,7 @@ public class Simulation {
                     try { Thread.sleep(1000); } catch (InterruptedException e) { }
                 else {
                     if (nextBirth == 0 && alive < max) {
-                        Double r3 = random.nextDouble() * (numberPool.size());
-                        int index = r3.intValue();
-                        int port = numberPool.get(index);
-                        numberPool.remove(index);
-                        runningPool.add(port);
-
-                        if (init == null)
-                            running[port] = (startOne(port, 0, path));
-                        else
-                            running[port] = (startOne(port, init, path));
-
-                        System.out.println("Starting " + port + " alive: " + alive);
+                        startRandomOne(init, path, random);
                     }
                     if (nextDeath == 0 && alive > min) {
                         Double r3 = random.nextDouble() * runningPool.size();
@@ -188,6 +185,21 @@ public class Simulation {
                 }
             }
         }
+    }
+
+    static void startRandomOne(String init, String path, Random random) {
+        Double r3 = random.nextDouble() * (numberPool.size());
+        int index = r3.intValue();
+        int port = numberPool.get(index);
+        numberPool.remove(index);
+        runningPool.add(port);
+
+        if (init == null)
+            running[port] = (startOne(port, 0, path));
+        else
+            running[port] = (startOne(port, init, path));
+
+        System.out.println("Starting " + port + " alive: " + alive);
     }
 
     static Process startOne(Integer i, Integer connectTo, String path) {

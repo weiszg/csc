@@ -9,7 +9,7 @@ import java.util.TreeSet;
  * Created by gellert on 02/11/2015.
  */
 public class NeighbourState implements Serializable {
-    public static int k = 3;
+    public static int k = 5;
     private boolean debug = false;
     private transient DhtPeerAddress localAddress;
     private TreeSet<DhtPeerAddress> successors = new TreeSet<>();

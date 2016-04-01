@@ -12,13 +12,14 @@ public class Reporter {
     // used to report various data for analysis
     PrintStream out;
     boolean active = false;
+    String file;
 
     public Reporter(PrintStream out) {
         this.out = out;
         active = true;
     }
 
-    public Reporter(String file) {
+    private void init() {
         try {
             out = new PrintStream(new FileOutputStream(file));
             active = true;
@@ -27,7 +28,18 @@ public class Reporter {
         }
     }
 
-    void report(String[] args) {
+    public Reporter(String file) {
+        this.file = file;
+        init();
+    }
+
+    public void restart() {
+        stop();
+        out.close();
+        init();
+    }
+
+    public void report(String[] args) {
         if (!active)
             return;
 
