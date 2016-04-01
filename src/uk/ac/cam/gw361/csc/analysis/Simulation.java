@@ -121,6 +121,9 @@ public class Simulation {
         if (init == null)
             running[0] = (startOne(0, -1, path));
 
+        System.out.println("Waiting 5s before spawning others");
+        try { Thread.sleep(5000); } catch (InterruptedException e) { }
+        
         for (int i=1; i<=max; i++)
             numberPool.add(i);
 

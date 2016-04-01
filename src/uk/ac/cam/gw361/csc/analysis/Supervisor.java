@@ -39,6 +39,11 @@ public class Supervisor extends Thread {
     static float kbpsUp = 0, kbpsDown = 0;
 
     public static void main(String[] args) {
+        reporter = new Reporter("./report/sv-report-" +
+                String.valueOf(System.currentTimeMillis()) + ".csv");
+        replReporter = new Reporter("./report/replct-" +
+                String.valueOf(System.currentTimeMillis()) + ".csv");
+
         try {
             RMISocketFactory.setSocketFactory(new TimedRMISocketFactory());
         } catch (IOException e) {
@@ -138,11 +143,15 @@ public class Supervisor extends Thread {
         System.out.println("Aggregate up / down kbps: " + kbpsUp + " / " + kbpsDown);
 
         reporter.report(new String[]{String.valueOf(System.currentTimeMillis()),
-                String.valueOf(globalFiles.size()),
-                String.valueOf(fosterct),
                 String.valueOf(alive),
+                String.valueOf(globalFiles.size()),
+                String.valueOf(replicatedct),
+                String.valueOf(fosterct),
+                String.valueOf(doubleOwnersCount),
                 String.valueOf(births),
-                String.valueOf(deaths)});
+                String.valueOf(deaths),
+                String.valueOf(kbpsDown),
+        });
         reporter.flush();
     }
 

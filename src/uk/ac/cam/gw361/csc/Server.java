@@ -115,8 +115,8 @@ public class Server {
         }
 
         if (count > 1) {
-            System.out.println("Waiting 10s before spawning others");
-            try { Thread.sleep(10000); } catch (InterruptedException e) { }
+            System.out.println("Waiting 5s before spawning others");
+            try { Thread.sleep(5000); } catch (InterruptedException e) { }
             extraPeer = new LocalPeer[count - 1];
             for (int i = 1; i < count; i++) {
                 //try { Thread.sleep(1000); } catch (InterruptedException ie) {}
@@ -154,8 +154,8 @@ class CommandReader extends Thread {
     public void run() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            String readStr = scanner.nextLine();
             try {
+                String readStr = scanner.nextLine();
                 System.out.println(localPeer.executeQuery(readStr));
             } catch (Exception e) {
                 e.printStackTrace(System.out);
