@@ -12,7 +12,10 @@ public abstract class TransferContinuation {
     int maxRetries = 100;
     // how much to wait between retries
     int waitRetry = 3000;
-    
+
+    public void notifyRedundant(BigInteger file) {
+    }
+
     void notifyFailed(DirectTransfer transfer) {
         // it is always the server's responsibility to handle failures
         // the standard reaction to client-mode failures is to retry

@@ -298,10 +298,10 @@ public class DhtServer implements DhtComm {
     public StateReport getStateReport() {
         HashMap<BigInteger, Integer> replication = localPeer.getStabiliser().getReplicationDegree();
         long time = System.currentTimeMillis();
-        long upTimestamp = DirectTransfer.externalLimiter.lastSendTimestamp;
-        long downTimestamp = DirectTransfer.externalLimiter.lastRecTimestamp;
-        long upBytes = (upTimestamp < time - 1000) ? 0 : DirectTransfer.externalLimiter.bytesSent;
-        long downBytes = (downTimestamp < time - 1000) ? 0 : DirectTransfer.externalLimiter.bytesReceived;
+        long upTimestamp = DirectTransfer.internalLimiter.lastSendTimestamp;
+        long downTimestamp = DirectTransfer.internalLimiter.lastRecTimestamp;
+        long upBytes = (upTimestamp < time - 1000) ? 0 : DirectTransfer.internalLimiter.bytesSent;
+        long downBytes = (downTimestamp < time - 1000) ? 0 : DirectTransfer.internalLimiter.bytesReceived;
 
         StateReport report = new StateReport(
                 new HashSet<>(localPeer.getDhtStore().getStoredFiles().values()),

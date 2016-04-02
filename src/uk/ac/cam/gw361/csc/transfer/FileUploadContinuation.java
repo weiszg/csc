@@ -7,6 +7,8 @@ import java.io.*;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -22,6 +24,7 @@ public class FileUploadContinuation extends TransferContinuation {
     private String lastName;
     private boolean fileListUpdated = false;
     private BigInteger metaHash;
+    private HashSet<BigInteger> redundants = new HashSet<>();
     FileMetadata meta;
     TreeMap<Integer, BigInteger> waitingChunks;
 
@@ -73,6 +76,11 @@ public class FileUploadContinuation extends TransferContinuation {
     }
 
     @Override
+    public void notifyRedundant(BigInteger file) {
+        redundants.add(file);
+    }
+
+    @Override
     public  void notifyFinished(DirectTransfer finishedTransfer) {
         LocalPeer localPeer = finishedTransfer.localPeer;
         synchronized (this) {
@@ -86,11 +94,23 @@ public class FileUploadContinuation extends TransferContinuation {
                 if (concurrentTransfers > 0) {
                     // excludes special uploads such as FileList
                     finishedBlocks++;
-                    System.out.println("Uploaded " + finishedBlocks + " chunks, " +
-                            finishedBlocks * meta.blockSize / (1024*1024) + "MB of "
+                    System.out.println("Uploaded " + (finishedBlocks - redundants.size()) +
+                            " chunks, " +
+                            (finishedBlocks - redundants.size()) * meta.blockSize / (1024*1024) + "MB of "
                             + meta.blocks * meta.blockSize / (1024*1024) + "MB, threads: "
                             + concurrentTransfers);
                     concurrentTransfers--;
+                }
+
+                if (waitingChunks.isEmpty() && concurrentTransfers == 0 &&
+                        redundants.size() != meta.blocks) {
+                    // make sure everything is registered
+
+                    for (Map.Entry<Integer, BigInteger> block
+                            : meta.getChunks().entrySet()) {
+                        if (!redundants.contains(block.getValue()))
+                            waitingChunks.put(block.getKey(), block.getValue());
+                    }
                 }
 
                 // if done update FileList
@@ -108,13 +128,15 @@ public class FileUploadContinuation extends TransferContinuation {
                             System.err.println("File list upload problem:" + e.toString());
                         }
                     } else {
-                        System.out.println("Cleaning up");
-                        removeFile(transferDir + lastName + ".meta");
-                        for (int i = 0; i < meta.blocks; i++)
-                            removeFile(transferDir + lastName + "." + i);
+                        if (redundants.size() == meta.blocks) {
+                            System.out.println("Cleaning up");
+                            removeFile(transferDir + lastName + ".meta");
+                            for (int i = 0; i < meta.blocks; i++)
+                                removeFile(transferDir + lastName + "." + i);
 
-                        System.out.println("Done.");
-                        localPeer.notifyDone(fileName);
+                            System.out.println("Done.");
+                            localPeer.notifyDone(fileName);
+                        }
                     }
                 }
             }

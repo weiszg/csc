@@ -457,6 +457,8 @@ public class DhtClient {
                 ft.stopTransfer(false);
             } else if (response.primary == 2) {
                 System.out.println("redundant: " + file.hash.toString());
+                if (ft.continuation != null)
+                    ft.continuation.notifyRedundant(file.hash);
                 ft.stopTransfer(true);
             } else { // else the transfer is on
                 if (localPeer.isCscOnly()) {  // we're in client mode, start transfer
