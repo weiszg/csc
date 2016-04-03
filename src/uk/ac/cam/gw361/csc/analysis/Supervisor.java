@@ -29,9 +29,13 @@ public class Supervisor extends Thread {
     static int overReplicatedct = 0;  // how many files are over-replicated
     private static int births = 0;  // how many new peers
     private static int deaths = 0;  // how many peers disappeared
-    private static Map<Integer, Integer> replReportct = new HashMap<>();
+    private static int[] localreplct;
+    private static int[] replReportct = new int[NeighbourState.k + 2];
+    private static long lastReplReport = System.currentTimeMillis();
+    private static final long startTime = System.currentTimeMillis();
     private static Reporter reporter = new Reporter("filect.csv");
     private static Reporter replReporter = new Reporter("replct.csv");
+    private static Reporter replReporter2 = new Reporter("replctv2.csv");
     private static final boolean printFiles = false;
     private static final boolean printPeers = false;
     private static final boolean debugDoubleOwned = false;
@@ -141,18 +145,26 @@ public class Supervisor extends Thread {
         System.out.println("Double-owned file count: " + doubleOwnersCount);
         System.out.println("Births / deaths: " + births + " / " + deaths);
         System.out.println("Aggregate up / down kbps: " + kbpsUp + " / " + kbpsDown);
+        System.out.println("Runtime: " + (System.currentTimeMillis() - startTime) / 1000);
 
-        reporter.report(new String[]{String.valueOf(System.currentTimeMillis()),
-                String.valueOf(alive),
-                String.valueOf(globalFiles.size()),
-                String.valueOf(replicatedct),
-                String.valueOf(fosterct),
-                String.valueOf(doubleOwnersCount),
-                String.valueOf(births),
-                String.valueOf(deaths),
-                String.valueOf(kbpsDown),
-        });
-        reporter.flush();
+        List<String> row = new ArrayList<>();
+        row.add(String.valueOf(System.currentTimeMillis() - startTime));
+        row.add(String.valueOf(alive));
+        row.add(String.valueOf(globalFiles.size()));
+        row.add(String.valueOf(replicatedct));
+        row.add(String.valueOf(fosterct));
+        row.add(String.valueOf(doubleOwnersCount));
+        row.add(String.valueOf(births));
+        row.add(String.valueOf(deaths));
+        row.add(String.valueOf(kbpsDown));
+        for (int i=1; i<=NeighbourState.k+1; i++) {
+            row.add(String.valueOf(localreplct[i]));
+        }
+
+        String[] reportArgs = new String[row.size()];
+        row.toArray(reportArgs);
+
+        reporter.report(reportArgs);
     }
 
     private static void printLines() {
@@ -241,7 +253,7 @@ public class Supervisor extends Thread {
 
                     state.put(entry.getKey(), report);
                 }
-            } catch (RemoteException e) {
+            } catch (Exception e) {
                 toRemove.add(entry.getKey());
                 //System.out.println(e.toString());
                 deaths++;
@@ -251,6 +263,8 @@ public class Supervisor extends Thread {
         fosterct = 0;
         replicatedct = 0;
         overReplicatedct = 0;
+        localreplct = new int[NeighbourState.k + 2];
+
         for (Map.Entry<BigInteger, GlobalFileData> entry : globalFiles.entrySet()) {
             if (entry.getValue().ownerCount == 0) {
                 /*for (Map.Entry<String, StateReport> report : state.entrySet()) {
@@ -269,18 +283,33 @@ public class Supervisor extends Thread {
 
             int replicationReportedValue = Math.min(NeighbourState.k + 1,
                     entry.getValue().realReplicationCount);
-            Integer soFar = replReportct.get(replicationReportedValue);
-            if (soFar == null) soFar = 0;
-            soFar++;
-            replReportct.put(replicationReportedValue, soFar);
+            replReportct[replicationReportedValue]++;
+            localreplct[replicationReportedValue]++;
         }
 
-        replReporter.restart();
-        for (Map.Entry<Integer, Integer> r : replReportct.entrySet()) {
-            replReporter.report(new String[]{String.valueOf(r.getKey()),
-                    String.valueOf(r.getValue())});
+        time = System.currentTimeMillis();
+        if (lastReplReport <= time - 30 * 1000) {
+            lastReplReport = time;
+            List<String> row = new ArrayList<>();
+            row.add(String.valueOf((time - startTime) / (60 * 1000)));
+            for (int i=1; i<=NeighbourState.k+1; i++) {
+                row.add(String.valueOf(replReportct[i]));
+                replReporter2.report(new String[]{
+                        String.valueOf((time - startTime) / (60 * 1000)),
+                        String.valueOf(i),
+                        String.valueOf(replReportct[i])
+                });
+                replReportct[i] = 0;
+            }
+            for (int i=NeighbourState.k+1; i<=6; i++)
+                row.add("0");
+
+            String[] reportArgs = new String[row.size()];
+            row.toArray(reportArgs);
+
+            replReporter.report(reportArgs);
+            replReporter.flush();
         }
-        replReporter.flush();
 
         for (String remove : toRemove)
             connections.remove(remove);

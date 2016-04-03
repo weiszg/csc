@@ -22,6 +22,7 @@ import java.util.Scanner;
 public class Simulation {
     static LinkedList<Integer> numberPool = new LinkedList<>();
     static LinkedList<Integer> runningPool = new LinkedList<>();
+    static boolean loggingEnabled = false;
     static final Boolean lock = false;
     static boolean isRunning = true;
     static Process[] running = new Process[1000];
@@ -119,7 +120,7 @@ public class Simulation {
 
         // if no init provided, spawn a static LocalPeer to connect to
         if (init == null)
-            running[0] = (startOne(0, -1, path));
+            running[0] = (startOne(0, -1, path, true));
 
         System.out.println("Waiting 5s before spawning others");
         try { Thread.sleep(5000); } catch (InterruptedException e) { }
@@ -198,30 +199,32 @@ public class Simulation {
         runningPool.add(port);
 
         if (init == null)
-            running[port] = (startOne(port, 0, path));
+            running[port] = (startOne(port, 0, path, loggingEnabled));
         else
-            running[port] = (startOne(port, init, path));
+            running[port] = (startOne(port, init, path, loggingEnabled));
 
         System.out.println("Starting " + port + " alive: " + alive);
     }
 
-    static Process startOne(Integer i, Integer connectTo, String path) {
+    static Process startOne(Integer i, Integer connectTo, String path, boolean log) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
                 "host=" + localHost + ":" + (startPort + connectTo),
                 extRateLimitArg, intRateLimitArg,
                 freshStart ? "freshStart" : "");
-        pb.redirectOutput(new File("./log/" + i + ".out"));
+        if (log)
+            pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
 
-    static Process startOne(Integer i, String connectAddress, String path) {
+    static Process startOne(Integer i, String connectAddress, String path, boolean log) {
         ProcessBuilder pb = new ProcessBuilder("java", "uk.ac.cam.gw361.csc.Server",
                 "username=" + hostEnd + "-" + (startPort + i) + ":" + (startPort + i),
                 "host=" + connectAddress,
                 extRateLimitArg, intRateLimitArg,
                 freshStart ? "freshStart" : "");
-        pb.redirectOutput(new File("./log/" + i + ".out"));
+        if (log)
+            pb.redirectOutput(new File("./log/" + i + ".out"));
         return doStart(pb, path);
     }
 
@@ -294,6 +297,8 @@ class SimulationCommandReader extends Thread {
                             System.out.println(queryPort(connectPort, readStr));
                         }
                     }
+                } else if (readStr.startsWith("mtbf")) {
+                    Simulation.mtbf = Long.parseLong(readStr.substring("mtbf ".length()));
                 } else if (readStr.contains(" ")) {
                     String[] splitStr = readStr.split(" ", 2);
                     int connectPort = Integer.parseInt(splitStr[0]);
