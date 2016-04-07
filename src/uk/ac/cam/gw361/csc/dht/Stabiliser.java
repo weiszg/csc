@@ -19,6 +19,7 @@ public class Stabiliser extends Thread {
     private String bootstrapPeer = null;
     private long lastStabilised = System.nanoTime() / 1000000;
     private final HashMap<BigInteger, Integer> replicationDegree = new HashMap<>();
+    private boolean bootstrapped = false;
 
     boolean isStable() {
         return (System.nanoTime() / 1000000 - lastStabilised <= interval * 2);
@@ -108,8 +109,9 @@ public class Stabiliser extends Thread {
         Set<DhtPeerAddress> asked = new HashSet<>();
         HashSet<DhtPeerAddress> failingPeers = new HashSet<>();
 
-        if (candidates.size() == 0) {
+        if (candidates.size() == 0 || !bootstrapped) {
             // disconnected, try reconnecting
+            bootstrapped = true;
             bootstrap();
             candidates = localPeer.getNeighbourState().getNeighbours();
         }

@@ -36,6 +36,8 @@ public class Simulation {
     static String extRateLimitArg = "extratelimit=0";
     static String intRateLimitArg = "intratelimit=0";
     static boolean freshStart = true;
+    static boolean startStatic = false;
+    static boolean debug = false;
 
     public static void main(String[] args) {
         // set timeouts
@@ -119,11 +121,16 @@ public class Simulation {
             random = new Random();
 
         // if no init provided, spawn a static LocalPeer to connect to
-        if (init == null)
+        if (init == null && startStatic)
             running[0] = (startOne(0, -1, path, true));
 
-        System.out.println("Waiting 5s before spawning others");
-        try { Thread.sleep(5000); } catch (InterruptedException e) { }
+        if (init == null && startStatic) {
+            System.out.println("Waiting 5s before spawning others");
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+            }
+        }
         
         for (int i=1; i<=max; i++)
             numberPool.add(i);
@@ -192,6 +199,8 @@ public class Simulation {
     }
 
     static void startRandomOne(String init, String path, Random random) {
+        int last = runningPool.isEmpty() ? -1 : runningPool.getFirst();
+
         Double r3 = random.nextDouble() * (numberPool.size());
         int index = r3.intValue();
         int port = numberPool.get(index);
@@ -199,7 +208,10 @@ public class Simulation {
         runningPool.add(port);
 
         if (init == null)
-            running[port] = (startOne(port, 0, path, loggingEnabled));
+            if (startStatic)
+                running[port] = (startOne(port, 0, path, loggingEnabled));
+            else
+                running[port] = (startOne(port, last, path, loggingEnabled));
         else
             running[port] = (startOne(port, init, path, loggingEnabled));
 
@@ -214,6 +226,9 @@ public class Simulation {
                 freshStart ? "freshStart" : "");
         if (log)
             pb.redirectOutput(new File("./log/" + i + ".out"));
+        else if (debug)
+            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+
         return doStart(pb, path);
     }
 
@@ -225,6 +240,9 @@ public class Simulation {
                 freshStart ? "freshStart" : "");
         if (log)
             pb.redirectOutput(new File("./log/" + i + ".out"));
+        else if (debug)
+            pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+
         return doStart(pb, path);
     }
 

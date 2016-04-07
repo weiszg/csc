@@ -54,7 +54,7 @@ public class Server {
         }
 
         String userName = null, host = null;
-        int count = 1, stabiliseInterval = 5000;
+        int count = 1, stabiliseInterval = 3000;
         boolean proxied = false; int proxyBytesPerSec = 100000; int proxyLatency = 0;
         boolean cscOnly = false, freshStart = false;
 

@@ -52,9 +52,11 @@ public class DhtClient {
     public DhtClient(LocalPeer localPeer) throws NoSuchAlgorithmException, NoSuchProviderException,
             KeyManagementException{
         if (PeerManager.perfmon)
-            connectReporter = new Reporter("connectLatency.csv");
+            connectReporter = new Reporter("connectLatency-"
+                    + localPeer.localAddress.getConnectAddress() + ".csv");
         if (PeerManager.perfmon)
-            lookupReporter = new Reporter("lookupLatency.csv");
+            lookupReporter = new Reporter("lookupLatency-"
+                    + localPeer.localAddress.getConnectAddress() + ".csv");
 
         secureContext = SSLContext.getDefault();
         // secureContext.init(null, null, null);  // default initialised automatically
